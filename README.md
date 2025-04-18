@@ -1,3 +1,7 @@
+# Help Tool v1
+
+A Next.js based help tool application.
+
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
 ## Getting Started
