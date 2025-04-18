@@ -5,4 +5,5 @@ export default function Page() {
       <div>Hello</div>
     </div>
   )
+  
 }
