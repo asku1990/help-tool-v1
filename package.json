@@ -11,8 +11,8 @@
     "format": "prettier --write .",
     "type-check": "tsc --noEmit",
     "check": "pnpm format && pnpm lint && pnpm type-check",
-    "test": "vitest run",
-    "test:ui": "vitest --ui",
+    "test": "vitest run --coverage",
+    "test:ui": "vitest --ui --coverage",
     "test:watch": "vitest --watch"
   },
   "dependencies": {
@@ -30,6 +30,7 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@vitejs/plugin-react": "^4.4.1",
+    "@vitest/coverage-v8": "3.1.1",
     "@vitest/ui": "3.1.1",
     "eslint": "^9",
     "eslint-config-next": "15.3.1",
