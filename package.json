@@ -8,7 +8,9 @@
     "start": "next start",
     "lint": "next lint",
     "prepare": "husky",
-    "format": "prettier --write ."
+    "format": "prettier --write .",
+    "type-check": "tsc --noEmit",
+    "check": "pnpm format && pnpm lint && pnpm type-check"
   },
   "dependencies": {
     "next": "15.3.1",
