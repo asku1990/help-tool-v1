@@ -11,7 +11,9 @@
     "format": "prettier --write .",
     "type-check": "tsc --noEmit",
     "check": "pnpm format && pnpm lint && pnpm type-check",
-    "test": "vitest"
+    "test": "vitest run",
+    "test:ui": "vitest --ui",
+    "test:watch": "vitest --watch"
   },
   "dependencies": {
     "next": "15.3.1",
@@ -22,11 +24,13 @@
     "@eslint/eslintrc": "^3",
     "@tailwindcss/postcss": "^4",
     "@testing-library/dom": "^10.4.0",
+    "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.3.0",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@vitejs/plugin-react": "^4.4.1",
+    "@vitest/ui": "3.1.1",
     "eslint": "^9",
     "eslint-config-next": "15.3.1",
     "husky": "^9.1.7",
