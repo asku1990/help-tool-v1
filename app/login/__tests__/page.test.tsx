@@ -6,7 +6,7 @@ describe('Login Page', () => {
   it('renders the login form', () => {
     render(<Page />);
 
-    const helloText = screen.getByText('Hello');
+    const helloText = screen.getByText('Hello world!');
     expect(helloText).toBeInTheDocument();
   });
 });
