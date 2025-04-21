@@ -97,4 +97,18 @@ describe('Main Page', () => {
       description: 'This feature is coming soon!',
     });
   });
+
+  it('shows toast on Login click', async () => {
+    const user = userEvent.setup();
+    const { toast: mockToast } = await import('sonner');
+    render(<Page />);
+
+    const loginButton = screen.getByRole('button', { name: /login/i });
+    await user.click(loginButton);
+
+    // Check if toast was called with correct arguments
+    expect(mockToast).toHaveBeenCalledWith('Login Clicked', {
+      description: 'You pressed the login button! Implementing login functionality soon.',
+    });
+  });
 });
