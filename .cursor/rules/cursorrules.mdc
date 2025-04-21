@@ -1,0 +1,105 @@
+---
+description: STOP! Before writing ANY code or suggesting ANY changes:
+globs: 
+alwaysApply: false
+---
+# 🚨 MANDATORY PRE-IMPLEMENTATION CHECKLIST 🚨
+
+STOP! Before writing ANY code or suggesting ANY changes:
+
+-----------------------------------------------------------
+
+## STEP 1: RESPONSE FORMAT
+
+EVERY response MUST start with either:
+
+```
+✅ IMPLEMENTING CHANGES
+Following checklist below...
+
+[or]
+
+⚠️ NO CHANGES NEEDED
+Brief explanation why...
+```
+
+-----------------------------------------------------------
+
+## STEP 2: MANDATORY CHECKLIST
+
+### A. SEARCH FIRST
+Execute and document ALL results:
+```bash
+1. grep_search for functionality
+2. file_search for similar files
+3. list_dir in relevant directories
+```
+
+### B. DOCUMENT FINDINGS
+```
+1. Existing Files Found:
+   - List ALL relevant files
+   - Include file paths and purposes
+
+2. Existing Functionality:
+   - List ALL existing features
+   - Note current implementations
+
+3. Gaps Identified:
+   - List ALL missing features
+   - Note needed improvements
+```
+
+### C. PROPOSE APPROACH
+```
+1. Recommended Action (choose one):
+   [ ] Enhance existing code
+   [ ] Create new files
+   [ ] Refactor existing code
+
+2. Justification:
+   - REQUIRED: Clear explanation
+   - Why this approach is best
+
+3. Implementation Plan:
+   - Step-by-step changes
+   - Expected outcomes
+```
+
+-----------------------------------------------------------
+
+## STEP 3: APPROVAL GATE
+
+```
+⚡️ AWAITING APPROVAL
+Stop here. Do not proceed without explicit "APPROVED" response.
+```
+
+-----------------------------------------------------------
+
+## STEP 4: IMPLEMENTATION
+
+Only after receiving "APPROVED":
+
+1. Follow approved plan exactly
+2. Document any deviations
+3. Stop and seek re-approval if plan changes
+
+-----------------------------------------------------------
+
+## ❌ VIOLATION CONSEQUENCES
+
+If ANY step is skipped:
+1. Stop immediately
+2. State "CHECKLIST VIOLATION DETECTED"
+3. Return to Step 1
+
+-----------------------------------------------------------
+
+## 🔒 ENFORCEMENT
+
+- Every response MUST follow this protocol
+- No exceptions allowed
+- No partial completions
+- Must have "APPROVED" before changes
+- New files need explicit justification

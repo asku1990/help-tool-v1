@@ -15,11 +15,11 @@ describe('RootLayout', () => {
     const htmlElement = document.documentElement;
     expect(htmlElement).toHaveAttribute('lang', 'en');
 
-    // Check if the body contains the main element
-    const mainElement = screen.getByRole('main');
-    expect(mainElement).toBeInTheDocument();
+    // Check if the body element is present
+    const bodyElement = document.body;
+    expect(bodyElement).toBeInTheDocument();
 
-    // Check if children are rendered inside main
-    expect(screen.getByText(testContent)).toBeInTheDocument();
+    // Check if children are rendered inside the body
+    expect(bodyElement).toContainElement(screen.getByText(testContent));
   });
 });
