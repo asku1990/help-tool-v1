@@ -33,6 +33,7 @@ it('should contain all required User fields with correct types and attributes', 
     passwordHash: { type: 'String', attributes: [] },
     createdAt: { type: 'DateTime', attributes: ['@default(now())'] },
     updatedAt: { type: 'DateTime', attributes: ['@updatedAt'] },
+    userType: { type: 'UserType', attributes: ['@default(REGULAR)'] },
   };
 
   expect(Object.keys(fields).sort()).toEqual(Object.keys(expectedFields).sort());
@@ -45,4 +46,20 @@ it('should contain all required User fields with correct types and attributes', 
       ).toBeTruthy();
     }
   }
+});
+
+it('should contain the UserType enum with correct values', () => {
+  const schemaPath = path.join(__dirname, '../../schema.prisma');
+  const schema = fs.readFileSync(schemaPath, 'utf-8');
+  const enumMatch = schema.match(/enum UserType \{([\s\S]*?)\}/);
+
+  expect(enumMatch).not.toBeNull();
+
+  const enumBody = enumMatch ? enumMatch[1] : '';
+  const enumValues = enumBody
+    .split('\n')
+    .map(line => line.trim())
+    .filter(line => line.length > 0);
+
+  expect(enumValues.sort()).toEqual(['ADMIN', 'REGULAR', 'GUEST'].sort());
 });
