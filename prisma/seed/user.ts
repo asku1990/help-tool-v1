@@ -1,4 +1,5 @@
 import prisma from '../../lib/db';
+import { hashPassword } from '../../utils/hash';
 
 export async function seedUsers() {
   await prisma.user.createMany({
@@ -6,12 +7,12 @@ export async function seedUsers() {
       {
         email: 'admin@example.com',
         username: 'admin',
-        passwordHash: 'admin', // Replace with a real hash in production
+        passwordHash: await hashPassword('admin'), // Hashed password
       },
       {
         email: 'user@example.com',
         username: 'user',
-        passwordHash: 'user', // Replace with a real hash in production
+        passwordHash: await hashPassword('user'), // Hashed password
       },
     ],
     skipDuplicates: true,
