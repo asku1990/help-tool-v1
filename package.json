@@ -16,6 +16,7 @@
     "test:watch": "vitest --watch"
   },
   "dependencies": {
+    "@prisma/client": "6.6.0",
     "@radix-ui/react-dialog": "^1.1.10",
     "@radix-ui/react-slot": "^1.2.0",
     "class-variance-authority": "^0.7.1",
@@ -48,6 +49,7 @@
     "jsdom": "^26.1.0",
     "lint-staged": "^15.5.1",
     "prettier": "^3.5.3",
+    "prisma": "^6.6.0",
     "tailwindcss": "^4.1.4",
     "typescript": "^5",
     "vite-tsconfig-paths": "^5.1.4",
