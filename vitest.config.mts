@@ -32,8 +32,13 @@ export default defineConfig({
         '**/.next/**',
         // Node modules
         'node_modules/**',
+        // Exclude seed and generated files
+        'prisma/seed.ts',
+        'prisma/seed/**',
+        'generated/**',
+        // Exclude Prisma client setup
+        'lib/db.ts',
       ],
-      include: ['app/**', 'components/**', 'lib/**'],
       reporter: ['text', 'json', 'html'],
       all: true,
     },
