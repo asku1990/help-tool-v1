@@ -1,7 +1,9 @@
+import React from 'react';
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import Page from '../page';
+import { SessionProvider } from 'next-auth/react';
 
 // Mock the entire sonner module
 vi.mock('sonner', () => ({
@@ -29,9 +31,19 @@ vi.mock('@/components/ui/dialog', () => ({
   DialogTrigger: vi.fn(({ children }) => children),
 }));
 
+// Mock next-auth
+vi.mock('next-auth/react', () => ({
+  useSession: () => ({ data: null, status: 'unauthenticated' }),
+  SessionProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+}));
+
 describe('Main Page', () => {
   it('renders main sections correctly', () => {
-    render(<Page />);
+    render(
+      <SessionProvider>
+        <Page />
+      </SessionProvider>
+    );
 
     // Check hero section
     expect(screen.getByText('Personal Project')).toBeInTheDocument();
@@ -42,7 +54,6 @@ describe('Main Page', () => {
     expect(screen.getByText('Currently Building')).toBeInTheDocument();
 
     // Check buttons
-    expect(screen.getByRole('button', { name: /login/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /test mode/i })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /view source/i })).toHaveAttribute(
       'href',
@@ -51,7 +62,11 @@ describe('Main Page', () => {
   });
 
   it('displays all project features', () => {
-    render(<Page />);
+    render(
+      <SessionProvider>
+        <Page />
+      </SessionProvider>
+    );
 
     const features = [
       'Quick set and weight logging',
@@ -66,7 +81,11 @@ describe('Main Page', () => {
   });
 
   it('shows tech stack items', () => {
-    render(<Page />);
+    render(
+      <SessionProvider>
+        <Page />
+      </SessionProvider>
+    );
 
     const techStack = ['Next.js', 'TypeScript', 'Tailwind CSS', 'shadcn/ui'];
 
@@ -76,7 +95,11 @@ describe('Main Page', () => {
   });
 
   it('displays future plans', () => {
-    render(<Page />);
+    render(
+      <SessionProvider>
+        <Page />
+      </SessionProvider>
+    );
 
     expect(screen.getByText('Recipe Collection')).toBeInTheDocument();
     expect(screen.getByText('Vehicle Expenses')).toBeInTheDocument();
@@ -87,7 +110,11 @@ describe('Main Page', () => {
   it('shows toast on Test Mode click', async () => {
     const user = userEvent.setup();
     const { toast: mockToast } = await import('sonner');
-    render(<Page />);
+    render(
+      <SessionProvider>
+        <Page />
+      </SessionProvider>
+    );
 
     const testModeButton = screen.getByRole('button', { name: /test mode/i });
     await user.click(testModeButton);
@@ -95,20 +122,6 @@ describe('Main Page', () => {
     // Check if toast was called with correct arguments
     expect(mockToast).toHaveBeenCalledWith('Not Implemented', {
       description: 'This feature is coming soon!',
-    });
-  });
-
-  it('shows toast on Login click', async () => {
-    const user = userEvent.setup();
-    const { toast: mockToast } = await import('sonner');
-    render(<Page />);
-
-    const loginButton = screen.getByRole('button', { name: /login/i });
-    await user.click(loginButton);
-
-    // Check if toast was called with correct arguments
-    expect(mockToast).toHaveBeenCalledWith('Login Clicked', {
-      description: 'You pressed the login button! Implementing login functionality soon.',
     });
   });
 });

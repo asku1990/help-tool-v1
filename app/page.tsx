@@ -12,6 +12,9 @@ import {
 import { Toaster } from '@/components/ui/sonner';
 import { toast } from 'sonner';
 import { LogIn } from 'lucide-react';
+import { SignInButton } from '@/components/buttons/SignInButton';
+import { SignOutButton } from '@/components/buttons/SignOutButton';
+import { useSession } from 'next-auth/react';
 
 const currentProject = {
   title: 'Gym Progress Notes',
@@ -42,15 +45,10 @@ const futurePlans = [
 ];
 
 export default function Page() {
+  const { data: session } = useSession();
   const handleTestMode = () => {
     toast('Not Implemented', {
       description: 'This feature is coming soon!',
-    });
-  };
-
-  const handleLogin = () => {
-    toast('Login Clicked', {
-      description: 'You pressed the login button! Implementing login functionality soon.',
     });
   };
 
@@ -74,47 +72,21 @@ export default function Page() {
               <Button
                 size="lg"
                 className="text-base sm:text-lg px-6 sm:px-8 w-full sm:w-auto bg-blue-600 hover:bg-blue-700"
-                onClick={handleLogin}
               >
                 <LogIn className="h-5 w-5 mr-2" />
-                Login
+                {session ? 'Account' : 'Login'}
               </Button>
             </DialogTrigger>
             <DialogContent className="w-[95%] sm:w-full max-w-md mx-auto">
               <DialogHeader>
-                <DialogTitle>Login</DialogTitle>
-                <DialogDescription>Enter your credentials to access your tools.</DialogDescription>
+                <DialogTitle>{session ? 'Account' : 'Login'}</DialogTitle>
+                <DialogDescription>
+                  {session
+                    ? 'Manage your account settings'
+                    : 'Sign in with your GitHub account to access your tools.'}
+                </DialogDescription>
               </DialogHeader>
-              <form className="space-y-4 mt-4">
-                <div className="space-y-2">
-                  <label htmlFor="email" className="text-sm font-medium">
-                    Email
-                  </label>
-                  <input
-                    type="email"
-                    id="email"
-                    className="w-full p-3 border rounded-md text-base"
-                    placeholder="Enter your email"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label htmlFor="password" className="text-sm font-medium">
-                    Password
-                  </label>
-                  <input
-                    type="password"
-                    id="password"
-                    className="w-full p-3 border rounded-md text-base"
-                    placeholder="Enter your password"
-                  />
-                </div>
-                <Button
-                  type="submit"
-                  className="w-full p-3 text-base bg-blue-600 hover:bg-blue-700"
-                >
-                  Sign In
-                </Button>
-              </form>
+              <div className="mt-4">{session ? <SignOutButton /> : <SignInButton />}</div>
             </DialogContent>
           </Dialog>
           <Button
