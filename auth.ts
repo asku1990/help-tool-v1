@@ -1,6 +1,7 @@
 import NextAuth from 'next-auth';
 import GitHub from 'next-auth/providers/github';
 import { prisma } from '@/lib/db';
+import { logger } from '@/lib/logger';
 
 interface GitHubProfile {
   login: string;
@@ -9,32 +10,51 @@ interface GitHubProfile {
 }
 
 // Get allowed users from environment variable
-const ALLOWED_USERS = process.env.ALLOWED_USERS ? process.env.ALLOWED_USERS.split(',') : [];
+const ALLOWED_USERS = process.env.ALLOWED_USERS
+  ? process.env.ALLOWED_USERS.split(',').map(user => user.trim())
+  : [];
+
+// Validate ALLOWED_USERS configuration
+if (ALLOWED_USERS.length === 0) {
+  logger.error('No allowed users configured. Please set ALLOWED_USERS environment variable.');
+}
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   providers: [GitHub],
   pages: {
     signIn: '/',
     signOut: '/',
+    error: '/auth/error', // Add error page
   },
   callbacks: {
     async signIn({ user, account, profile }) {
       if (!user.email) {
-        console.error('No email found from GitHub');
-        return false;
+        throw new Error('No email found from GitHub');
       }
 
       try {
         const githubProfile = profile as unknown as GitHubProfile;
         if (!githubProfile?.login) {
-          console.error('No GitHub username found');
-          return false;
+          throw new Error('No GitHub username found');
         }
 
-        // Check if user is in allowed list
+        // Log sign-in attempt
+        logger.info('Sign-in attempt', {
+          username: githubProfile.login,
+          email: user.email,
+        });
+
+        // Strict check for ALLOWED_USERS
+        if (ALLOWED_USERS.length === 0) {
+          throw new Error('No allowed users configured. Please contact the administrator.');
+        }
+
         if (!ALLOWED_USERS.includes(githubProfile.login)) {
-          console.error(`User ${githubProfile.login} is not authorized to sign in`);
-          return false;
+          logger.warn('Unauthorized sign-in attempt', {
+            username: githubProfile.login,
+            email: user.email,
+          });
+          throw new Error(`User ${githubProfile.login} is not authorized to sign in`);
         }
 
         // Check if user exists
@@ -44,28 +64,64 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 
         // If user doesn't exist, create a new one
         if (!existingUser) {
-          await prisma.user.create({
-            data: {
-              email: user.email,
+          try {
+            const newUser = await prisma.user.create({
+              data: {
+                email: user.email,
+                username: githubProfile.login,
+                passwordHash: '', // Empty for OAuth users
+                userType: 'REGULAR',
+              },
+            });
+            logger.info('New user created', {
+              userId: newUser.id,
               username: githubProfile.login,
-              passwordHash: '', // Empty for OAuth users
-              userType: 'REGULAR',
-            },
-          });
-          console.log(`Created new user: ${githubProfile.login}`);
+              email: user.email,
+            });
+          } catch (error) {
+            logger.error('Failed to create user', {
+              error,
+              username: githubProfile.login,
+              email: user.email,
+            });
+            throw new Error('Failed to create user account. Please try again later.');
+          }
         } else {
-          console.log(`Existing user signed in: ${existingUser.username}`);
+          logger.info('Existing user signed in', {
+            userId: existingUser.id,
+            username: existingUser.username,
+            email: existingUser.email,
+          });
         }
 
         return true;
       } catch (error) {
-        console.error('Error in signIn callback:', error);
-        return false;
+        logger.error('Error in signIn callback', {
+          error,
+          email: user.email,
+        });
+        // Return error message to be displayed to user
+        return `/auth/error?error=${encodeURIComponent(error instanceof Error ? error.message : 'Authentication failed')}`;
       }
     },
     async redirect({ url, baseUrl }) {
-      // Redirect to dashboard after sign in
+      // If there's an error in the URL, redirect to error page
+      if (url.startsWith('/auth/error')) {
+        return url;
+      }
+      // Otherwise redirect to dashboard
       return `${baseUrl}/dashboard`;
+    },
+  },
+  events: {
+    async signOut(message) {
+      // Log sign-out event
+      if ('token' in message && message.token) {
+        logger.info('User signed out', {
+          email: message.token.email,
+          name: message.token.name,
+        });
+      }
     },
   },
 });
