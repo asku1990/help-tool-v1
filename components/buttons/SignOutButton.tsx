@@ -7,7 +7,7 @@ import { LogOut } from 'lucide-react';
 export function SignOutButton() {
   return (
     <Button
-      onClick={() => signOut()}
+      onClick={() => signOut({ callbackUrl: '/' })}
       variant="outline"
       className="w-full p-3 text-base flex items-center justify-center gap-2"
     >

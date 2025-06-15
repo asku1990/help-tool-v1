@@ -1,9 +1,15 @@
 import React from 'react';
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
 import Page from '../page';
 import { SessionProvider } from 'next-auth/react';
+
+// Mock next/navigation
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({
+    push: vi.fn(),
+  }),
+}));
 
 // Mock the entire sonner module
 vi.mock('sonner', () => ({
@@ -105,23 +111,5 @@ describe('Main Page', () => {
     expect(screen.getByText('Vehicle Expenses')).toBeInTheDocument();
     expect(screen.getByText(/future plan: personal cookbook/i)).toBeInTheDocument();
     expect(screen.getByText(/future plan: track fuel consumption/i)).toBeInTheDocument();
-  });
-
-  it('shows toast on Test Mode click', async () => {
-    const user = userEvent.setup();
-    const { toast: mockToast } = await import('sonner');
-    render(
-      <SessionProvider>
-        <Page />
-      </SessionProvider>
-    );
-
-    const testModeButton = screen.getByRole('button', { name: /test mode/i });
-    await user.click(testModeButton);
-
-    // Check if toast was called with correct arguments
-    expect(mockToast).toHaveBeenCalledWith('Not Implemented', {
-      description: 'This feature is coming soon!',
-    });
   });
 });

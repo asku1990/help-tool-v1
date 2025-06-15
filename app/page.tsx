@@ -9,12 +9,12 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
-import { Toaster } from '@/components/ui/sonner';
-import { toast } from 'sonner';
 import { LogIn } from 'lucide-react';
 import { SignInButton } from '@/components/buttons/SignInButton';
 import { SignOutButton } from '@/components/buttons/SignOutButton';
 import { useSession } from 'next-auth/react';
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 
 const currentProject = {
   title: 'Gym Progress Notes',
@@ -45,11 +45,17 @@ const futurePlans = [
 ];
 
 export default function Page() {
-  const { data: session } = useSession();
+  const { data: session, status } = useSession();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (status === 'authenticated' && session?.user) {
+      router.push('/dashboard');
+    }
+  }, [status, session, router]);
+
   const handleTestMode = () => {
-    toast('Not Implemented', {
-      description: 'This feature is coming soon!',
-    });
+    // Removed toast notification
   };
 
   return (
@@ -173,8 +179,6 @@ export default function Page() {
           </div>
         </div>
       </section>
-
-      <Toaster />
     </div>
   );
 }
