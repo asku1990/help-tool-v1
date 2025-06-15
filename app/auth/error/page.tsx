@@ -2,10 +2,29 @@
 
 import { useSearchParams } from 'next/navigation';
 import { SignInButton } from '@/components/buttons/SignInButton';
-import { useEffect } from 'react';
+import { useEffect, Suspense } from 'react';
 import { logger } from '@/lib/logger';
 
 export default function AuthErrorPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-gray-50 to-white">
+          <div className="max-w-md w-full mx-auto p-6">
+            <div className="bg-white rounded-lg shadow-lg p-8">
+              <h1 className="text-2xl font-bold text-gray-600 mb-4">Loading...</h1>
+            </div>
+          </div>
+        </div>
+      }
+    >
+      <ErrorContent />
+    </Suspense>
+  );
+}
+
+// This component is just for using useSearchParams
+function ErrorContent() {
   const searchParams = useSearchParams();
   const error = searchParams.get('error');
 
