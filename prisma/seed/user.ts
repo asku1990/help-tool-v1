@@ -1,28 +1,19 @@
 import prisma from '../../lib/db';
 import { hashPassword } from '../../utils/hash';
+import { UserType } from '../../generated/prisma';
 
 export async function seedUsers() {
-  await prisma.user.createMany({
-    data: [
-      {
-        email: process.env.ADMIN_EMAIL!,
-        username: process.env.ADMIN_USERNAME!,
-        passwordHash: await hashPassword(process.env.ADMIN_PASSWORD!),
-        userType: 'ADMIN',
-      },
-      {
-        email: process.env.USER_EMAIL!,
-        username: process.env.USER_USERNAME!,
-        passwordHash: await hashPassword(process.env.USER_PASSWORD!),
-        userType: 'REGULAR',
-      },
-      {
-        email: process.env.GUEST_EMAIL!,
-        username: process.env.GUEST_USERNAME!,
-        passwordHash: await hashPassword(process.env.GUEST_PASSWORD!),
-        userType: 'GUEST',
-      },
-    ],
-    skipDuplicates: true,
-  });
+  if (process.env.ADMIN_EMAIL && process.env.ADMIN_USERNAME && process.env.ADMIN_PASSWORD) {
+    await prisma.user.createMany({
+      data: [
+        {
+          email: process.env.ADMIN_EMAIL,
+          username: process.env.ADMIN_USERNAME,
+          passwordHash: await hashPassword(process.env.ADMIN_PASSWORD),
+          userType: 'ADMIN' as UserType,
+        },
+      ],
+      skipDuplicates: true,
+    });
+  }
 }
