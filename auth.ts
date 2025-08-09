@@ -108,24 +108,5 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         return `/auth/error?error=${encodeURIComponent(error instanceof Error ? error.message : 'Authentication failed')}`;
       }
     },
-    async redirect({ url, baseUrl }) {
-      // If there's an error in the URL, redirect to error page
-      if (url.startsWith('/auth/error')) {
-        return url;
-      }
-      // Otherwise redirect to dashboard
-      return `${baseUrl}/dashboard`;
-    },
-  },
-  events: {
-    async signOut(message) {
-      // Log sign-out event
-      if ('token' in message && message.token) {
-        logger.info('User signed out', {
-          email: message.token.email,
-          name: message.token.name,
-        });
-      }
-    },
   },
 });
