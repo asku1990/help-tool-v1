@@ -1,8 +1,7 @@
-import { seedUsers } from './seed/user';
 import prisma from '../lib/db';
 
 async function main() {
-  await seedUsers();
+  // Intentionally left empty – no user seeding required
 }
 
 main()
