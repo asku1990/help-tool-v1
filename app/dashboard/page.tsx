@@ -1,17 +1,19 @@
 'use client';
 
 import { useSession } from 'next-auth/react';
-import { redirect } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { SignOutButton } from '@/components/buttons/SignOutButton';
 import { Toaster } from '@/components/ui/sonner';
 
 export default function DashboardPage() {
   const { data: session, status } = useSession();
+  const router = useRouter();
 
-  // Redirect to home if not authenticated
+  // Redirect to home if not authenticated (client-safe)
   if (status === 'unauthenticated') {
-    redirect('/');
+    router.replace('/');
+    return null;
   }
 
   if (status === 'loading') {
