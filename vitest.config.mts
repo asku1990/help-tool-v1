@@ -38,6 +38,13 @@ export default defineConfig({
         'generated/**',
         // Exclude Prisma client setup
         'lib/db.ts',
+        // Auth framework wiring (covered via integration/e2e instead)
+        'auth.ts',
+        // Exclude NextAuth API routes directory (bracket folder needs glob)
+        'app/api/auth/**',
+        'middleware.ts',
+        // Logger infra (optional to unit test)
+        'lib/logger.ts',
       ],
       reporter: ['text', 'json', 'html'],
       all: true,

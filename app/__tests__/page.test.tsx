@@ -1,13 +1,14 @@
 import React from 'react';
-import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { render, screen, waitFor } from '@testing-library/react';
 import Page from '../page';
 import { SessionProvider } from 'next-auth/react';
 
 // Mock next/navigation
+const pushMock = vi.fn();
 vi.mock('next/navigation', () => ({
   useRouter: () => ({
-    push: vi.fn(),
+    push: pushMock,
   }),
 }));
 
@@ -37,11 +38,10 @@ vi.mock('@/components/ui/dialog', () => ({
   DialogTrigger: vi.fn(({ children }) => children),
 }));
 
-// Mock next-auth
-vi.mock('next-auth/react', () => ({
-  useSession: () => ({ data: null, status: 'unauthenticated' }),
-  SessionProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
-}));
+// Reset push mock per test
+beforeEach(() => {
+  pushMock.mockClear();
+});
 
 describe('Main Page', () => {
   it('renders main sections correctly', () => {
@@ -111,5 +111,37 @@ describe('Main Page', () => {
     expect(screen.getByText('Vehicle Expenses')).toBeInTheDocument();
     expect(screen.getByText(/future plan: personal cookbook/i)).toBeInTheDocument();
     expect(screen.getByText(/future plan: track fuel consumption/i)).toBeInTheDocument();
+  });
+
+  it('redirects to /dashboard when authenticated', async () => {
+    // Reset module cache so our next-auth mock applies to a fresh import
+    vi.resetModules();
+
+    // Re-apply base mocks after reset
+    vi.doMock('next/navigation', () => ({
+      useRouter: () => ({ push: pushMock }),
+    }));
+    vi.doMock('sonner', () => ({ toast: vi.fn(), Toaster: vi.fn(() => null) }));
+    vi.doMock('@/components/ui/sonner', () => ({ Toaster: vi.fn(() => null) }));
+    vi.doMock('next-themes', () => ({ useTheme: () => ({ theme: 'light', setTheme: vi.fn() }) }));
+    vi.doMock('@/components/ui/dialog', () => ({
+      Dialog: vi.fn(({ children }) => children),
+      DialogContent: vi.fn(({ children }) => <div>{children}</div>),
+      DialogHeader: vi.fn(({ children }) => <div>{children}</div>),
+      DialogTitle: vi.fn(({ children }) => <div>{children}</div>),
+      DialogDescription: vi.fn(({ children }) => <div>{children}</div>),
+      DialogTrigger: vi.fn(({ children }) => children),
+    }));
+
+    // Authenticated session mock
+    vi.doMock('next-auth/react', () => ({
+      useSession: () => ({ status: 'authenticated', data: { user: { name: 'U' } } }),
+      SessionProvider: ({ children }: { children: React.ReactNode }) =>
+        React.createElement(React.Fragment, null, children),
+    }));
+
+    const { default: AuthedPage } = await import('../page');
+    render(<AuthedPage />);
+    await waitFor(() => expect(pushMock).toHaveBeenCalledWith('/dashboard'));
   });
 });
