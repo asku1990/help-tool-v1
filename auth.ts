@@ -27,6 +27,10 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     error: '/auth/error', // Add error page
   },
   callbacks: {
+    authorized({ auth }) {
+      // Only allow access when a user is authenticated. Middleware matcher scopes this to protected routes.
+      return !!auth?.user;
+    },
     async signIn({ user, account, profile }) {
       if (!user.email) {
         throw new Error('No email found from GitHub');
