@@ -1,5 +1,6 @@
 import NextAuth from 'next-auth';
 import GitHub from 'next-auth/providers/github';
+import Credentials from 'next-auth/providers/credentials';
 import { prisma } from '@/lib/db';
 import { logger } from '@/lib/logger';
 
@@ -20,7 +21,25 @@ if (ALLOWED_USERS.length === 0) {
 }
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
-  providers: [GitHub],
+  providers: [
+    GitHub,
+    Credentials({
+      id: 'demo',
+      name: 'Demo',
+      credentials: {
+        demo: { label: 'demo', type: 'text' },
+      },
+      async authorize(credentials) {
+        // Always allow demo sign-in. No password required.
+        if (!credentials) return null;
+        return {
+          id: 'demo',
+          name: 'Demo User',
+          email: 'demo@example.com',
+        } as unknown as any;
+      },
+    }),
+  ],
   pages: {
     signIn: '/',
     signOut: '/',
@@ -32,6 +51,29 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       return !!auth?.user;
     },
     async signIn({ user, account, profile }) {
+      // Demo provider: create or find demo user and bypass allowed-users
+      if (account?.provider === 'demo') {
+        const demoEmail = 'demo@example.com';
+        const demoUsername = 'demo';
+        try {
+          const existingDemo = await prisma.user.findUnique({ where: { email: demoEmail } });
+          if (!existingDemo) {
+            await prisma.user.create({
+              data: {
+                email: demoEmail,
+                username: demoUsername,
+                passwordHash: '',
+                userType: 'GUEST',
+              },
+            });
+          }
+          return true;
+        } catch (error) {
+          logger.error('Failed to ensure demo user', { error });
+          return `/auth/error?error=${encodeURIComponent('Failed to sign in as demo')}`;
+        }
+      }
+
       if (!user.email) {
         throw new Error('No email found from GitHub');
       }
@@ -48,7 +90,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           email: user.email,
         });
 
-        // Strict check for ALLOWED_USERS
+        // Strict check for ALLOWED_USERS (GitHub provider only)
         if (ALLOWED_USERS.length === 0) {
           throw new Error('No allowed users configured. Please contact the administrator.');
         }
