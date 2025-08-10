@@ -21,7 +21,7 @@ describe('Prisma schema.prisma file', () => {
   });
 
   it('should contain models', () => {
-    const expectedModels = ['User']; // Add more model names as needed
+    const expectedModels = ['User', 'Vehicle', 'FuelFillUp', 'Expense'];
     expectedModels.forEach(model => {
       expect(
         schema.includes(`model ${model} {`),
