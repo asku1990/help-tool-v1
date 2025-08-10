@@ -15,6 +15,7 @@ import { SignOutButton } from '@/components/buttons/SignOutButton';
 import { useSession } from 'next-auth/react';
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { demoEnabled } from '@/lib/demo';
 
 const currentProject = {
   title: 'Car Expenses',
@@ -50,7 +51,9 @@ export default function Page() {
   }, [status, session, router]);
 
   const handleTestMode = () => {
-    // Removed toast notification
+    if (!demoEnabled) return;
+    document.cookie = 'demo=1; Path=/; Max-Age=3600; SameSite=Lax';
+    router.push('/dashboard');
   };
 
   return (
