@@ -9,7 +9,7 @@ export function SignOutButton() {
     <Button
       onClick={() => signOut({ callbackUrl: '/' })}
       variant="outline"
-      className="w-full p-3 text-base flex items-center justify-center gap-2"
+      className="w-auto shrink-0 whitespace-nowrap px-3 py-2 text-sm sm:px-4 sm:py-2.5 sm:text-base flex items-center justify-center gap-2"
     >
       <LogOut className="w-5 h-5" />
       Sign out

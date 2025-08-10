@@ -56,7 +56,7 @@ describe('Main Page', () => {
     expect(screen.getByText('Personal Helper Tools')).toBeInTheDocument();
 
     // Check current project section
-    expect(screen.getByText('Gym Progress Notes')).toBeInTheDocument();
+    expect(screen.getByText('Car Expenses')).toBeInTheDocument();
     expect(screen.getByText('Currently Building')).toBeInTheDocument();
 
     // Check buttons
@@ -75,10 +75,10 @@ describe('Main Page', () => {
     );
 
     const features = [
-      'Quick set and weight logging',
-      'Progress tracking over time',
-      'Personal notes for each workout',
-      'Simple and intuitive interface',
+      'Add vehicles',
+      'Log fuel fill-ups',
+      'Track expenses',
+      'L/100km and cost/km stats',
     ];
 
     features.forEach(feature => {
@@ -108,9 +108,9 @@ describe('Main Page', () => {
     );
 
     expect(screen.getByText('Recipe Collection')).toBeInTheDocument();
-    expect(screen.getByText('Vehicle Expenses')).toBeInTheDocument();
+    expect(screen.getByText('Workout App')).toBeInTheDocument();
     expect(screen.getByText(/future plan: personal cookbook/i)).toBeInTheDocument();
-    expect(screen.getByText(/future plan: track fuel consumption/i)).toBeInTheDocument();
+    expect(screen.getByText(/future plan: track sets, weights, and notes/i)).toBeInTheDocument();
   });
 
   it('redirects to /dashboard when authenticated', async () => {

@@ -34,6 +34,8 @@ it('should contain all required User fields with correct types and attributes', 
     createdAt: { type: 'DateTime', attributes: ['@default(now())'] },
     updatedAt: { type: 'DateTime', attributes: ['@updatedAt'] },
     userType: { type: 'UserType', attributes: ['@default(REGULAR)'] },
+    // Note: simple regex parser strips [] from list types
+    vehicles: { type: 'Vehicle', attributes: [] },
   };
 
   expect(Object.keys(fields).sort()).toEqual(Object.keys(expectedFields).sort());

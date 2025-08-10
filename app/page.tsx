@@ -17,16 +17,11 @@ import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 
 const currentProject = {
-  title: 'Gym Progress Notes',
+  title: 'Car Expenses',
   description:
-    'A streamlined workout tracking system focused on simplicity and ease of use. Record your sets, weights, and progress notes efficiently.',
+    'Track fuel fill-ups and expenses for your vehicles. See consumption (L/100km) and cost-per-kilometer over time.',
   status: 'In Development',
-  features: [
-    'Quick set and weight logging',
-    'Progress tracking over time',
-    'Personal notes for each workout',
-    'Simple and intuitive interface',
-  ],
+  features: ['Add vehicles', 'Log fuel fill-ups', 'Track expenses', 'L/100km and cost/km stats'],
   techStack: ['Next.js', 'TypeScript', 'Tailwind CSS', 'shadcn/ui'],
 };
 
@@ -38,9 +33,9 @@ const futurePlans = [
     icon: '🍳',
   },
   {
-    title: 'Vehicle Expenses',
-    description: 'Future plan: Track fuel consumption and maintenance costs.',
-    icon: '🚗',
+    title: 'Workout App',
+    description: 'Future plan: Track sets, weights, and notes for workouts.',
+    icon: '🏋️',
   },
 ];
 
@@ -70,7 +65,7 @@ export default function Page() {
         </h1>
         <p className="mt-4 sm:mt-6 text-base sm:text-lg leading-7 sm:leading-8 text-gray-600 max-w-2xl mx-auto px-2">
           Building practical applications to streamline daily tasks, starting with a simple but
-          effective gym progress tracking tool.
+          effective car expenses tracker.
         </p>
         <div className="mt-8 sm:mt-10 flex flex-col sm:flex-row justify-center gap-3 sm:gap-4 px-4">
           <Dialog>
@@ -162,8 +157,8 @@ export default function Page() {
         <div className="max-w-7xl mx-auto text-center">
           <h2 className="text-2xl sm:text-3xl font-bold mb-3 sm:mb-4">Future Plans</h2>
           <p className="text-gray-600 max-w-2xl mx-auto mb-8 sm:mb-12 px-2">
-            After completing the gym notes application, here&apos;s what I&apos;m planning to build
-            next.
+            After completing the car expenses application, here&apos;s what I&apos;m planning to
+            build next.
           </p>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 sm:gap-8 max-w-4xl mx-auto">
             {futurePlans.map(plan => (
