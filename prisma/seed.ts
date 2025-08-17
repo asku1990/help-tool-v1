@@ -1,8 +1,8 @@
-import { seedUsers } from './seed/user';
 import prisma from '../lib/db';
 
 async function main() {
-  await seedUsers();
+  // Add your organization/company user seeding here as needed.
+  // console.log('Seed: no demo seeding.');
 }
 
 main()

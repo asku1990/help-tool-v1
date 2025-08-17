@@ -1,0 +1,126 @@
+import { NextRequest } from 'next/server';
+import { auth } from '@/auth';
+import prisma from '@/lib/db';
+import { z } from 'zod';
+import { ok, created, unauthorized, notFound, badRequest, serverError } from '@/lib/api/response';
+import { checkRateLimit, rateLimitHeaders, rateLimitKey } from '@/lib/api/rate-limit';
+import { logger } from '@/lib/logger';
+import { decimalToNumber } from '@/lib/prisma/decimal';
+
+export async function GET(req: NextRequest, context: { params: Promise<{ vehicleId: string }> }) {
+  try {
+    // Basic rate limiting per IP+path
+    const rl = checkRateLimit(rateLimitKey(req));
+    if (!rl.allowed)
+      return serverError('Rate limit exceeded', undefined, {
+        status: 429,
+        headers: rateLimitHeaders(rl.retryAfterMs),
+      });
+    const session = await auth();
+    if (!session?.user?.email) {
+      return unauthorized();
+    }
+
+    const url = new URL(req.url);
+    const defaultLimit = Number(process.env.API_PAGE_DEFAULT_LIMIT || 50);
+    const maxLimit = Number(process.env.API_PAGE_MAX_LIMIT || 100);
+    const requested = parseInt(url.searchParams.get('limit') || String(defaultLimit), 10);
+    const limit = Math.min(
+      Math.max(Number.isFinite(requested) ? requested : defaultLimit, 1),
+      maxLimit
+    );
+    const cursor = url.searchParams.get('cursor') || undefined;
+
+    const { vehicleId } = await context.params;
+
+    const vehicle = await prisma.vehicle.findFirst({
+      where: { id: vehicleId, user: { email: session.user.email } },
+    });
+    if (!vehicle) return notFound();
+
+    const items = await prisma.fuelFillUp.findMany({
+      where: { vehicleId: vehicle.id },
+      orderBy: { date: 'desc' },
+      take: limit + 1,
+      ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
+    });
+
+    const hasMore = items.length > limit;
+    const fillUps = (hasMore ? items.slice(0, -1) : items).map(f => ({
+      id: f.id,
+      date: f.date.toISOString(),
+      odometerKm: f.odometerKm,
+      liters: decimalToNumber(f.liters),
+      pricePerLiter: decimalToNumber(f.pricePerLiter),
+      totalCost: decimalToNumber(f.totalCost),
+      isFull: f.isFull,
+      notes: f.notes ?? undefined,
+    }));
+
+    return ok(
+      { fillUps, nextCursor: hasMore ? fillUps[fillUps.length - 1]?.id : null },
+      { headers: { 'Cache-Control': 'no-store' } }
+    );
+  } catch (error) {
+    logger.error('GET /api/vehicles/[vehicleId]/fillups failed', { error });
+    return serverError();
+  }
+}
+
+const CreateFillUpSchema = z.object({
+  date: z.string().min(1),
+  odometerKm: z.number().int(),
+  liters: z.number(),
+  pricePerLiter: z.number(),
+  totalCost: z.number(),
+  isFull: z.boolean().optional(),
+  notes: z.string().optional(),
+});
+
+export async function POST(req: NextRequest, context: { params: Promise<{ vehicleId: string }> }) {
+  try {
+    // Basic rate limiting per IP+path
+    const rl = checkRateLimit(rateLimitKey(req));
+    if (!rl.allowed)
+      return serverError('Rate limit exceeded', undefined, {
+        status: 429,
+        headers: rateLimitHeaders(rl.retryAfterMs),
+      });
+    const session = await auth();
+    if (!session?.user?.email) {
+      return unauthorized();
+    }
+
+    const parsed = CreateFillUpSchema.safeParse(await req.json());
+    if (!parsed.success) {
+      return badRequest('VALIDATION_ERROR', 'Invalid request body', parsed.error.flatten());
+    }
+    const { date, odometerKm, liters, pricePerLiter, totalCost, isFull, notes } = parsed.data;
+
+    const { vehicleId } = await context.params;
+
+    const vehicle = await prisma.vehicle.findFirst({
+      where: { id: vehicleId, user: { email: session.user.email } },
+    });
+    if (!vehicle) return notFound();
+
+    const createdFillUp = await prisma.fuelFillUp.create({
+      data: {
+        vehicleId: vehicle.id,
+        date: new Date(date),
+        odometerKm,
+        liters,
+        pricePerLiter,
+        totalCost,
+        isFull: !!isFull,
+        notes: notes || undefined,
+      },
+      select: { id: true },
+    });
+
+    return created({ id: createdFillUp.id });
+  } catch (error) {
+    logger.error('POST /api/vehicles/[vehicleId]/fillups failed', { error });
+    return serverError();
+  }
+}

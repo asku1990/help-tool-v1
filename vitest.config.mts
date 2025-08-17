@@ -8,6 +8,15 @@ export default defineConfig({
     environment: 'jsdom',
     globals: true,
     setupFiles: ['./test/setup.ts'],
+    include: ['**/__tests__/**/*.{test,spec}.{ts,tsx}', '**/*.{test,spec}.{ts,tsx}'],
+    exclude: [
+      'node_modules/**',
+      '.next/**',
+      'e2e/**',
+      'playwright.config.ts',
+      'generated/**',
+      'prisma/migrations/**',
+    ],
     coverage: {
       provider: 'v8',
       exclude: [
@@ -38,9 +47,25 @@ export default defineConfig({
         'generated/**',
         // Exclude Prisma client setup
         'lib/db.ts',
+        // Auth framework wiring (covered via integration/e2e instead)
+        'auth.ts',
+        // Exclude NextAuth API routes directory (bracket folder needs glob)
+        'app/api/auth/**',
+        'middleware.ts',
+        // Logger infra (optional to unit test)
+        'lib/logger.ts',
+        // Exclude E2E tests
+        'e2e/**',
+        'playwright.config.ts',
       ],
       reporter: ['text', 'json', 'html'],
       all: true,
+      thresholds: {
+        statements: 65,
+        branches: 70,
+        functions: 70,
+        lines: 65,
+      },
     },
   },
 });

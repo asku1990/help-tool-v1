@@ -30,7 +30,7 @@ const eslintConfig = [
       'no-duplicate-imports': 'error',
       'no-shadow': 'error',
       'no-undef': 'error',
-      'no-use-before-define': ['error', { functions: false, classes: false, variables: true }],
+      'no-use-before-define': ['error', { functions: false, classes: false, variables: false }],
       'no-console': ['warn', { allow: ['warn', 'error'] }],
       'no-debugger': 'warn',
       'no-empty': ['error', { allowEmptyCatch: true }],
@@ -43,6 +43,13 @@ const eslintConfig = [
       'no-sparse-arrays': 'error',
       'no-unexpected-multiline': 'error',
       'valid-typeof': 'error',
+    },
+  },
+  {
+    files: ['**/*.ts', '**/*.tsx'],
+    rules: {
+      // TypeScript already handles undefined identifiers at type-check time
+      'no-undef': 'off',
     },
   },
 ];

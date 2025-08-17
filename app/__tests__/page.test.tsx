@@ -1,7 +1,16 @@
-import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import React from 'react';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { render, screen, waitFor } from '@testing-library/react';
 import Page from '../page';
+import { SessionProvider } from 'next-auth/react';
+
+// Mock next/navigation
+const pushMock = vi.fn();
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({
+    push: pushMock,
+  }),
+}));
 
 // Mock the entire sonner module
 vi.mock('sonner', () => ({
@@ -29,21 +38,28 @@ vi.mock('@/components/ui/dialog', () => ({
   DialogTrigger: vi.fn(({ children }) => children),
 }));
 
+// Reset push mock per test
+beforeEach(() => {
+  pushMock.mockClear();
+});
+
 describe('Main Page', () => {
   it('renders main sections correctly', () => {
-    render(<Page />);
+    render(
+      <SessionProvider>
+        <Page />
+      </SessionProvider>
+    );
 
     // Check hero section
     expect(screen.getByText('Personal Project')).toBeInTheDocument();
     expect(screen.getByText('Personal Helper Tools')).toBeInTheDocument();
 
     // Check current project section
-    expect(screen.getByText('Gym Progress Notes')).toBeInTheDocument();
+    expect(screen.getByText('Car Expenses')).toBeInTheDocument();
     expect(screen.getByText('Currently Building')).toBeInTheDocument();
 
     // Check buttons
-    expect(screen.getByRole('button', { name: /login/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /test mode/i })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /view source/i })).toHaveAttribute(
       'href',
       'https://github.com/asku1990/help-tool-v1'
@@ -51,13 +67,17 @@ describe('Main Page', () => {
   });
 
   it('displays all project features', () => {
-    render(<Page />);
+    render(
+      <SessionProvider>
+        <Page />
+      </SessionProvider>
+    );
 
     const features = [
-      'Quick set and weight logging',
-      'Progress tracking over time',
-      'Personal notes for each workout',
-      'Simple and intuitive interface',
+      'Add vehicles',
+      'Log fuel fill-ups',
+      'Track expenses',
+      'L/100km and cost/km stats',
     ];
 
     features.forEach(feature => {
@@ -66,7 +86,11 @@ describe('Main Page', () => {
   });
 
   it('shows tech stack items', () => {
-    render(<Page />);
+    render(
+      <SessionProvider>
+        <Page />
+      </SessionProvider>
+    );
 
     const techStack = ['Next.js', 'TypeScript', 'Tailwind CSS', 'shadcn/ui'];
 
@@ -76,39 +100,47 @@ describe('Main Page', () => {
   });
 
   it('displays future plans', () => {
-    render(<Page />);
+    render(
+      <SessionProvider>
+        <Page />
+      </SessionProvider>
+    );
 
     expect(screen.getByText('Recipe Collection')).toBeInTheDocument();
-    expect(screen.getByText('Vehicle Expenses')).toBeInTheDocument();
+    expect(screen.getByText('Workout App')).toBeInTheDocument();
     expect(screen.getByText(/future plan: personal cookbook/i)).toBeInTheDocument();
-    expect(screen.getByText(/future plan: track fuel consumption/i)).toBeInTheDocument();
+    expect(screen.getByText(/future plan: track sets, weights, and notes/i)).toBeInTheDocument();
   });
 
-  it('shows toast on Test Mode click', async () => {
-    const user = userEvent.setup();
-    const { toast: mockToast } = await import('sonner');
-    render(<Page />);
+  it('redirects to /dashboard when authenticated', async () => {
+    // Reset module cache so our next-auth mock applies to a fresh import
+    vi.resetModules();
 
-    const testModeButton = screen.getByRole('button', { name: /test mode/i });
-    await user.click(testModeButton);
+    // Re-apply base mocks after reset
+    vi.doMock('next/navigation', () => ({
+      useRouter: () => ({ push: pushMock }),
+    }));
+    vi.doMock('sonner', () => ({ toast: vi.fn(), Toaster: vi.fn(() => null) }));
+    vi.doMock('@/components/ui/sonner', () => ({ Toaster: vi.fn(() => null) }));
+    vi.doMock('next-themes', () => ({ useTheme: () => ({ theme: 'light', setTheme: vi.fn() }) }));
+    vi.doMock('@/components/ui/dialog', () => ({
+      Dialog: vi.fn(({ children }) => children),
+      DialogContent: vi.fn(({ children }) => <div>{children}</div>),
+      DialogHeader: vi.fn(({ children }) => <div>{children}</div>),
+      DialogTitle: vi.fn(({ children }) => <div>{children}</div>),
+      DialogDescription: vi.fn(({ children }) => <div>{children}</div>),
+      DialogTrigger: vi.fn(({ children }) => children),
+    }));
 
-    // Check if toast was called with correct arguments
-    expect(mockToast).toHaveBeenCalledWith('Not Implemented', {
-      description: 'This feature is coming soon!',
-    });
-  });
+    // Authenticated session mock
+    vi.doMock('next-auth/react', () => ({
+      useSession: () => ({ status: 'authenticated', data: { user: { name: 'U' } } }),
+      SessionProvider: ({ children }: { children: React.ReactNode }) =>
+        React.createElement(React.Fragment, null, children),
+    }));
 
-  it('shows toast on Login click', async () => {
-    const user = userEvent.setup();
-    const { toast: mockToast } = await import('sonner');
-    render(<Page />);
-
-    const loginButton = screen.getByRole('button', { name: /login/i });
-    await user.click(loginButton);
-
-    // Check if toast was called with correct arguments
-    expect(mockToast).toHaveBeenCalledWith('Login Clicked', {
-      description: 'You pressed the login button! Implementing login functionality soon.',
-    });
+    const { default: AuthedPage } = await import('../page');
+    render(<AuthedPage />);
+    await waitFor(() => expect(pushMock).toHaveBeenCalledWith('/dashboard'));
   });
 });

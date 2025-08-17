@@ -28,4 +28,69 @@ model User {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
   userType     UserType @default(REGULAR)
+
+  // Relations
+  vehicles     Vehicle[]
+}
+
+enum ExpenseCategory {
+  FUEL
+  MAINTENANCE
+  INSURANCE
+  TAX
+  PARKING
+  TOLL
+  OTHER
+}
+
+model Vehicle {
+  id        String   @id @default(uuid())
+  userId    String
+  name      String
+  make      String?
+  model     String?
+  year      Int?
+  licensePlate             String?  @db.VarChar(16)
+  inspectionDueDate        DateTime?
+  inspectionIntervalMonths Int?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fillUps   FuelFillUp[]
+  expenses  Expense[]
+
+  @@index([userId])
+  @@index([userId, licensePlate])
+}
+
+model FuelFillUp {
+  id             String   @id @default(uuid())
+  vehicleId      String
+  date           DateTime @default(now())
+  odometerKm     Int
+  liters         Decimal   @db.Decimal(10, 2)
+  pricePerLiter  Decimal   @db.Decimal(10, 3)
+  totalCost      Decimal   @db.Decimal(10, 2)
+  isFull         Boolean   @default(true)
+  notes          String?
+
+  vehicle        Vehicle   @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+
+  @@index([vehicleId, date])
+}
+
+model Expense {
+  id         String   @id @default(uuid())
+  vehicleId  String
+  date       DateTime @default(now())
+  category   ExpenseCategory
+  amount     Decimal  @db.Decimal(10, 2)
+  vendor     String?
+  odometerKm Int?
+  notes      String?
+
+  vehicle    Vehicle  @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+
+  @@index([vehicleId, date])
 }

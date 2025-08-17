@@ -1,29 +1,27 @@
 'use client';
 
-import { Button } from '@/components/ui/button';
 import {
+  Button,
   Dialog,
   DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from '@/components/ui/dialog';
-import { Toaster } from '@/components/ui/sonner';
-import { toast } from 'sonner';
+} from '@/components/ui';
 import { LogIn } from 'lucide-react';
+import { SignInButton } from '@/components/buttons/SignInButton';
+import { SignOutButton } from '@/components/buttons/SignOutButton';
+import { useSession } from 'next-auth/react';
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 
 const currentProject = {
-  title: 'Gym Progress Notes',
+  title: 'Car Expenses',
   description:
-    'A streamlined workout tracking system focused on simplicity and ease of use. Record your sets, weights, and progress notes efficiently.',
+    'Track fuel fill-ups and expenses for your vehicles. See consumption (L/100km) and cost-per-kilometer over time.',
   status: 'In Development',
-  features: [
-    'Quick set and weight logging',
-    'Progress tracking over time',
-    'Personal notes for each workout',
-    'Simple and intuitive interface',
-  ],
+  features: ['Add vehicles', 'Log fuel fill-ups', 'Track expenses', 'L/100km and cost/km stats'],
   techStack: ['Next.js', 'TypeScript', 'Tailwind CSS', 'shadcn/ui'],
 };
 
@@ -35,24 +33,23 @@ const futurePlans = [
     icon: '🍳',
   },
   {
-    title: 'Vehicle Expenses',
-    description: 'Future plan: Track fuel consumption and maintenance costs.',
-    icon: '🚗',
+    title: 'Workout App',
+    description: 'Future plan: Track sets, weights, and notes for workouts.',
+    icon: '🏋️',
   },
 ];
 
 export default function Page() {
-  const handleTestMode = () => {
-    toast('Not Implemented', {
-      description: 'This feature is coming soon!',
-    });
-  };
+  const { data: session, status } = useSession();
+  const router = useRouter();
 
-  const handleLogin = () => {
-    toast('Login Clicked', {
-      description: 'You pressed the login button! Implementing login functionality soon.',
-    });
-  };
+  useEffect(() => {
+    if (status === 'authenticated' && session?.user) {
+      router.push('/dashboard');
+    }
+  }, [status, session, router]);
+
+  //
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
@@ -66,7 +63,7 @@ export default function Page() {
         </h1>
         <p className="mt-4 sm:mt-6 text-base sm:text-lg leading-7 sm:leading-8 text-gray-600 max-w-2xl mx-auto px-2">
           Building practical applications to streamline daily tasks, starting with a simple but
-          effective gym progress tracking tool.
+          effective car expenses tracker.
         </p>
         <div className="mt-8 sm:mt-10 flex flex-col sm:flex-row justify-center gap-3 sm:gap-4 px-4">
           <Dialog>
@@ -74,57 +71,24 @@ export default function Page() {
               <Button
                 size="lg"
                 className="text-base sm:text-lg px-6 sm:px-8 w-full sm:w-auto bg-blue-600 hover:bg-blue-700"
-                onClick={handleLogin}
               >
                 <LogIn className="h-5 w-5 mr-2" />
-                Login
+                {session ? 'Account' : 'Login'}
               </Button>
             </DialogTrigger>
             <DialogContent className="w-[95%] sm:w-full max-w-md mx-auto">
               <DialogHeader>
-                <DialogTitle>Login</DialogTitle>
-                <DialogDescription>Enter your credentials to access your tools.</DialogDescription>
+                <DialogTitle>{session ? 'Account' : 'Login'}</DialogTitle>
+                <DialogDescription>
+                  {session
+                    ? 'Manage your account settings'
+                    : 'Sign in with your GitHub account to access your tools.'}
+                </DialogDescription>
               </DialogHeader>
-              <form className="space-y-4 mt-4">
-                <div className="space-y-2">
-                  <label htmlFor="email" className="text-sm font-medium">
-                    Email
-                  </label>
-                  <input
-                    type="email"
-                    id="email"
-                    className="w-full p-3 border rounded-md text-base"
-                    placeholder="Enter your email"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label htmlFor="password" className="text-sm font-medium">
-                    Password
-                  </label>
-                  <input
-                    type="password"
-                    id="password"
-                    className="w-full p-3 border rounded-md text-base"
-                    placeholder="Enter your password"
-                  />
-                </div>
-                <Button
-                  type="submit"
-                  className="w-full p-3 text-base bg-blue-600 hover:bg-blue-700"
-                >
-                  Sign In
-                </Button>
-              </form>
+              <div className="mt-4">{session ? <SignOutButton /> : <SignInButton />}</div>
             </DialogContent>
           </Dialog>
-          <Button
-            variant="outline"
-            size="lg"
-            className="text-base sm:text-lg px-6 sm:px-8 w-full sm:w-auto border-2"
-            onClick={handleTestMode}
-          >
-            Test Mode
-          </Button>
+          {/* Removed demo Test Mode */}
           <a
             href="https://github.com/asku1990/help-tool-v1"
             target="_blank"
@@ -184,8 +148,8 @@ export default function Page() {
         <div className="max-w-7xl mx-auto text-center">
           <h2 className="text-2xl sm:text-3xl font-bold mb-3 sm:mb-4">Future Plans</h2>
           <p className="text-gray-600 max-w-2xl mx-auto mb-8 sm:mb-12 px-2">
-            After completing the gym notes application, here&apos;s what I&apos;m planning to build
-            next.
+            After completing the car expenses application, here&apos;s what I&apos;m planning to
+            build next.
           </p>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 sm:gap-8 max-w-4xl mx-auto">
             {futurePlans.map(plan => (
@@ -201,8 +165,6 @@ export default function Page() {
           </div>
         </div>
       </section>
-
-      <Toaster />
     </div>
   );
 }
