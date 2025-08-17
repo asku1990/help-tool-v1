@@ -25,6 +25,7 @@ jobs:
     env:
       RUN_INTEGRATION: '1'
       NODE_OPTIONS: '--max_old_space_size=4096'
+      TESTCONTAINERS_RYUK_DISABLED: true
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -37,7 +38,7 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm prisma generate
       - name: Run integration tests
-        run: pnpm vitest run --dir app/api --include **/*.int.test.ts --reporter=verbose
+        run: pnpm vitest run "app/api/**/*.int.test.ts" --reporter=verbose
       - name: Upload coverage artifact
         if: always()
         uses: actions/upload-artifact@v4
