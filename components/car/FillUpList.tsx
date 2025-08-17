@@ -12,8 +12,27 @@ export default function FillUpList({ vehicleId }: { vehicleId: string }) {
   const items = useMemo(() => (data?.pages || []).flatMap(p => p.fillUps), [data]);
   const totalFuelCost = useMemo(() => items.reduce((s, f) => s + f.totalCost, 0), [items]);
 
-  if (isLoading) return <div className="text-sm text-gray-500">Loading fill-ups…</div>;
-  if (isError) return <div className="text-sm text-red-600">{String(error)}</div>;
+  if (isLoading)
+    return (
+      <div className="space-y-2">
+        <div className="h-4 bg-gray-100 rounded animate-pulse w-40" />
+        <div className="h-4 bg-gray-100 rounded animate-pulse" />
+        <div className="h-4 bg-gray-100 rounded animate-pulse w-3/4" />
+      </div>
+    );
+  if (isError)
+    return (
+      <div className="text-sm text-red-600 flex items-center justify-between">
+        <span>{String(error)}</span>
+        <button
+          type="button"
+          className="text-sm px-3 py-1.5 rounded border"
+          onClick={() => fetchNextPage()}
+        >
+          Retry
+        </button>
+      </div>
+    );
   if (!items.length)
     return (
       <div className="text-sm text-gray-600 flex items-center justify-between">

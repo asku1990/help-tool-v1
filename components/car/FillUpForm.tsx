@@ -16,11 +16,12 @@ export type FillUpFormProps = {
 };
 
 import { useUiStore } from '@/stores/ui';
-import { useCreateFillUp } from '@/hooks';
+import { useCreateFillUp, useFillUps } from '@/hooks';
 
 export default function FillUpForm({ vehicleId, onCreated }: FillUpFormProps) {
   const { isFillUpDialogOpen: open, setFillUpDialogOpen: setOpen } = useUiStore();
   const createFillUp = useCreateFillUp(vehicleId);
+  const lastOdometer = useLastOdometer(vehicleId);
   const [date, setDate] = useState<string>(new Date().toISOString().slice(0, 10));
   const [odometerKm, setOdometerKm] = useState<string>('');
   const [liters, setLiters] = useState<string>('');
@@ -106,6 +107,11 @@ export default function FillUpForm({ vehicleId, onCreated }: FillUpFormProps) {
                 className="border rounded-md px-3 py-2"
                 required
               />
+              {lastOdometer !== null && odometerKm && parseInt(odometerKm, 10) < lastOdometer ? (
+                <span className="text-xs text-amber-600">
+                  Entered value is lower than last recorded odometer ({lastOdometer} km).
+                </span>
+              ) : null}
             </label>
             <label className="flex flex-col gap-1">
               <span className="text-sm">Liters</span>
@@ -172,4 +178,14 @@ export default function FillUpForm({ vehicleId, onCreated }: FillUpFormProps) {
       </DialogContent>
     </Dialog>
   );
+}
+
+function useLastOdometer(vehicleId: string): number | null {
+  const { data } = useFillUps(vehicleId);
+  const items = (data?.fillUps || []) as Array<{ odometerKm: number; date: string }>;
+  if (!items.length) return null;
+  const latest = [...items].sort(
+    (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+  )[0];
+  return latest?.odometerKm ?? null;
 }

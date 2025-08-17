@@ -12,7 +12,8 @@ import FillUpList from '@/components/car/FillUpList';
 import ExpenseList from '@/components/car/ExpenseList';
 import ConsumptionBadges from '@/components/car/ConsumptionBadges';
 import ConsumptionChart from '@/components/car/ConsumptionChart';
-import { useExpenses, useFillUps, useVehicle } from '@/hooks';
+import { useExpenses, useFillUps, useVehicle, useVehicles } from '@/hooks';
+import { useUiStore } from '@/stores/ui';
 
 export default function VehiclePage() {
   const { status } = useSession();
@@ -35,6 +36,9 @@ export default function VehiclePage() {
   // Server state via TanStack Query, derived locally with useMemo (no duplication to local state)
   const vehicleQuery = useVehicle(vehicleId);
   const vehicleName = useMemo(() => vehicleQuery.data?.vehicle?.name || '', [vehicleQuery.data]);
+  const { data: vehiclesData } = useVehicles(true);
+  const vehicles = vehiclesData?.vehicles || [];
+  const { setFillUpDialogOpen, setExpenseDialogOpen } = useUiStore();
 
   const fillUpsQuery = useFillUps(vehicleId || '');
   const fillUps = useMemo(
@@ -83,7 +87,9 @@ export default function VehiclePage() {
     <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
       <header className="border-b">
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
-          <h1 className="text-2xl font-bold">{vehicleName || `Vehicle ${vehicleId}`}</h1>
+          <h1 className="text-xl md:text-2xl font-bold truncate">
+            {vehicleName || `Vehicle ${vehicleId}`}
+          </h1>
           <Link href="/car" className="text-sm text-blue-600 hover:underline">
             Back to vehicles
           </Link>
@@ -91,6 +97,30 @@ export default function VehiclePage() {
       </header>
 
       <main className="container mx-auto px-4 py-8">
+        <div className="mb-4 flex items-center gap-2 flex-wrap">
+          <Button size="sm" onClick={() => setFillUpDialogOpen(true)}>
+            Add fill-up
+          </Button>
+          <Button size="sm" variant="outline" onClick={() => setExpenseDialogOpen(true)}>
+            Add expense
+          </Button>
+          <label htmlFor="vehicle-switcher" className="sr-only">
+            Select vehicle
+          </label>
+          <select
+            id="vehicle-switcher"
+            className="border rounded-md px-2 py-1 text-sm"
+            value={vehicleId || ''}
+            onChange={e => router.push(`/car/${e.target.value}`)}
+            aria-label="Select vehicle"
+          >
+            {vehicles.map(v => (
+              <option key={v.id} value={v.id}>
+                {v.name}
+              </option>
+            ))}
+          </select>
+        </div>
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-3 space-y-4">
             <ConsumptionBadges segments={segments} />
