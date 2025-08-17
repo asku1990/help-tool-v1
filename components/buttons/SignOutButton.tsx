@@ -1,14 +1,12 @@
 'use client';
 
-import { Button } from '@/components/ui/button';
+import { Button } from '@/components/ui';
 import { signOut } from 'next-auth/react';
 import { LogOut } from 'lucide-react';
 
 export function SignOutButton() {
   const handleSignOut = () => {
     try {
-      // Clear demo/preview state and client storage
-      document.cookie = 'demo=; Path=/; Max-Age=0; SameSite=Lax';
       localStorage.clear();
       sessionStorage.clear();
     } catch {}

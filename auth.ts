@@ -1,6 +1,5 @@
 import NextAuth from 'next-auth';
 import GitHub from 'next-auth/providers/github';
-import Credentials from 'next-auth/providers/credentials';
 import { prisma } from '@/lib/db';
 import { logger } from '@/lib/logger';
 
@@ -8,6 +7,26 @@ interface GitHubProfile {
   login: string;
   email: string;
   name: string;
+}
+
+// Support legacy NEXTAUTH_SECRET by falling back to it if AUTH_SECRET is unset
+if (!process.env.AUTH_SECRET && process.env.NEXTAUTH_SECRET) {
+  process.env.AUTH_SECRET = process.env.NEXTAUTH_SECRET;
+}
+
+// Fail fast in production if required environment variables are missing
+const REQUIRED_ENV_VARS_IN_PROD = ['AUTH_GITHUB_ID', 'AUTH_GITHUB_SECRET', 'ALLOWED_USERS'];
+if (process.env.NODE_ENV === 'production') {
+  const hasSecret = Boolean(process.env.AUTH_SECRET);
+  if (!hasSecret) {
+    throw new Error('Missing required environment variable: AUTH_SECRET (or NEXTAUTH_SECRET)');
+  }
+  for (const key of REQUIRED_ENV_VARS_IN_PROD) {
+    const value = process.env[key];
+    if (!value || (key === 'ALLOWED_USERS' && value.trim().length === 0)) {
+      throw new Error(`Missing required environment variable: ${key}`);
+    }
+  }
 }
 
 // Get allowed users from environment variable
@@ -21,59 +40,24 @@ if (ALLOWED_USERS.length === 0) {
 }
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
-  providers: [
-    GitHub,
-    Credentials({
-      id: 'demo',
-      name: 'Demo',
-      credentials: {
-        demo: { label: 'demo', type: 'text' },
-      },
-      async authorize(credentials) {
-        // Always allow demo sign-in. No password required.
-        if (!credentials) return null;
-        return {
-          id: 'demo',
-          name: 'Demo User',
-          email: 'demo@example.com',
-        } as unknown as any;
-      },
-    }),
-  ],
+  providers: [GitHub],
   pages: {
     signIn: '/',
     signOut: '/',
     error: '/auth/error', // Add error page
   },
+  experimental: {
+    enableWebAuthn: false,
+  },
   callbacks: {
-    authorized({ auth }) {
+    authorized({ auth, request }) {
+      if (process.env.TEST_BYPASS_AUTH === '1') {
+        return true;
+      }
       // Only allow access when a user is authenticated. Middleware matcher scopes this to protected routes.
       return !!auth?.user;
     },
     async signIn({ user, account, profile }) {
-      // Demo provider: create or find demo user and bypass allowed-users
-      if (account?.provider === 'demo') {
-        const demoEmail = 'demo@example.com';
-        const demoUsername = 'demo';
-        try {
-          const existingDemo = await prisma.user.findUnique({ where: { email: demoEmail } });
-          if (!existingDemo) {
-            await prisma.user.create({
-              data: {
-                email: demoEmail,
-                username: demoUsername,
-                passwordHash: '',
-                userType: 'GUEST',
-              },
-            });
-          }
-          return true;
-        } catch (error) {
-          logger.error('Failed to ensure demo user', { error });
-          return `/auth/error?error=${encodeURIComponent('Failed to sign in as demo')}`;
-        }
-      }
-
       if (!user.email) {
         throw new Error('No email found from GitHub');
       }

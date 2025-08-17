@@ -50,6 +50,9 @@ model Vehicle {
   make      String?
   model     String?
   year      Int?
+  licensePlate             String?  @db.VarChar(16)
+  inspectionDueDate        DateTime?
+  inspectionIntervalMonths Int?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -58,6 +61,7 @@ model Vehicle {
   expenses  Expense[]
 
   @@index([userId])
+  @@index([userId, licensePlate])
 }
 
 model FuelFillUp {
