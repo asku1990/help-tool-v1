@@ -3,7 +3,7 @@
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { SignOutButton } from '@/components/buttons/SignOutButton';
-import { Toaster } from '@/components/ui/sonner';
+import { Toaster } from '@/components/ui';
 import Link from 'next/link';
 import { Car, Dumbbell, Lock } from 'lucide-react';
 import { useEffect, useState } from 'react';

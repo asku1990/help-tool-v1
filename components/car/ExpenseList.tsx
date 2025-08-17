@@ -2,9 +2,8 @@
 
 import { useMemo, useState } from 'react';
 import { useInfiniteExpenses, useUpdateExpense, useDeleteExpense } from '@/hooks';
-import { Button } from '@/components/ui/button';
+import { Button, Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui';
 import { useUiStore } from '@/stores/ui';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
 export default function ExpenseList({ vehicleId }: { vehicleId: string }) {
   const { data, isLoading, isError, error, hasNextPage, fetchNextPage, isFetchingNextPage } =

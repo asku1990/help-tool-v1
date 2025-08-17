@@ -1,5 +1,5 @@
 import React from 'react';
-import { computeInspectionStatus, formatDateISO } from '@/utils/inspection';
+import { computeInspectionStatus, formatDateISO } from '@/utils';
 
 export default function InspectionBadge(props: {
   inspectionDueDate?: string | null;

@@ -3,16 +3,22 @@
 import Link from 'next/link';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
-import { Button } from '@/components/ui/button';
+import {
+  Button,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  Card,
+  CardContent,
+} from '@/components/ui';
 import { Car, Plus } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useVehicles } from '@/hooks';
 import { apiPost } from '@/lib/api/client';
 import { useUiStore } from '@/stores/ui';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import PageHeader from '@/components/layout/PageHeader';
-import { computeInspectionStatus } from '@/utils/inspection';
-import { Card, CardContent } from '@/components/ui/card';
+import { computeInspectionStatus } from '@/utils';
 
 export default function CarHomePage() {
   const { status } = useSession();

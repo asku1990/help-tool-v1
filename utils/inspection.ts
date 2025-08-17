@@ -1,12 +1,18 @@
 export type InspectionState = 'overdue' | 'dueSoon' | 'ok' | 'unknown';
 
+// Normalize a month number to the 0–11 range, handling negative values.
+function normalizeMonth(month: number): number {
+  return ((month % 12) + 12) % 12;
+}
+
 export function addMonths(date: Date, months: number): Date {
   const d = new Date(date.getTime());
   const targetMonth = d.getMonth() + months;
   d.setMonth(targetMonth);
   // Handle month overflow (e.g., adding to Jan 31 → Mar 03). Clamp to last day of the month.
-  if (d.getMonth() !== ((targetMonth % 12) + 12) % 12) {
-    d.setDate(0);
+  // If the resulting month is not the normalized target month, the day overflowed (e.g., Feb 31 → Mar 03).
+  if (d.getMonth() !== normalizeMonth(targetMonth)) {
+    d.setDate(0); // Set to last day of previous month (i.e., the intended month)
   }
   return d;
 }

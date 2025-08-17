@@ -1,14 +1,14 @@
 'use client';
 
-import { Button } from '@/components/ui/button';
 import {
+  Button,
   Dialog,
   DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from '@/components/ui/dialog';
+} from '@/components/ui';
 import { LogIn } from 'lucide-react';
 import { SignInButton } from '@/components/buttons/SignInButton';
 import { SignOutButton } from '@/components/buttons/SignOutButton';

@@ -1,14 +1,14 @@
 'use client';
 
 import { useState } from 'react';
-import { Button } from '@/components/ui/button';
 import {
+  Button,
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from '@/components/ui/dialog';
+} from '@/components/ui';
 
 const expenseCategories = [
   'FUEL',
@@ -28,7 +28,7 @@ export type ExpenseFormProps = {
 
 import { useUiStore } from '@/stores/ui';
 import { useCreateExpense, useUpdateVehicle, useVehicle } from '@/hooks';
-import { addMonths } from '@/utils/inspection';
+import { addMonths } from '@/utils';
 
 export default function ExpenseForm({ vehicleId, onCreated }: ExpenseFormProps) {
   const { isExpenseDialogOpen: open, setExpenseDialogOpen: setOpen } = useUiStore();

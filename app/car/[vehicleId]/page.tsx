@@ -2,7 +2,15 @@
 
 import { useParams, useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
-import { Button } from '@/components/ui/button';
+import {
+  Button,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  Card,
+  CardContent,
+} from '@/components/ui';
 import { useEffect, useMemo, useState } from 'react';
 import FillUpForm from '@/components/car/FillUpForm';
 import ExpenseForm from '@/components/car/ExpenseForm';
@@ -14,11 +22,11 @@ import ConsumptionChart from '@/components/car/ConsumptionChart';
 import LicensePlate from '@/components/car/LicensePlate';
 import InspectionBadge from '@/components/car/InspectionBadge';
 import { useExpenses, useFillUps, useVehicle, useVehicles, useUpdateVehicle } from '@/hooks';
-import { pickLastInspectionDateFromExpenses, computeInspectionStatus } from '@/utils/inspection';
+import { pickLastInspectionDateFromExpenses, computeInspectionStatus } from '@/utils';
 import { useUiStore } from '@/stores/ui';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+
 import PageHeader from '@/components/layout/PageHeader';
-import { Card, CardContent } from '@/components/ui/card';
+
 import ImportExpensesDialog from '@/components/car/ImportExpensesDialog';
 
 export default function VehiclePage() {
