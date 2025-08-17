@@ -19,6 +19,7 @@ import { useUiStore } from '@/stores/ui';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import PageHeader from '@/components/layout/PageHeader';
 import { Card, CardContent } from '@/components/ui/card';
+import ImportExpensesDialog from '@/components/car/ImportExpensesDialog';
 
 export default function VehiclePage() {
   const { status } = useSession();
@@ -160,6 +161,14 @@ export default function VehiclePage() {
           <Button size="sm" variant="outline" onClick={() => setExpenseDialogOpen(true)}>
             Add expense
           </Button>
+          {vehicleId ? (
+            <ImportExpensesDialog
+              vehicleId={vehicleId}
+              onImported={() => {
+                expensesQuery.refetch();
+              }}
+            />
+          ) : null}
           <label htmlFor="vehicle-switcher" className="sr-only">
             Select vehicle
           </label>

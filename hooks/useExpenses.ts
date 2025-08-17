@@ -103,3 +103,34 @@ export function useDeleteExpense(vehicleId: string, expenseId: string) {
     },
   });
 }
+
+export function useImportExpenses(vehicleId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (
+      rows: Array<{
+        date: string;
+        amount: number;
+        notes?: string;
+        odometerKm?: number;
+        category?: ExpenseDto['category'];
+        vendor?: string;
+      }>
+    ) => {
+      for (const r of rows) {
+        await createExpense(vehicleId, {
+          date: r.date,
+          category: r.category ?? 'MAINTENANCE',
+          amount: r.amount,
+          vendor: r.vendor,
+          odometerKm: r.odometerKm,
+          notes: r.notes,
+        });
+      }
+    },
+    onSettled: () => {
+      qc.invalidateQueries({ queryKey: expenseKeys.byVehicle(vehicleId) });
+      qc.invalidateQueries({ queryKey: expenseKeys.infiniteByVehicle(vehicleId) });
+    },
+  });
+}
