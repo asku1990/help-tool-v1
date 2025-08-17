@@ -8,6 +8,15 @@ export default defineConfig({
     environment: 'jsdom',
     globals: true,
     setupFiles: ['./test/setup.ts'],
+    include: ['**/__tests__/**/*.{test,spec}.{ts,tsx}', '**/*.{test,spec}.{ts,tsx}'],
+    exclude: [
+      'node_modules/**',
+      '.next/**',
+      'e2e/**',
+      'playwright.config.ts',
+      'generated/**',
+      'prisma/migrations/**',
+    ],
     coverage: {
       provider: 'v8',
       exclude: [
@@ -45,6 +54,9 @@ export default defineConfig({
         'middleware.ts',
         // Logger infra (optional to unit test)
         'lib/logger.ts',
+        // Exclude E2E tests
+        'e2e/**',
+        'playwright.config.ts',
       ],
       reporter: ['text', 'json', 'html'],
       all: true,
