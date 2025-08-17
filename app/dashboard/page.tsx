@@ -11,28 +11,20 @@ import { useEffect, useState } from 'react';
 export default function DashboardPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
-  const [isDemo] = useState<boolean>(() => {
-    if (typeof document === 'undefined') return false;
-    return (
-      document.cookie
-        .split('; ')
-        .find(c => c.startsWith('demo='))
-        ?.split('=')[1] === '1'
-    );
-  });
+  const [isDemo] = useState<boolean>(() => false);
 
   // Redirect to home if not authenticated (client-safe)
   useEffect(() => {
-    if (status === 'unauthenticated' && !isDemo) {
+    if (status === 'unauthenticated') {
       router.replace('/');
     }
-  }, [status, isDemo, router]);
+  }, [status, router]);
 
-  if (status === 'unauthenticated' && !isDemo) {
+  if (status === 'unauthenticated') {
     return null;
   }
 
-  if (status === 'loading' && !isDemo) {
+  if (status === 'loading') {
     return <div>Loading...</div>;
   }
 

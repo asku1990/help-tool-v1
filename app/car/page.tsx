@@ -13,15 +13,7 @@ import { useUiStore } from '@/stores/ui';
 export default function CarHomePage() {
   const { status } = useSession();
   const router = useRouter();
-  const [isDemo] = useState<boolean>(() => {
-    if (typeof document === 'undefined') return false;
-    return (
-      document.cookie
-        .split('; ')
-        .find(c => c.startsWith('demo='))
-        ?.split('=')[1] === '1'
-    );
-  });
+  const [isDemo] = useState<boolean>(() => false);
   const [loading, setLoading] = useState(false);
   const [vehicles, setVehicles] = useState<
     Array<{
@@ -41,10 +33,10 @@ export default function CarHomePage() {
   });
 
   useEffect(() => {
-    if (status === 'unauthenticated' && !isDemo) {
+    if (status === 'unauthenticated') {
       router.replace('/');
     }
-  }, [status, isDemo, router]);
+  }, [status, router]);
 
   const { data: vehiclesData, refetch: refetchVehicles } = useVehicles(
     status === 'authenticated' || isDemo
@@ -84,20 +76,14 @@ export default function CarHomePage() {
                 Add your first vehicle to start tracking fuel and expenses.
               </p>
             </div>
-            <Button
-              onClick={() => setOpen(true)}
-              disabled={isDemo}
-              title={isDemo ? 'Disabled in demo' : undefined}
-            >
+            <Button onClick={() => setOpen(true)}>
               <Plus className="w-4 h-4 mr-2" /> Add vehicle
             </Button>
           </div>
           <div className="mt-6 space-y-3">
             {loading && <div className="text-sm text-gray-500">Loading vehicles…</div>}
             {!loading && vehicles.length === 0 && (
-              <div className="text-gray-600 text-sm">
-                {isDemo ? 'Sample data will be added in demo later.' : 'No vehicles yet.'}
-              </div>
+              <div className="text-gray-600 text-sm">No vehicles yet.</div>
             )}
             {!loading && vehicles.length > 0 && (
               <ul className="divide-y">

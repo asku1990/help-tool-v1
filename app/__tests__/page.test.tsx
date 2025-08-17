@@ -60,7 +60,6 @@ describe('Main Page', () => {
     expect(screen.getByText('Currently Building')).toBeInTheDocument();
 
     // Check buttons
-    expect(screen.getByRole('button', { name: /test mode/i })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /view source/i })).toHaveAttribute(
       'href',
       'https://github.com/asku1990/help-tool-v1'

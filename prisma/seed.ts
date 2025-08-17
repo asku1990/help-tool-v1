@@ -1,7 +1,8 @@
 import prisma from '../lib/db';
 
 async function main() {
-  // Intentionally left empty – no user seeding required
+  // Add your organization/company user seeding here as needed.
+  // console.log('Seed: no demo seeding.');
 }
 
 main()

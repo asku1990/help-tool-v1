@@ -49,12 +49,7 @@ export default function Page() {
     }
   }, [status, session, router]);
 
-  const handleTestMode = () => {
-    // Prefer demo user sign-in for smooth navigation
-    import('next-auth/react').then(({ signIn }) => {
-      signIn('demo', { callbackUrl: '/dashboard' });
-    });
-  };
+  //
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
@@ -93,14 +88,7 @@ export default function Page() {
               <div className="mt-4">{session ? <SignOutButton /> : <SignInButton />}</div>
             </DialogContent>
           </Dialog>
-          <Button
-            variant="outline"
-            size="lg"
-            className="text-base sm:text-lg px-6 sm:px-8 w-full sm:w-auto border-2"
-            onClick={handleTestMode}
-          >
-            Test Mode
-          </Button>
+          {/* Removed demo Test Mode */}
           <a
             href="https://github.com/asku1990/help-tool-v1"
             target="_blank"
