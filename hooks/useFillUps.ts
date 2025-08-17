@@ -1,6 +1,12 @@
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { fillUpKeys } from '@/queries/keys';
-import { createFillUp, listFillUps, type FillUpDto } from '@/queries/fillups';
+import {
+  createFillUp,
+  listFillUps,
+  updateFillUp,
+  deleteFillUp,
+  type FillUpDto,
+} from '@/queries/fillups';
 
 export function useFillUps(vehicleId: string) {
   return useQuery({
@@ -62,6 +68,29 @@ export function useCreateFillUp(vehicleId: string) {
       }
     },
     onSettled: () => {
+      qc.invalidateQueries({ queryKey: fillUpKeys.byVehicle(vehicleId) });
+      qc.invalidateQueries({ queryKey: fillUpKeys.infiniteByVehicle(vehicleId) });
+    },
+  });
+}
+
+export function useUpdateFillUp(vehicleId: string, fillUpId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: Partial<Omit<FillUpDto, 'id'>>) =>
+      updateFillUp(vehicleId, fillUpId, payload),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: fillUpKeys.byVehicle(vehicleId) });
+      qc.invalidateQueries({ queryKey: fillUpKeys.infiniteByVehicle(vehicleId) });
+    },
+  });
+}
+
+export function useDeleteFillUp(vehicleId: string, fillUpId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => deleteFillUp(vehicleId, fillUpId),
+    onSuccess: () => {
       qc.invalidateQueries({ queryKey: fillUpKeys.byVehicle(vehicleId) });
       qc.invalidateQueries({ queryKey: fillUpKeys.infiniteByVehicle(vehicleId) });
     },

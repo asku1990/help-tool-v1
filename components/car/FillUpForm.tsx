@@ -31,8 +31,8 @@ export default function FillUpForm({ vehicleId, onCreated }: FillUpFormProps) {
   const [submitting, setSubmitting] = useState(false);
 
   const totalCost = useMemo(() => {
-    const l = parseFloat(liters || '0');
-    const p = parseFloat(pricePerLiter || '0');
+    const l = parseFloat((liters || '0').replace(',', '.'));
+    const p = parseFloat((pricePerLiter || '0').replace(',', '.'));
     const t = l * p;
     return Number.isFinite(t) ? t.toFixed(2) : '0.00';
   }, [liters, pricePerLiter]);
@@ -52,8 +52,8 @@ export default function FillUpForm({ vehicleId, onCreated }: FillUpFormProps) {
       await createFillUp.mutateAsync({
         date,
         odometerKm: parseInt(odometerKm, 10),
-        liters: parseFloat(liters),
-        pricePerLiter: parseFloat(pricePerLiter),
+        liters: parseFloat(liters.replace(',', '.')),
+        pricePerLiter: parseFloat(pricePerLiter.replace(',', '.')),
         totalCost: parseFloat(totalCost),
         isFull,
         notes: notes || undefined,

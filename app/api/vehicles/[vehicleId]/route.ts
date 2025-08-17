@@ -29,7 +29,7 @@ export async function GET(_req: NextRequest, context: { params: Promise<{ vehicl
     });
     if (!vehicle) return notFound();
 
-    return ok({ vehicle }, { headers: { 'Cache-Control': 'private, max-age=30' } });
+    return ok({ vehicle }, { headers: { 'Cache-Control': 'no-store' } });
   } catch (error) {
     logger.error('GET /api/vehicles/[vehicleId] failed', { error });
     return serverError();

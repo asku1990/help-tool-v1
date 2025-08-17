@@ -45,7 +45,7 @@ export async function GET(req: NextRequest, context: { params: Promise<{ vehicle
 
     return ok(
       { fillUps, nextCursor: hasMore ? fillUps[fillUps.length - 1]?.id : null },
-      { headers: { 'Cache-Control': 'private, max-age=30' } }
+      { headers: { 'Cache-Control': 'no-store' } }
     );
   } catch (error) {
     logger.error('GET /api/vehicles/[vehicleId]/fillups failed', { error });

@@ -13,7 +13,7 @@ export async function GET(): Promise<Response> {
     }
 
     const user = await prisma.user.findUnique({ where: { email: session.user.email } });
-    if (!user) return ok({ vehicles: [] }, { headers: { 'Cache-Control': 'private, max-age=30' } });
+    if (!user) return ok({ vehicles: [] }, { headers: { 'Cache-Control': 'no-store' } });
 
     const vehicles = await prisma.vehicle.findMany({
       where: { userId: user.id },
@@ -30,7 +30,7 @@ export async function GET(): Promise<Response> {
       },
     });
 
-    return ok({ vehicles }, { headers: { 'Cache-Control': 'private, max-age=30' } });
+    return ok({ vehicles }, { headers: { 'Cache-Control': 'no-store' } });
   } catch (error) {
     logger.error('GET /api/vehicles failed', { error });
     return serverError();

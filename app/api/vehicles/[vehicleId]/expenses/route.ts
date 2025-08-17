@@ -50,7 +50,7 @@ export async function GET(req: NextRequest, context: { params: Promise<{ vehicle
 
     return ok(
       { expenses, expensesTotal, nextCursor: hasMore ? expenses[expenses.length - 1]?.id : null },
-      { headers: { 'Cache-Control': 'private, max-age=30' } }
+      { headers: { 'Cache-Control': 'no-store' } }
     );
   } catch (error) {
     logger.error('GET /api/vehicles/[vehicleId]/expenses failed', { error });

@@ -1,6 +1,12 @@
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { expenseKeys } from '@/queries/keys';
-import { createExpense, listExpenses, type ExpenseDto } from '@/queries/expenses';
+import {
+  createExpense,
+  listExpenses,
+  updateExpense,
+  deleteExpense,
+  type ExpenseDto,
+} from '@/queries/expenses';
 
 export function useExpenses(vehicleId: string) {
   return useQuery({
@@ -74,3 +80,26 @@ export function useCreateExpense(vehicleId: string) {
 }
 
 export type { ExpenseDto };
+
+export function useUpdateExpense(vehicleId: string, expenseId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: Partial<Omit<ExpenseDto, 'id'>>) =>
+      updateExpense(vehicleId, expenseId, payload),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: expenseKeys.byVehicle(vehicleId) });
+      qc.invalidateQueries({ queryKey: expenseKeys.infiniteByVehicle(vehicleId) });
+    },
+  });
+}
+
+export function useDeleteExpense(vehicleId: string, expenseId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => deleteExpense(vehicleId, expenseId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: expenseKeys.byVehicle(vehicleId) });
+      qc.invalidateQueries({ queryKey: expenseKeys.infiniteByVehicle(vehicleId) });
+    },
+  });
+}

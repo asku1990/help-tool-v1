@@ -46,7 +46,7 @@ export default function ExpenseForm({ vehicleId, onCreated }: ExpenseFormProps) 
   const [intervalMonthsInput, setIntervalMonthsInput] = useState<string>('');
   const [submitting, setSubmitting] = useState(false);
 
-  const isValid = !!vehicleId && !!category && !!amount && parseFloat(amount) > 0;
+  const isValid = !!vehicleId && !!category && !!amount && parseFloat(amount.replace(',', '.')) > 0;
 
   async function submit() {
     if (!isValid) return;
@@ -55,7 +55,7 @@ export default function ExpenseForm({ vehicleId, onCreated }: ExpenseFormProps) 
       await createExpense.mutateAsync({
         date,
         category,
-        amount: parseFloat(amount),
+        amount: parseFloat(amount.replace(',', '.')),
         vendor: vendor || undefined,
         odometerKm: odometerKm ? parseInt(odometerKm, 10) : undefined,
         notes: notes || undefined,
