@@ -1,48 +1,17 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo } from 'react';
+import { useInfiniteExpenses } from '@/hooks';
 
-type Expense = {
-  id: string;
-  date: string;
-  category: 'FUEL' | 'MAINTENANCE' | 'INSURANCE' | 'TAX' | 'PARKING' | 'TOLL' | 'OTHER';
-  amount: number;
-  vendor?: string;
-  odometerKm?: number;
-  notes?: string;
-};
+export default function ExpenseList({ vehicleId }: { vehicleId: string }) {
+  const { data, isLoading, isError, error, hasNextPage, fetchNextPage, isFetchingNextPage } =
+    useInfiniteExpenses(vehicleId, 5);
 
-export default function ExpenseList({
-  vehicleId,
-  refreshKey = 0,
-}: {
-  vehicleId: string;
-  refreshKey?: number;
-}) {
-  const [items, setItems] = useState<Expense[]>([]);
-  const [loading, setLoading] = useState(false);
-
-  useEffect(() => {
-    let mounted = true;
-    async function load() {
-      setLoading(true);
-      try {
-        const res = await fetch(`/api/vehicles/${vehicleId}/expenses`);
-        const json = await res.json();
-        if (mounted) setItems(json.data?.expenses || []);
-      } finally {
-        if (mounted) setLoading(false);
-      }
-    }
-    load();
-    return () => {
-      mounted = false;
-    };
-  }, [vehicleId, refreshKey]);
-
+  const items = useMemo(() => (data?.pages || []).flatMap(p => p.expenses), [data]);
   const total = useMemo(() => items.reduce((s, e) => s + e.amount, 0), [items]);
 
-  if (loading) return <div className="text-sm text-gray-500">Loading expenses…</div>;
+  if (isLoading) return <div className="text-sm text-gray-500">Loading expenses…</div>;
+  if (isError) return <div className="text-sm text-red-600">{String(error)}</div>;
   if (!items.length) return <div className="text-sm text-gray-500">No expenses yet.</div>;
 
   return (
@@ -66,6 +35,18 @@ export default function ExpenseList({
           </li>
         ))}
       </ul>
+      {hasNextPage ? (
+        <div className="pt-3">
+          <button
+            type="button"
+            onClick={() => fetchNextPage()}
+            className="text-sm px-3 py-2 rounded border"
+            disabled={isFetchingNextPage}
+          >
+            {isFetchingNextPage ? 'Loading…' : 'Load more'}
+          </button>
+        </div>
+      ) : null}
     </div>
   );
 }

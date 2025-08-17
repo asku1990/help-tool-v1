@@ -26,8 +26,12 @@ export type ExpenseFormProps = {
   onCreated?: () => void;
 };
 
+import { useUiStore } from '@/stores/ui';
+import { useCreateExpense } from '@/hooks';
+
 export default function ExpenseForm({ vehicleId, onCreated }: ExpenseFormProps) {
-  const [open, setOpen] = useState(false);
+  const { isExpenseDialogOpen: open, setExpenseDialogOpen: setOpen } = useUiStore();
+  const createExpense = useCreateExpense(vehicleId);
   const [date, setDate] = useState<string>(new Date().toISOString().slice(0, 10));
   const [category, setCategory] = useState<ExpenseCategory>('MAINTENANCE');
   const [amount, setAmount] = useState<string>('');
@@ -42,19 +46,14 @@ export default function ExpenseForm({ vehicleId, onCreated }: ExpenseFormProps) 
     if (!isValid) return;
     setSubmitting(true);
     try {
-      const res = await fetch(`/api/vehicles/${vehicleId}/expenses`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          date,
-          category,
-          amount: parseFloat(amount),
-          vendor: vendor || undefined,
-          odometerKm: odometerKm ? parseInt(odometerKm, 10) : undefined,
-          notes: notes || undefined,
-        }),
+      await createExpense.mutateAsync({
+        date,
+        category,
+        amount: parseFloat(amount),
+        vendor: vendor || undefined,
+        odometerKm: odometerKm ? parseInt(odometerKm, 10) : undefined,
+        notes: notes || undefined,
       });
-      if (!res.ok) throw new Error('Failed to create expense');
       onCreated?.();
       setOpen(false);
       setAmount('');
@@ -157,8 +156,8 @@ export default function ExpenseForm({ vehicleId, onCreated }: ExpenseFormProps) 
             <Button type="button" variant="outline" onClick={() => setOpen(false)}>
               Cancel
             </Button>
-            <Button type="submit" disabled={!isValid || submitting}>
-              {submitting ? 'Saving…' : 'Save expense'}
+            <Button type="submit" disabled={!isValid || submitting || createExpense.isPending}>
+              {submitting || createExpense.isPending ? 'Saving…' : 'Save expense'}
             </Button>
           </div>
         </form>

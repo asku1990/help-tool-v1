@@ -6,6 +6,9 @@ import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Car, Plus } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { useVehicles } from '@/hooks';
+import { apiPost } from '@/lib/api/client';
+import { useUiStore } from '@/stores/ui';
 
 export default function CarHomePage() {
   const { status } = useSession();
@@ -29,7 +32,7 @@ export default function CarHomePage() {
       year?: number | null;
     }>
   >([]);
-  const [open, setOpen] = useState(false);
+  const { isFillUpDialogOpen: open, setFillUpDialogOpen: setOpen } = useUiStore();
   const [form, setForm] = useState<{ name: string; make: string; model: string; year: string }>({
     name: '',
     make: '',
@@ -43,21 +46,13 @@ export default function CarHomePage() {
     }
   }, [status, isDemo, router]);
 
+  const { data: vehiclesData, refetch: refetchVehicles } = useVehicles(
+    status === 'authenticated' || isDemo
+  );
+
   useEffect(() => {
-    async function load() {
-      if (status !== 'authenticated' && !isDemo) return;
-      setLoading(true);
-      try {
-        const res = await fetch('/api/vehicles');
-        if (!res.ok) return;
-        const json = await res.json();
-        setVehicles(json.data?.vehicles || []);
-      } finally {
-        setLoading(false);
-      }
-    }
-    load();
-  }, [status, isDemo]);
+    if (vehiclesData?.vehicles) setVehicles(vehiclesData.vehicles);
+  }, [vehiclesData]);
 
   if (status === 'unauthenticated' && !isDemo) {
     return null;
@@ -139,23 +134,15 @@ export default function CarHomePage() {
                   e.preventDefault();
                   setLoading(true);
                   try {
-                    const res = await fetch('/api/vehicles', {
-                      method: 'POST',
-                      headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({
-                        name: form.name,
-                        make: form.make || undefined,
-                        model: form.model || undefined,
-                        year: form.year ? parseInt(form.year, 10) : undefined,
-                      }),
+                    await apiPost<{ id: string }>('/api/vehicles', {
+                      name: form.name,
+                      make: form.make || undefined,
+                      model: form.model || undefined,
+                      year: form.year ? parseInt(form.year, 10) : undefined,
                     });
-                    if (!res.ok) throw new Error('Failed to create vehicle');
                     setOpen(false);
                     setForm({ name: '', make: '', model: '', year: '' });
-                    // refresh list
-                    const listRes = await fetch('/api/vehicles');
-                    const json = await listRes.json();
-                    setVehicles(json.data?.vehicles || []);
+                    await refetchVehicles();
                   } finally {
                     setLoading(false);
                   }

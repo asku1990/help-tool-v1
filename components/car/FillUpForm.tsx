@@ -15,8 +15,12 @@ export type FillUpFormProps = {
   onCreated?: () => void;
 };
 
+import { useUiStore } from '@/stores/ui';
+import { useCreateFillUp } from '@/hooks';
+
 export default function FillUpForm({ vehicleId, onCreated }: FillUpFormProps) {
-  const [open, setOpen] = useState(false);
+  const { isFillUpDialogOpen: open, setFillUpDialogOpen: setOpen } = useUiStore();
+  const createFillUp = useCreateFillUp(vehicleId);
   const [date, setDate] = useState<string>(new Date().toISOString().slice(0, 10));
   const [odometerKm, setOdometerKm] = useState<string>('');
   const [liters, setLiters] = useState<string>('');
@@ -44,20 +48,15 @@ export default function FillUpForm({ vehicleId, onCreated }: FillUpFormProps) {
     if (!isValid) return;
     setSubmitting(true);
     try {
-      const res = await fetch(`/api/vehicles/${vehicleId}/fillups`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          date,
-          odometerKm: parseInt(odometerKm, 10),
-          liters: parseFloat(liters),
-          pricePerLiter: parseFloat(pricePerLiter),
-          totalCost: parseFloat(totalCost),
-          isFull,
-          notes: notes || undefined,
-        }),
+      await createFillUp.mutateAsync({
+        date,
+        odometerKm: parseInt(odometerKm, 10),
+        liters: parseFloat(liters),
+        pricePerLiter: parseFloat(pricePerLiter),
+        totalCost: parseFloat(totalCost),
+        isFull,
+        notes: notes || undefined,
       });
-      if (!res.ok) throw new Error('Failed to create fill-up');
       onCreated?.();
       setOpen(false);
       setOdometerKm('');
@@ -162,8 +161,8 @@ export default function FillUpForm({ vehicleId, onCreated }: FillUpFormProps) {
               <Button type="button" variant="outline" onClick={() => setOpen(false)}>
                 Cancel
               </Button>
-              <Button type="submit" disabled={!isValid || submitting}>
-                {submitting ? 'Saving…' : 'Save fill-up'}
+              <Button type="submit" disabled={!isValid || submitting || createFillUp.isPending}>
+                {submitting || createFillUp.isPending ? 'Saving…' : 'Save fill-up'}
               </Button>
             </div>
           </div>

@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { Button } from '@/components/ui/button';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import FillUpForm from '@/components/car/FillUpForm';
 import ExpenseForm from '@/components/car/ExpenseForm';
 import CostSummary from '@/components/car/CostSummary';
@@ -12,6 +12,7 @@ import FillUpList from '@/components/car/FillUpList';
 import ExpenseList from '@/components/car/ExpenseList';
 import ConsumptionBadges from '@/components/car/ConsumptionBadges';
 import ConsumptionChart from '@/components/car/ConsumptionChart';
+import { useExpenses, useFillUps, useVehicle } from '@/hooks';
 
 export default function VehiclePage() {
   const { status } = useSession();
@@ -31,36 +32,36 @@ export default function VehiclePage() {
     );
   });
 
-  const [refreshKey, setRefreshKey] = useState(0);
-  const [vehicleName, setVehicleName] = useState<string>('');
-  const [segments, setSegments] = useState<
-    Array<{
-      date: string;
-      distanceKm: number;
-      litersUsed: number;
-      lPer100: number;
-      fuelCost: number;
-      costPer100: number;
-    }>
-  >([]);
-  const [fillUps, setFillUps] = useState<
-    Array<{
-      date: string;
-      odometerKm: number;
-      liters: number;
-      pricePerLiter: number;
-      totalCost: number;
-      isFull: boolean;
-    }>
-  >([]);
-  const [expenses, setExpenses] = useState<
-    Array<{
-      id: string;
-      date: string;
-      category: 'FUEL' | 'MAINTENANCE' | 'INSURANCE' | 'TAX' | 'PARKING' | 'TOLL' | 'OTHER';
-      amount: number;
-    }>
-  >([]);
+  // Server state via TanStack Query, derived locally with useMemo (no duplication to local state)
+  const vehicleQuery = useVehicle(vehicleId);
+  const vehicleName = useMemo(() => vehicleQuery.data?.vehicle?.name || '', [vehicleQuery.data]);
+
+  const fillUpsQuery = useFillUps(vehicleId || '');
+  const fillUps = useMemo(
+    () =>
+      (fillUpsQuery.data?.fillUps || []) as Array<{
+        date: string;
+        odometerKm: number;
+        liters: number;
+        pricePerLiter: number;
+        totalCost: number;
+        isFull: boolean;
+      }>,
+    [fillUpsQuery.data]
+  );
+  const segments = useMemo(() => buildSegments(fillUps), [fillUps]);
+
+  const expensesQuery = useExpenses(vehicleId || '');
+  const expenses = useMemo(
+    () =>
+      (expensesQuery.data?.expenses || []) as Array<{
+        id: string;
+        date: string;
+        category: 'FUEL' | 'MAINTENANCE' | 'INSURANCE' | 'TAX' | 'PARKING' | 'TOLL' | 'OTHER';
+        amount: number;
+      }>,
+    [expensesQuery.data]
+  );
 
   useEffect(() => {
     if (status === 'unauthenticated' && !isDemo) {
@@ -68,54 +69,7 @@ export default function VehiclePage() {
     }
   }, [status, isDemo, router]);
 
-  useEffect(() => {
-    async function loadVehicle() {
-      if (!vehicleId) return;
-      const res = await fetch(`/api/vehicles/${vehicleId}`);
-      if (!res.ok) return;
-      const json = await res.json();
-      setVehicleName(json.data?.vehicle?.name || '');
-    }
-    loadVehicle();
-  }, [vehicleId]);
-
-  useEffect(() => {
-    async function loadFillUps() {
-      if (!vehicleId) return;
-      const res = await fetch(`/api/vehicles/${vehicleId}/fillups`);
-      if (!res.ok) return;
-      const json = await res.json();
-      const fillUpsList = (json.data?.fillUps || []) as Array<{
-        date: string;
-        odometerKm: number;
-        liters: number;
-        pricePerLiter: number;
-        totalCost: number;
-        isFull: boolean;
-      }>;
-      setFillUps(fillUpsList);
-      const segs = buildSegments(fillUpsList);
-      setSegments(segs);
-    }
-    loadFillUps();
-  }, [vehicleId, refreshKey]);
-
-  useEffect(() => {
-    async function loadExpenses() {
-      if (!vehicleId) return;
-      const res = await fetch(`/api/vehicles/${vehicleId}/expenses`);
-      if (!res.ok) return;
-      const json = await res.json();
-      const list = (json.data?.expenses || []) as Array<{
-        id: string;
-        date: string;
-        category: 'FUEL' | 'MAINTENANCE' | 'INSURANCE' | 'TAX' | 'PARKING' | 'TOLL' | 'OTHER';
-        amount: number;
-      }>;
-      setExpenses(list);
-    }
-    loadExpenses();
-  }, [vehicleId, refreshKey]);
+  // Redirect handling remains effectful
 
   if (status === 'unauthenticated' && !isDemo) {
     return null;
@@ -156,26 +110,26 @@ export default function VehiclePage() {
               <h2 className="text-lg font-semibold mb-4">Fill-ups</h2>
               <div className="mb-4">
                 {vehicleId ? (
-                  <FillUpForm vehicleId={vehicleId} onCreated={() => setRefreshKey(k => k + 1)} />
+                  <FillUpForm vehicleId={vehicleId} />
                 ) : (
                   <Button disabled>Add fill-up</Button>
                 )}
               </div>
-              {vehicleId ? <FillUpList vehicleId={vehicleId} refreshKey={refreshKey} /> : null}
+              {vehicleId ? <FillUpList vehicleId={vehicleId} /> : null}
             </section>
 
             <section className="bg-white p-6 rounded-xl shadow-sm border">
               <h2 className="text-lg font-semibold mb-4">Expenses</h2>
               <div className="mb-4">
                 {vehicleId ? (
-                  <ExpenseForm vehicleId={vehicleId} onCreated={() => setRefreshKey(k => k + 1)} />
+                  <ExpenseForm vehicleId={vehicleId} />
                 ) : (
                   <Button variant="outline" disabled>
                     Add expense
                   </Button>
                 )}
               </div>
-              {vehicleId ? <ExpenseList vehicleId={vehicleId} refreshKey={refreshKey} /> : null}
+              {vehicleId ? <ExpenseList vehicleId={vehicleId} /> : null}
             </section>
           </div>
         </div>

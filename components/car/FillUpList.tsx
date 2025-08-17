@@ -1,49 +1,17 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo } from 'react';
+import { useInfiniteFillUps } from '@/hooks';
 
-type FillUp = {
-  id: string;
-  date: string;
-  odometerKm: number;
-  liters: number;
-  pricePerLiter: number;
-  totalCost: number;
-  isFull: boolean;
-  notes?: string;
-};
+export default function FillUpList({ vehicleId }: { vehicleId: string }) {
+  const { data, isLoading, isError, error, hasNextPage, fetchNextPage, isFetchingNextPage } =
+    useInfiniteFillUps(vehicleId, 5);
 
-export default function FillUpList({
-  vehicleId,
-  refreshKey = 0,
-}: {
-  vehicleId: string;
-  refreshKey?: number;
-}) {
-  const [items, setItems] = useState<FillUp[]>([]);
-  const [loading, setLoading] = useState(false);
-
-  useEffect(() => {
-    let mounted = true;
-    async function load() {
-      setLoading(true);
-      try {
-        const res = await fetch(`/api/vehicles/${vehicleId}/fillups`);
-        const json = await res.json();
-        if (mounted) setItems(json.data?.fillUps || []);
-      } finally {
-        if (mounted) setLoading(false);
-      }
-    }
-    load();
-    return () => {
-      mounted = false;
-    };
-  }, [vehicleId, refreshKey]);
-
+  const items = useMemo(() => (data?.pages || []).flatMap(p => p.fillUps), [data]);
   const totalFuelCost = useMemo(() => items.reduce((s, f) => s + f.totalCost, 0), [items]);
 
-  if (loading) return <div className="text-sm text-gray-500">Loading fill-ups…</div>;
+  if (isLoading) return <div className="text-sm text-gray-500">Loading fill-ups…</div>;
+  if (isError) return <div className="text-sm text-red-600">{String(error)}</div>;
   if (!items.length) return <div className="text-sm text-gray-500">No fill-ups yet.</div>;
 
   return (
@@ -65,6 +33,18 @@ export default function FillUpList({
           </li>
         ))}
       </ul>
+      {hasNextPage ? (
+        <div className="pt-3">
+          <button
+            type="button"
+            onClick={() => fetchNextPage()}
+            className="text-sm px-3 py-2 rounded border"
+            disabled={isFetchingNextPage}
+          >
+            {isFetchingNextPage ? 'Loading…' : 'Load more'}
+          </button>
+        </div>
+      ) : null}
     </div>
   );
 }
