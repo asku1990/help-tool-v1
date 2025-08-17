@@ -60,6 +60,12 @@ export default defineConfig({
       ],
       reporter: ['text', 'json', 'html'],
       all: true,
+      thresholds: {
+        statements: 65,
+        branches: 70,
+        functions: 70,
+        lines: 65,
+      },
     },
   },
 });
