@@ -18,7 +18,16 @@ export async function GET(): Promise<Response> {
     const vehicles = await prisma.vehicle.findMany({
       where: { userId: user.id },
       orderBy: { createdAt: 'desc' },
-      select: { id: true, name: true, make: true, model: true, year: true },
+      select: {
+        id: true,
+        name: true,
+        make: true,
+        model: true,
+        year: true,
+        licensePlate: true,
+        inspectionDueDate: true,
+        inspectionIntervalMonths: true,
+      },
     });
 
     return ok({ vehicles }, { headers: { 'Cache-Control': 'private, max-age=30' } });
@@ -33,6 +42,17 @@ const CreateVehicleSchema = z.object({
   make: z.string().trim().optional(),
   model: z.string().trim().optional(),
   year: z.number().int().optional(),
+  licensePlate: z
+    .string()
+    .trim()
+    .max(16, 'License plate too long')
+    .regex(/^[A-Za-z0-9\-\s]*$/, 'Only letters, digits, spaces, hyphen')
+    .optional(),
+  inspectionDueDate: z
+    .string()
+    .refine(v => !v || !Number.isNaN(new Date(v).getTime()), 'Invalid date format')
+    .optional(),
+  inspectionIntervalMonths: z.number().int().min(1).max(60).optional(),
 });
 
 export async function POST(req: NextRequest) {
@@ -46,7 +66,8 @@ export async function POST(req: NextRequest) {
     if (!parsed.success) {
       return badRequest('VALIDATION_ERROR', 'Invalid request body', parsed.error.flatten());
     }
-    const { name, make, model, year } = parsed.data;
+    const { name, make, model, year, licensePlate, inspectionDueDate, inspectionIntervalMonths } =
+      parsed.data;
 
     const user = await prisma.user.findUnique({ where: { email: session.user.email } });
     if (!user) return notFound('User not found');
@@ -58,6 +79,10 @@ export async function POST(req: NextRequest) {
         make: make?.trim() || undefined,
         model: model?.trim() || undefined,
         year: typeof year === 'number' ? year : undefined,
+        licensePlate: licensePlate?.trim() || undefined,
+        inspectionDueDate: inspectionDueDate ? new Date(inspectionDueDate) : undefined,
+        inspectionIntervalMonths:
+          typeof inspectionIntervalMonths === 'number' ? inspectionIntervalMonths : undefined,
       },
       select: { id: true },
     });

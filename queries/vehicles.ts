@@ -1,4 +1,4 @@
-import { apiGet, apiPost } from '@/lib/api/client';
+import { apiGet, apiPost, apiPatch } from '@/lib/api/client';
 
 export type VehicleDto = {
   id: string;
@@ -6,6 +6,9 @@ export type VehicleDto = {
   make?: string | null;
   model?: string | null;
   year?: number | null;
+  licensePlate?: string | null;
+  inspectionDueDate?: string | null;
+  inspectionIntervalMonths?: number | null;
 };
 
 export function listVehicles() {
@@ -21,6 +24,24 @@ export function createVehicle(payload: {
   make?: string;
   model?: string;
   year?: number;
+  licensePlate?: string;
+  inspectionDueDate?: string;
+  inspectionIntervalMonths?: number;
 }) {
   return apiPost<{ id: string }>('/api/vehicles', payload);
+}
+
+export function updateVehicle(
+  vehicleId: string,
+  payload: Partial<{
+    name: string;
+    make: string;
+    model: string;
+    year: number;
+    licensePlate: string | null;
+    inspectionDueDate: string | null;
+    inspectionIntervalMonths: number | null;
+  }>
+) {
+  return apiPatch<{ id: string }>(`/api/vehicles/${vehicleId}`, payload);
 }

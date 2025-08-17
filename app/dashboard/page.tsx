@@ -7,6 +7,7 @@ import { Toaster } from '@/components/ui/sonner';
 import Link from 'next/link';
 import { Car, Dumbbell, Lock } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import PageHeader from '@/components/layout/PageHeader';
 
 export default function DashboardPage() {
   const { data: session, status } = useSession();
@@ -30,17 +31,17 @@ export default function DashboardPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
-      <header className="border-b">
-        <div className="container mx-auto px-4 py-4 flex justify-between items-center">
-          <h1 className="text-2xl font-bold">Dashboard</h1>
+      <PageHeader
+        title="Dashboard"
+        right={
           <div className="flex items-center gap-2 sm:gap-4 min-w-0">
             <span className="text-gray-600 max-w-[50vw] truncate">
               Welcome, {session?.user?.name || session?.user?.email || (isDemo ? 'Demo' : '')}
             </span>
             <SignOutButton />
           </div>
-        </div>
-      </header>
+        }
+      />
 
       <main className="container mx-auto px-4 py-8">
         <h2 className="text-xl font-semibold mb-6">Choose an app</h2>

@@ -62,7 +62,7 @@ export default function ConsumptionChart({ segments }: { segments: Segment[] }) 
   }
 
   return (
-    <div ref={containerRef} className="bg-white p-4 rounded-xl shadow-sm border">
+    <div ref={containerRef} className="bg-white p-4 sm:p-6 rounded-xl shadow-sm border">
       <div className="text-sm font-medium mb-2">Consumption trend (L/100km)</div>
       <svg
         width="100%"
