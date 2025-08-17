@@ -3,10 +3,18 @@ import { auth } from '@/auth';
 import prisma from '@/lib/db';
 import { z } from 'zod';
 import { ok, created, unauthorized, badRequest, notFound, serverError } from '@/lib/api/response';
+import { checkRateLimit, rateLimitHeaders, rateLimitKey } from '@/lib/api/rate-limit';
 import { logger } from '@/lib/logger';
 
-export async function GET(): Promise<Response> {
+export async function GET(req: NextRequest): Promise<Response> {
   try {
+    // Basic rate limiting per IP+path
+    const rl = checkRateLimit(rateLimitKey(req));
+    if (!rl.allowed)
+      return serverError('Rate limit exceeded', undefined, {
+        status: 429,
+        headers: rateLimitHeaders(rl.retryAfterMs),
+      });
     const session = await auth();
     if (!session?.user?.email) {
       return unauthorized();
@@ -57,6 +65,13 @@ const CreateVehicleSchema = z.object({
 
 export async function POST(req: NextRequest) {
   try {
+    // Basic rate limiting per IP+path
+    const rl = checkRateLimit(rateLimitKey(req));
+    if (!rl.allowed)
+      return serverError('Rate limit exceeded', undefined, {
+        status: 429,
+        headers: rateLimitHeaders(rl.retryAfterMs),
+      });
     const session = await auth();
     if (!session?.user?.email) {
       return unauthorized();

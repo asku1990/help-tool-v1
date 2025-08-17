@@ -3,11 +3,19 @@ import { auth } from '@/auth';
 import prisma from '@/lib/db';
 import { z } from 'zod';
 import { ok, created, unauthorized, notFound, badRequest, serverError } from '@/lib/api/response';
+import { checkRateLimit, rateLimitHeaders, rateLimitKey } from '@/lib/api/rate-limit';
 import { logger } from '@/lib/logger';
 import { decimalToNumber } from '@/lib/prisma/decimal';
 
 export async function GET(req: NextRequest, context: { params: Promise<{ vehicleId: string }> }) {
   try {
+    // Basic rate limiting per IP+path
+    const rl = checkRateLimit(rateLimitKey(req));
+    if (!rl.allowed)
+      return serverError('Rate limit exceeded', undefined, {
+        status: 429,
+        headers: rateLimitHeaders(rl.retryAfterMs),
+      });
     const session = await auth();
     if (!session?.user?.email) {
       return unauthorized();
@@ -75,6 +83,13 @@ const CreateExpenseSchema = z.object({
 
 export async function POST(req: NextRequest, context: { params: Promise<{ vehicleId: string }> }) {
   try {
+    // Basic rate limiting per IP+path
+    const rl = checkRateLimit(rateLimitKey(req));
+    if (!rl.allowed)
+      return serverError('Rate limit exceeded', undefined, {
+        status: 429,
+        headers: rateLimitHeaders(rl.retryAfterMs),
+      });
     const session = await auth();
     if (!session?.user?.email) {
       return unauthorized();

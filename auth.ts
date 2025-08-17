@@ -9,14 +9,18 @@ interface GitHubProfile {
   name: string;
 }
 
+// Support legacy NEXTAUTH_SECRET by falling back to it if AUTH_SECRET is unset
+if (!process.env.AUTH_SECRET && process.env.NEXTAUTH_SECRET) {
+  process.env.AUTH_SECRET = process.env.NEXTAUTH_SECRET;
+}
+
 // Fail fast in production if required environment variables are missing
-const REQUIRED_ENV_VARS_IN_PROD = [
-  'AUTH_SECRET',
-  'AUTH_GITHUB_ID',
-  'AUTH_GITHUB_SECRET',
-  'ALLOWED_USERS',
-];
+const REQUIRED_ENV_VARS_IN_PROD = ['AUTH_GITHUB_ID', 'AUTH_GITHUB_SECRET', 'ALLOWED_USERS'];
 if (process.env.NODE_ENV === 'production') {
+  const hasSecret = Boolean(process.env.AUTH_SECRET);
+  if (!hasSecret) {
+    throw new Error('Missing required environment variable: AUTH_SECRET (or NEXTAUTH_SECRET)');
+  }
   for (const key of REQUIRED_ENV_VARS_IN_PROD) {
     const value = process.env[key];
     if (!value || (key === 'ALLOWED_USERS' && value.trim().length === 0)) {
