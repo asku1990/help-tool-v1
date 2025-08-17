@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react';
 import { useInfiniteExpenses, useUpdateExpense, useDeleteExpense } from '@/hooks';
 import { Button, Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui';
 import { useUiStore } from '@/stores/ui';
+import { formatDateFi } from '@/utils';
 
 export default function ExpenseList({ vehicleId }: { vehicleId: string }) {
   const { data, isLoading, isError, error, hasNextPage, fetchNextPage, isFetchingNextPage } =
@@ -47,7 +48,7 @@ export default function ExpenseList({ vehicleId }: { vehicleId: string }) {
       <ul className="divide-y">
         {items.map(e => (
           <li key={e.id} className="py-3 grid gap-2 sm:grid-cols-5 sm:items-center">
-            <div className="text-sm">{formatDate(e.date)}</div>
+            <div className="text-sm">{formatDateFi(new Date(e.date))}</div>
             <div className="text-sm">
               <span className="inline-block rounded px-2 py-0.5 bg-gray-100 text-gray-700 text-xs">
                 {e.category}
@@ -89,10 +90,6 @@ function EmptyCta() {
       Add expense
     </Button>
   );
-}
-
-function formatDate(d: string) {
-  return new Date(d).toLocaleDateString();
 }
 
 function formatCurrency(n: number) {
