@@ -6,6 +6,8 @@ type UiState = {
   setExpenseDialogOpen: (open: boolean) => void;
   isFillUpDialogOpen: boolean;
   setFillUpDialogOpen: (open: boolean) => void;
+  isVehicleDialogOpen: boolean;
+  setVehicleDialogOpen: (open: boolean) => void;
 };
 
 export const useUiStore = create<UiState>(set => ({
@@ -13,4 +15,6 @@ export const useUiStore = create<UiState>(set => ({
   setExpenseDialogOpen: open => set({ isExpenseDialogOpen: open }),
   isFillUpDialogOpen: false,
   setFillUpDialogOpen: open => set({ isFillUpDialogOpen: open }),
+  isVehicleDialogOpen: false,
+  setVehicleDialogOpen: open => set({ isVehicleDialogOpen: open }),
 }));

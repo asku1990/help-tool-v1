@@ -156,7 +156,9 @@ export default function FillUpForm({ vehicleId, onCreated }: FillUpFormProps) {
             />
           </label>
           <div className="flex items-center justify-between pt-2">
-            <div className="text-sm text-gray-500">Total: {totalCost}</div>
+            <div className="text-sm text-gray-500" aria-live="polite">
+              Total: {totalCost}
+            </div>
             <div className="flex gap-2">
               <Button type="button" variant="outline" onClick={() => setOpen(false)}>
                 Cancel

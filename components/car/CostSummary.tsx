@@ -26,10 +26,18 @@ export default function CostSummary({
   return (
     <div className="bg-white p-4 rounded-xl shadow-sm border space-y-4">
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <KpiCard label="Cost/km (LT)" value={formatCurrencyPerKm(costPerKmLifetime)} />
-        <KpiCard label="Cost/km (90d)" value={formatCurrencyPerKm(costPerKm90d)} />
-        <KpiCard label="MTD Spend" value={formatCurrency(spendMTD)} />
-        <KpiCard label="30d Spend" value={formatCurrency(spend30d)} />
+        <KpiCard
+          label="Lifetime cost per km"
+          tooltip="(Fuel + non-fuel expenses) divided by total distance"
+          value={formatCurrencyPerKm(costPerKmLifetime)}
+        />
+        <KpiCard
+          label="Last 90 days cost per km"
+          tooltip="Costs in the past 90 days divided by distance in the same period"
+          value={formatCurrencyPerKm(costPerKm90d)}
+        />
+        <KpiCard label="Month-to-date spend" value={formatCurrency(spendMTD)} />
+        <KpiCard label="Last 30 days spend" value={formatCurrency(spend30d)} />
       </div>
 
       <div>
@@ -59,10 +67,19 @@ export default function CostSummary({
   );
 }
 
-function KpiCard({ label, value }: { label: string; value: string }) {
+function KpiCard({ label, value, tooltip }: { label: string; value: string; tooltip?: string }) {
   return (
     <div className="rounded-lg border bg-gray-50 px-3 py-2">
-      <div className="text-[11px] uppercase tracking-wide text-gray-500">{label}</div>
+      <div className="text-[11px] uppercase tracking-wide text-gray-500 flex items-center gap-1">
+        <span title={tooltip}>{label}</span>
+        {tooltip ? (
+          <span
+            aria-hidden
+            title={tooltip}
+            className="inline-block w-3 h-3 rounded-full bg-gray-300"
+          />
+        ) : null}
+      </div>
       <div className="text-sm font-semibold">{value}</div>
     </div>
   );

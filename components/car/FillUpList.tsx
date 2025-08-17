@@ -2,6 +2,8 @@
 
 import { useMemo } from 'react';
 import { useInfiniteFillUps } from '@/hooks';
+import { Button } from '@/components/ui/button';
+import { useUiStore } from '@/stores/ui';
 
 export default function FillUpList({ vehicleId }: { vehicleId: string }) {
   const { data, isLoading, isError, error, hasNextPage, fetchNextPage, isFetchingNextPage } =
@@ -12,7 +14,13 @@ export default function FillUpList({ vehicleId }: { vehicleId: string }) {
 
   if (isLoading) return <div className="text-sm text-gray-500">Loading fill-ups…</div>;
   if (isError) return <div className="text-sm text-red-600">{String(error)}</div>;
-  if (!items.length) return <div className="text-sm text-gray-500">No fill-ups yet.</div>;
+  if (!items.length)
+    return (
+      <div className="text-sm text-gray-600 flex items-center justify-between">
+        <span>No fill-ups yet. Add your first to see real consumption and cost/km.</span>
+        <EmptyCta />
+      </div>
+    );
 
   return (
     <div className="space-y-2">
@@ -46,6 +54,15 @@ export default function FillUpList({ vehicleId }: { vehicleId: string }) {
         </div>
       ) : null}
     </div>
+  );
+}
+
+function EmptyCta() {
+  const { setFillUpDialogOpen } = useUiStore();
+  return (
+    <Button size="sm" onClick={() => setFillUpDialogOpen(true)}>
+      Add fill-up
+    </Button>
   );
 }
 

@@ -2,6 +2,8 @@
 
 import { useMemo } from 'react';
 import { useInfiniteExpenses } from '@/hooks';
+import { Button } from '@/components/ui/button';
+import { useUiStore } from '@/stores/ui';
 
 export default function ExpenseList({ vehicleId }: { vehicleId: string }) {
   const { data, isLoading, isError, error, hasNextPage, fetchNextPage, isFetchingNextPage } =
@@ -12,7 +14,13 @@ export default function ExpenseList({ vehicleId }: { vehicleId: string }) {
 
   if (isLoading) return <div className="text-sm text-gray-500">Loading expenses…</div>;
   if (isError) return <div className="text-sm text-red-600">{String(error)}</div>;
-  if (!items.length) return <div className="text-sm text-gray-500">No expenses yet.</div>;
+  if (!items.length)
+    return (
+      <div className="text-sm text-gray-600 flex items-center justify-between">
+        <span>No expenses yet. Log one to track maintenance and total cost.</span>
+        <EmptyCta />
+      </div>
+    );
 
   return (
     <div className="space-y-2">
@@ -48,6 +56,15 @@ export default function ExpenseList({ vehicleId }: { vehicleId: string }) {
         </div>
       ) : null}
     </div>
+  );
+}
+
+function EmptyCta() {
+  const { setExpenseDialogOpen } = useUiStore();
+  return (
+    <Button size="sm" variant="outline" onClick={() => setExpenseDialogOpen(true)}>
+      Add expense
+    </Button>
   );
 }
 
