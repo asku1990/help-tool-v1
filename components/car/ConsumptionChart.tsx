@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { formatDateFi } from '@/utils';
 
 type Segment = {
   date: string;
@@ -96,7 +97,7 @@ export default function ConsumptionChart({ segments }: { segments: Segment[] }) 
             <g key={i}>
               <circle cx={x} cy={y} r={3} fill="#2563eb">
                 <title>
-                  {new Date(p.date).toLocaleDateString()}: {p.y.toFixed(2)} L/100km
+                  {formatDateFi(new Date(p.date))}: {p.y.toFixed(2)} L/100km
                 </title>
               </circle>
             </g>

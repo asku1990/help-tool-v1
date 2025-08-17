@@ -5,6 +5,7 @@ import {
   computeInspectionStatus,
   pickLastInspectionDateFromExpenses,
   formatDateISO,
+  formatDateFi,
 } from '@/utils/inspection';
 
 it('addMonths clamps end-of-month forward and backward', () => {
@@ -17,6 +18,12 @@ it('diffDays normalizes to midnight and handles negatives', () => {
   const b = new Date('2024-01-03T01:00:00Z');
   expect(diffDays(a, b)).toBe(2);
   expect(diffDays(b, a)).toBe(-2);
+});
+
+it('formatDateFi renders dd.MM.yyyy', () => {
+  const d = new Date('2024-01-05T12:00:00Z');
+  const s = formatDateFi(d);
+  expect(s).toMatch(/^(0[1-9]|[12][0-9]|3[01])\.(0[1-9]|1[0-2])\.\d{4}$/);
 });
 
 it('computeInspectionDueDate precedence and default interval', () => {

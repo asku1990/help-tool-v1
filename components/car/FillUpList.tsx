@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react';
 import { useInfiniteFillUps, useUpdateFillUp, useDeleteFillUp } from '@/hooks';
 import { Button, Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui';
 import { useUiStore } from '@/stores/ui';
+import { formatDateFi } from '@/utils';
 
 export default function FillUpList({ vehicleId }: { vehicleId: string }) {
   const { data, isLoading, isError, error, hasNextPage, fetchNextPage, isFetchingNextPage } =
@@ -50,7 +51,7 @@ export default function FillUpList({ vehicleId }: { vehicleId: string }) {
         <ul className="divide-y">
           {items.map(f => (
             <li key={f.id} className="py-3 grid gap-2 sm:grid-cols-5 sm:items-center">
-              <div className="text-sm">{formatDate(f.date)}</div>
+              <div className="text-sm">{formatDateFi(new Date(f.date))}</div>
               <div className="text-sm text-gray-600">Odo: {f.odometerKm} km</div>
               <div className="text-sm text-gray-600">
                 {f.liters} L @ {f.pricePerLiter.toFixed(3)} →{' '}
@@ -102,10 +103,6 @@ function EmptyCta() {
       Add fill-up
     </Button>
   );
-}
-
-function formatDate(d: string) {
-  return new Date(d).toLocaleDateString();
 }
 
 function formatCurrency(n: number) {

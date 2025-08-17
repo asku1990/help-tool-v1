@@ -1,5 +1,5 @@
 import React from 'react';
-import { computeInspectionStatus, formatDateISO } from '@/utils';
+import { computeInspectionStatus, formatDateFi } from '@/utils';
 
 export default function InspectionBadge(props: {
   inspectionDueDate?: string | null;
@@ -17,10 +17,10 @@ export default function InspectionBadge(props: {
 
   const label = (() => {
     if (!dueDate) return 'Inspection: —';
-    if (daysRemaining === null) return `Inspection: ${formatDateISO(dueDate)}`;
+    if (daysRemaining === null) return `Inspection: ${formatDateFi(dueDate)}`;
     if (daysRemaining < 0) return `Inspection: Overdue • ${Math.abs(daysRemaining)}d`;
     if (daysRemaining <= 30) return `Inspection: Due in ${daysRemaining}d`;
-    return `Inspection: ${formatDateISO(dueDate)}`;
+    return `Inspection: ${formatDateFi(dueDate)}`;
   })();
 
   const color =
