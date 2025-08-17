@@ -26,6 +26,8 @@ jobs:
       RUN_INTEGRATION: '1'
       NODE_OPTIONS: '--max_old_space_size=4096'
       TESTCONTAINERS_RYUK_DISABLED: true
+      DOCKER_HOST: 'unix:///var/run/docker.sock'
+      TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE: '/var/run/docker.sock'
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -37,6 +39,8 @@ jobs:
           cache: 'pnpm'
       - run: pnpm install --frozen-lockfile
       - run: pnpm prisma generate
+      - name: Check Docker
+        run: docker info
       - name: Run integration tests
         run: pnpm vitest run --dir app/api --reporter=verbose
       - name: Upload coverage artifact
