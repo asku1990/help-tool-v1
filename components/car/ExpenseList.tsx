@@ -29,7 +29,7 @@ export default function ExpenseList({
       try {
         const res = await fetch(`/api/vehicles/${vehicleId}/expenses`);
         const json = await res.json();
-        if (mounted) setItems(json.expenses || []);
+        if (mounted) setItems(json.data?.expenses || []);
       } finally {
         if (mounted) setLoading(false);
       }

@@ -45,6 +45,13 @@ const eslintConfig = [
       'valid-typeof': 'error',
     },
   },
+  {
+    files: ['**/*.ts', '**/*.tsx'],
+    rules: {
+      // TypeScript already handles undefined identifiers at type-check time
+      'no-undef': 'off',
+    },
+  },
 ];
 
 export default eslintConfig;

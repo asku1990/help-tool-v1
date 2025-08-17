@@ -1,91 +1,105 @@
 import { NextRequest } from 'next/server';
 import { auth } from '@/auth';
 import prisma from '@/lib/db';
+import { z } from 'zod';
+import { ok, created, unauthorized, notFound, badRequest, serverError } from '@/lib/api/response';
+import { logger } from '@/lib/logger';
+import { decimalToNumber } from '@/lib/prisma/decimal';
 
-function decimalToNumber(value: unknown): number {
-  // Handles Prisma.Decimal, string, or number
-  // @ts-expect-error Prisma.Decimal runtime type: toNumber exists on Prisma.Decimal
-  if (value && typeof value === 'object' && typeof value.toNumber === 'function') {
-    // @ts-expect-error Prisma.Decimal runtime type: call toNumber safely
-    return value.toNumber();
+export async function GET(req: NextRequest, context: { params: Promise<{ vehicleId: string }> }) {
+  try {
+    const session = await auth();
+    if (!session?.user?.email) {
+      return unauthorized();
+    }
+
+    const url = new URL(req.url);
+    const limit = Math.min(Math.max(parseInt(url.searchParams.get('limit') || '50', 10), 1), 100);
+    const cursor = url.searchParams.get('cursor') || undefined;
+
+    const { vehicleId } = await context.params;
+
+    const vehicle = await prisma.vehicle.findFirst({
+      where: { id: vehicleId, user: { email: session.user.email } },
+    });
+    if (!vehicle) return notFound();
+
+    const items = await prisma.fuelFillUp.findMany({
+      where: { vehicleId: vehicle.id },
+      orderBy: { date: 'desc' },
+      take: limit + 1,
+      ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
+    });
+
+    const hasMore = items.length > limit;
+    const fillUps = (hasMore ? items.slice(0, -1) : items).map(f => ({
+      id: f.id,
+      date: f.date.toISOString(),
+      odometerKm: f.odometerKm,
+      liters: decimalToNumber(f.liters),
+      pricePerLiter: decimalToNumber(f.pricePerLiter),
+      totalCost: decimalToNumber(f.totalCost),
+      isFull: f.isFull,
+      notes: f.notes ?? undefined,
+    }));
+
+    return ok(
+      { fillUps, nextCursor: hasMore ? fillUps[fillUps.length - 1]?.id : null },
+      { headers: { 'Cache-Control': 'private, max-age=30' } }
+    );
+  } catch (error) {
+    logger.error('GET /api/vehicles/[vehicleId]/fillups failed', { error });
+    return serverError();
   }
-  if (typeof value === 'string') return parseFloat(value);
-  if (typeof value === 'number') return value;
-  return NaN;
 }
 
-export async function GET(_req: NextRequest, context: { params: Promise<{ vehicleId: string }> }) {
-  const session = await auth();
-  if (!session?.user?.email) {
-    return Response.json({ error: 'Unauthorized' }, { status: 401 });
-  }
-
-  const { vehicleId } = await context.params;
-
-  const vehicle = await prisma.vehicle.findFirst({
-    where: { id: vehicleId, user: { email: session.user.email } },
-  });
-  if (!vehicle) return Response.json({ error: 'Not found' }, { status: 404 });
-
-  const fillUps = await prisma.fuelFillUp.findMany({
-    where: { vehicleId: vehicle.id },
-    orderBy: { date: 'desc' },
-  });
-
-  const data = fillUps.map(f => ({
-    id: f.id,
-    date: f.date.toISOString(),
-    odometerKm: f.odometerKm,
-    liters: decimalToNumber(f.liters),
-    pricePerLiter: decimalToNumber(f.pricePerLiter),
-    totalCost: decimalToNumber(f.totalCost),
-    isFull: f.isFull,
-    notes: f.notes ?? undefined,
-  }));
-
-  return Response.json({ fillUps: data });
-}
+const CreateFillUpSchema = z.object({
+  date: z.string().min(1),
+  odometerKm: z.number().int(),
+  liters: z.number(),
+  pricePerLiter: z.number(),
+  totalCost: z.number(),
+  isFull: z.boolean().optional(),
+  notes: z.string().optional(),
+});
 
 export async function POST(req: NextRequest, context: { params: Promise<{ vehicleId: string }> }) {
-  const session = await auth();
-  if (!session?.user?.email) {
-    return Response.json({ error: 'Unauthorized' }, { status: 401 });
+  try {
+    const session = await auth();
+    if (!session?.user?.email) {
+      return unauthorized();
+    }
+
+    const parsed = CreateFillUpSchema.safeParse(await req.json());
+    if (!parsed.success) {
+      return badRequest('VALIDATION_ERROR', 'Invalid request body', parsed.error.flatten());
+    }
+    const { date, odometerKm, liters, pricePerLiter, totalCost, isFull, notes } = parsed.data;
+
+    const { vehicleId } = await context.params;
+
+    const vehicle = await prisma.vehicle.findFirst({
+      where: { id: vehicleId, user: { email: session.user.email } },
+    });
+    if (!vehicle) return notFound();
+
+    const createdFillUp = await prisma.fuelFillUp.create({
+      data: {
+        vehicleId: vehicle.id,
+        date: new Date(date),
+        odometerKm,
+        liters,
+        pricePerLiter,
+        totalCost,
+        isFull: !!isFull,
+        notes: notes || undefined,
+      },
+      select: { id: true },
+    });
+
+    return created({ id: createdFillUp.id });
+  } catch (error) {
+    logger.error('POST /api/vehicles/[vehicleId]/fillups failed', { error });
+    return serverError();
   }
-
-  const body = await req.json();
-  const { date, odometerKm, liters, pricePerLiter, totalCost, isFull, notes } = body as {
-    date?: string;
-    odometerKm?: number;
-    liters?: number;
-    pricePerLiter?: number;
-    totalCost?: number;
-    isFull?: boolean;
-    notes?: string;
-  };
-
-  if (!date || typeof odometerKm !== 'number' || !liters || !pricePerLiter || !totalCost) {
-    return Response.json({ error: 'Invalid payload' }, { status: 400 });
-  }
-
-  const { vehicleId } = await context.params;
-
-  const vehicle = await prisma.vehicle.findFirst({
-    where: { id: vehicleId, user: { email: session.user.email } },
-  });
-  if (!vehicle) return Response.json({ error: 'Not found' }, { status: 404 });
-
-  const created = await prisma.fuelFillUp.create({
-    data: {
-      vehicleId: vehicle.id,
-      date: new Date(date),
-      odometerKm,
-      liters,
-      pricePerLiter,
-      totalCost,
-      isFull: !!isFull,
-      notes: notes || undefined,
-    },
-  });
-
-  return Response.json({ id: created.id }, { status: 201 });
 }

@@ -51,7 +51,7 @@ export default function CarHomePage() {
         const res = await fetch('/api/vehicles');
         if (!res.ok) return;
         const json = await res.json();
-        setVehicles(json.vehicles || []);
+        setVehicles(json.data?.vehicles || []);
       } finally {
         setLoading(false);
       }
@@ -155,7 +155,7 @@ export default function CarHomePage() {
                     // refresh list
                     const listRes = await fetch('/api/vehicles');
                     const json = await listRes.json();
-                    setVehicles(json.vehicles || []);
+                    setVehicles(json.data?.vehicles || []);
                   } finally {
                     setLoading(false);
                   }

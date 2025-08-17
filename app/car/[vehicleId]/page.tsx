@@ -73,7 +73,7 @@ export default function VehiclePage() {
       const res = await fetch(`/api/vehicles/${vehicleId}/fillups`);
       if (!res.ok) return;
       const json = await res.json();
-      const fillUpsList = (json.fillUps || []) as Array<{
+      const fillUpsList = (json.data?.fillUps || []) as Array<{
         date: string;
         odometerKm: number;
         liters: number;
@@ -94,7 +94,7 @@ export default function VehiclePage() {
       const res = await fetch(`/api/vehicles/${vehicleId}/expenses`);
       if (!res.ok) return;
       const json = await res.json();
-      const list = (json.expenses || []) as Array<{
+      const list = (json.data?.expenses || []) as Array<{
         id: string;
         date: string;
         category: 'FUEL' | 'MAINTENANCE' | 'INSURANCE' | 'TAX' | 'PARKING' | 'TOLL' | 'OTHER';

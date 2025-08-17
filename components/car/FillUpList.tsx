@@ -30,7 +30,7 @@ export default function FillUpList({
       try {
         const res = await fetch(`/api/vehicles/${vehicleId}/fillups`);
         const json = await res.json();
-        if (mounted) setItems(json.fillUps || []);
+        if (mounted) setItems(json.data?.fillUps || []);
       } finally {
         if (mounted) setLoading(false);
       }
