@@ -32,6 +32,7 @@ export default function VehiclePage() {
   });
 
   const [refreshKey, setRefreshKey] = useState(0);
+  const [vehicleName, setVehicleName] = useState<string>('');
   const [segments, setSegments] = useState<
     Array<{
       date: string;
@@ -66,6 +67,17 @@ export default function VehiclePage() {
       router.replace('/');
     }
   }, [status, isDemo, router]);
+
+  useEffect(() => {
+    async function loadVehicle() {
+      if (!vehicleId) return;
+      const res = await fetch(`/api/vehicles/${vehicleId}`);
+      if (!res.ok) return;
+      const json = await res.json();
+      setVehicleName(json.data?.vehicle?.name || '');
+    }
+    loadVehicle();
+  }, [vehicleId]);
 
   useEffect(() => {
     async function loadFillUps() {
@@ -117,7 +129,7 @@ export default function VehiclePage() {
     <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
       <header className="border-b">
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
-          <h1 className="text-2xl font-bold">Vehicle {vehicleId}</h1>
+          <h1 className="text-2xl font-bold">{vehicleName || `Vehicle ${vehicleId}`}</h1>
           <Link href="/car" className="text-sm text-blue-600 hover:underline">
             Back to vehicles
           </Link>
