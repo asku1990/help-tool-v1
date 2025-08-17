@@ -38,7 +38,7 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm prisma generate
       - name: Run integration tests
-        run: pnpm vitest run "app/api/**/*.int.test.ts" --reporter=verbose
+        run: pnpm vitest run --dir app/api --reporter=verbose
       - name: Upload coverage artifact
         if: always()
         uses: actions/upload-artifact@v4
