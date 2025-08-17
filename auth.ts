@@ -9,6 +9,22 @@ interface GitHubProfile {
   name: string;
 }
 
+// Fail fast in production if required environment variables are missing
+const REQUIRED_ENV_VARS_IN_PROD = [
+  'AUTH_SECRET',
+  'AUTH_GITHUB_ID',
+  'AUTH_GITHUB_SECRET',
+  'ALLOWED_USERS',
+];
+if (process.env.NODE_ENV === 'production') {
+  for (const key of REQUIRED_ENV_VARS_IN_PROD) {
+    const value = process.env[key];
+    if (!value || (key === 'ALLOWED_USERS' && value.trim().length === 0)) {
+      throw new Error(`Missing required environment variable: ${key}`);
+    }
+  }
+}
+
 // Get allowed users from environment variable
 const ALLOWED_USERS = process.env.ALLOWED_USERS
   ? process.env.ALLOWED_USERS.split(',').map(user => user.trim())

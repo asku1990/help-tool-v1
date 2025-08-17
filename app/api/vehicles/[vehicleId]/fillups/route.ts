@@ -14,7 +14,13 @@ export async function GET(req: NextRequest, context: { params: Promise<{ vehicle
     }
 
     const url = new URL(req.url);
-    const limit = Math.min(Math.max(parseInt(url.searchParams.get('limit') || '50', 10), 1), 100);
+    const defaultLimit = Number(process.env.API_PAGE_DEFAULT_LIMIT || 50);
+    const maxLimit = Number(process.env.API_PAGE_MAX_LIMIT || 100);
+    const requested = parseInt(url.searchParams.get('limit') || String(defaultLimit), 10);
+    const limit = Math.min(
+      Math.max(Number.isFinite(requested) ? requested : defaultLimit, 1),
+      maxLimit
+    );
     const cursor = url.searchParams.get('cursor') || undefined;
 
     const { vehicleId } = await context.params;
