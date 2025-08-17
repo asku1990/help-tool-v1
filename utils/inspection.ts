@@ -69,9 +69,6 @@ export function pickLastInspectionDateFromExpenses(
   const isInspectionLike = (s?: string | null) =>
     !!s && /inspection|itv|mot|tuv|controle technique/i.test(s);
   const candidates = expenses
-    .filter(
-      e => e.category === 'MAINTENANCE' || isInspectionLike(e.vendor) || isInspectionLike(e.notes)
-    )
     .filter(e => isInspectionLike(e.vendor) || isInspectionLike(e.notes))
     .map(e => new Date(e.date))
     .filter(d => !Number.isNaN(d.getTime()))

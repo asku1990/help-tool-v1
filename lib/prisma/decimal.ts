@@ -1,7 +1,7 @@
 export function decimalToNumber(value: unknown): number {
   const maybeObj = value as { toNumber?: () => number } | null | undefined;
   if (maybeObj && typeof maybeObj === 'object' && typeof maybeObj.toNumber === 'function') {
-    return maybeObj.toNumber!();
+    return maybeObj.toNumber();
   }
   if (typeof value === 'string') return parseFloat(value);
   if (typeof value === 'number') return value;

@@ -117,15 +117,23 @@ export function useImportExpenses(vehicleId: string) {
         vendor?: string;
       }>
     ) => {
-      for (const r of rows) {
-        await createExpense(vehicleId, {
-          date: r.date,
-          category: r.category ?? 'MAINTENANCE',
-          amount: r.amount,
-          vendor: r.vendor,
-          odometerKm: r.odometerKm,
-          notes: r.notes,
-        });
+      const results = await Promise.allSettled(
+        rows.map(r =>
+          createExpense(vehicleId, {
+            date: r.date,
+            category: r.category ?? 'MAINTENANCE',
+            amount: r.amount,
+            vendor: r.vendor,
+            odometerKm: r.odometerKm,
+            notes: r.notes,
+          })
+        )
+      );
+      const failed = results.filter(r => r.status === 'rejected').length;
+      if (failed) {
+        throw new Error(
+          `Imported ${rows.length - failed}/${rows.length} expenses; ${failed} failed`
+        );
       }
     },
     onSettled: () => {
