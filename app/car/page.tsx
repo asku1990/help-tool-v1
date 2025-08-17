@@ -5,17 +5,32 @@ import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Car, Plus } from 'lucide-react';
+import { useEffect, useState } from 'react';
 
 export default function CarHomePage() {
   const { status } = useSession();
   const router = useRouter();
+  const [isDemo] = useState<boolean>(() => {
+    if (typeof document === 'undefined') return false;
+    return (
+      document.cookie
+        .split('; ')
+        .find(c => c.startsWith('demo='))
+        ?.split('=')[1] === '1'
+    );
+  });
 
-  if (status === 'unauthenticated') {
-    router.replace('/');
+  useEffect(() => {
+    if (status === 'unauthenticated' && !isDemo) {
+      router.replace('/');
+    }
+  }, [status, isDemo, router]);
+
+  if (status === 'unauthenticated' && !isDemo) {
     return null;
   }
 
-  if (status === 'loading') {
+  if (status === 'loading' && !isDemo) {
     return <div className="p-6">Loading...</div>;
   }
 
@@ -41,12 +56,13 @@ export default function CarHomePage() {
                 Add your first vehicle to start tracking fuel and expenses.
               </p>
             </div>
-            <Button>
+            <Button disabled={isDemo} title={isDemo ? 'Disabled in demo' : undefined}>
               <Plus className="w-4 h-4 mr-2" /> Add vehicle
             </Button>
           </div>
-
-          <div className="mt-6 text-gray-600 text-sm">No vehicles yet.</div>
+          <div className="mt-6 text-gray-600 text-sm">
+            {isDemo ? 'Sample data will be added in demo later.' : 'No vehicles yet.'}
+          </div>
         </div>
       </main>
     </div>

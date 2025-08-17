@@ -50,7 +50,10 @@ export default function Page() {
   }, [status, session, router]);
 
   const handleTestMode = () => {
-    // Removed toast notification
+    // Prefer demo user sign-in for smooth navigation
+    import('next-auth/react').then(({ signIn }) => {
+      signIn('demo', { callbackUrl: '/dashboard' });
+    });
   };
 
   return (

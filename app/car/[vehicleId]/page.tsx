@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { Button } from '@/components/ui/button';
+import { useEffect, useState } from 'react';
 
 export default function VehiclePage() {
   const { status } = useSession();
@@ -13,12 +14,27 @@ export default function VehiclePage() {
     ? params?.vehicleId[0]
     : (params?.vehicleId as string | undefined);
 
-  if (status === 'unauthenticated') {
-    router.replace('/');
+  const [isDemo] = useState<boolean>(() => {
+    if (typeof document === 'undefined') return false;
+    return (
+      document.cookie
+        .split('; ')
+        .find(c => c.startsWith('demo='))
+        ?.split('=')[1] === '1'
+    );
+  });
+
+  useEffect(() => {
+    if (status === 'unauthenticated' && !isDemo) {
+      router.replace('/');
+    }
+  }, [status, isDemo, router]);
+
+  if (status === 'unauthenticated' && !isDemo) {
     return null;
   }
 
-  if (status === 'loading') {
+  if (status === 'loading' && !isDemo) {
     return <div className="p-6">Loading...</div>;
   }
 

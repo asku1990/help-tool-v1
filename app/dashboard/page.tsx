@@ -6,18 +6,33 @@ import { SignOutButton } from '@/components/buttons/SignOutButton';
 import { Toaster } from '@/components/ui/sonner';
 import Link from 'next/link';
 import { Car, Dumbbell, Lock } from 'lucide-react';
+import { useEffect, useState } from 'react';
 
 export default function DashboardPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
+  const [isDemo] = useState<boolean>(() => {
+    if (typeof document === 'undefined') return false;
+    return (
+      document.cookie
+        .split('; ')
+        .find(c => c.startsWith('demo='))
+        ?.split('=')[1] === '1'
+    );
+  });
 
   // Redirect to home if not authenticated (client-safe)
-  if (status === 'unauthenticated') {
-    router.replace('/');
+  useEffect(() => {
+    if (status === 'unauthenticated' && !isDemo) {
+      router.replace('/');
+    }
+  }, [status, isDemo, router]);
+
+  if (status === 'unauthenticated' && !isDemo) {
     return null;
   }
 
-  if (status === 'loading') {
+  if (status === 'loading' && !isDemo) {
     return <div>Loading...</div>;
   }
 
@@ -28,7 +43,7 @@ export default function DashboardPage() {
           <h1 className="text-2xl font-bold">Dashboard</h1>
           <div className="flex items-center gap-2 sm:gap-4 min-w-0">
             <span className="text-gray-600 max-w-[50vw] truncate">
-              Welcome, {session?.user?.name || session?.user?.email}
+              Welcome, {session?.user?.name || session?.user?.email || (isDemo ? 'Demo' : '')}
             </span>
             <SignOutButton />
           </div>
@@ -54,15 +69,19 @@ export default function DashboardPage() {
             </div>
           </Link>
 
-          {/* Workout App (coming soon) */}
-          <div className="bg-white p-6 rounded-xl shadow-sm border opacity-60">
+          {/* Workout App (coming later) */}
+          <div
+            className="bg-white p-6 rounded-xl shadow-sm border opacity-60 cursor-not-allowed"
+            aria-disabled
+          >
             <div className="flex items-center gap-4">
               <div className="p-3 rounded-lg bg-gray-50 text-gray-600">
                 <Dumbbell className="w-6 h-6" />
               </div>
               <div>
                 <div className="font-semibold flex items-center gap-2">
-                  Workout <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100">Soon</span>
+                  Workout
+                  <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100">Coming later</span>
                 </div>
                 <div className="text-sm text-gray-500">Sets, weights, and notes</div>
               </div>
@@ -70,14 +89,20 @@ export default function DashboardPage() {
           </div>
 
           {/* Reserved/locked */}
-          <div className="bg-white p-6 rounded-xl shadow-sm border opacity-60">
+          <div
+            className="bg-white p-6 rounded-xl shadow-sm border opacity-60 cursor-not-allowed"
+            aria-disabled
+          >
             <div className="flex items-center gap-4">
               <div className="p-3 rounded-lg bg-gray-50 text-gray-600">
                 <Lock className="w-6 h-6" />
               </div>
               <div>
-                <div className="font-semibold">More Apps</div>
-                <div className="text-sm text-gray-500">Coming later</div>
+                <div className="font-semibold flex items-center gap-2">
+                  More Apps
+                  <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100">Coming later</span>
+                </div>
+                <div className="text-sm text-gray-500">New tools planned</div>
               </div>
             </div>
           </div>
