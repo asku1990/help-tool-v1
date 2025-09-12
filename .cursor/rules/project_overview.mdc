@@ -1,0 +1,82 @@
+---
+description: High-level project overview for the AI (always loaded)
+alwaysApply: true
+---
+## Project Overview
+
+A Next.js-based car expense tracker that lets authenticated users manage vehicles, record fuel fill-ups and other expenses, and view consumption and cost insights. Data is persisted in PostgreSQL via Prisma. The UI uses TanStack Query for data fetching and caching, with a reusable component library and extensive tests.
+
+## Architecture Snapshot
+- Next.js app with server routes under `app/api/*` and actions `app/actions/`
+- Data access via Prisma (`prisma/schema.prisma`)
+- State/data fetching standardized on TanStack Query with centralized cache config (`app/query-provider.tsx`)
+- Tests: Vitest + Testing Library + Playwright e2e (`pnpm test`)
+- Package management: pnpm
+
+## Key Domains and Features
+- Vehicles: CRUD endpoints and pages to manage user-owned vehicles (`/api/vehicles`, `/api/vehicles/[vehicleId]`)
+- Fuel Fill-ups: paginated list and creation (`/api/vehicles/[vehicleId]/fillups`)
+- Expenses: paginated list and creation across categories (`/api/vehicles/[vehicleId]/expenses`)
+- Auth: NextAuth with GitHub provider, ALLOWED_USERS gate, middleware-protected routes (`/dashboard`, `/car/*`)
+- API behavior:
+  - Standard JSON envelope `{ data, error }` with helpers (`lib/api/response.ts`)
+  - Basic per-IP+path rate limiting with `Retry-After` headers (`lib/api/rate-limit.ts`)
+  - Cursor + limit pagination for lists; defaults/env caps respected
+  - Zod-based input validation with structured validation errors
+- Data modeling (Prisma):
+  - `User`, `Vehicle`, `FuelFillUp`, `Expense` with enums `UserType`, `ExpenseCategory`
+  - Decimal fields converted for JSON via helpers (`lib/prisma/decimal.ts`)
+- Frontend:
+  - Centralized React Query config with Devtools in dev
+  - Feature components under `components/car/*` (forms, lists, charts, badges)
+  - Query/mutation hooks under `hooks/*` and `queries/*`
+- Observability & logging: lightweight singleton logger with environment-aware console output (`lib/logger.ts`)
+- UX: status toasts and dialogs via `components/ui/*` and `sonner`
+
+## External Services and Integrations
+- Authentication: NextAuth GitHub OAuth (`auth.ts`, `app/api/auth/[...nextauth]/route.ts`)
+- Database: PostgreSQL (Prisma Client generated to `generated/prisma/`)
+- Testing utilities:
+  - MSW for request mocking (`test/msw/*`)
+  - Testcontainers for DB in tests as needed
+  - Playwright for e2e (`e2e/public.spec.ts`)
+
+## Seeding and Environments
+- Prisma seeds orchestrated via `prisma/seed.ts`. Prefer per-feature seed modules under `prisma/seed/<feature>` for scalability [[memory:6426879]].
+- Copy `example.env` to `.env.local`. Key env vars:
+  - Database: `DATABASE_URL`
+  - Auth: `AUTH_SECRET` (or `NEXTAUTH_SECRET`), `AUTH_GITHUB_ID`, `AUTH_GITHUB_SECRET`, `ALLOWED_USERS`
+  - API limits: `RATE_LIMIT_WINDOW_MS`, `RATE_LIMIT_MAX_REQUESTS`
+  - Pagination defaults: `API_PAGE_DEFAULT_LIMIT`, `API_PAGE_MAX_LIMIT`
+  - Testing: `TEST_BYPASS_AUTH=1` to skip auth in middleware
+
+## Project Variants
+- Local development: `pnpm dev` (Turbopack)
+- Deployment: `pnpm vercel-build` on Vercel (generate client, migrate, build)
+
+## Conventions
+- Use pnpm for all scripts
+- Use TanStack Query with centralized cache settings
+- Define query/mutation hooks in separate files for reuse
+- Avoid explicit `any`; maintain zero lints before completion
+- Add `index.ts` when introducing new directories
+- Prefer utilities in `utils/` for shared helpers [[memory:6424715]]
+- Prefer `index` re-exports for module ergonomics [[memory:6424711]]
+- Default currency display is EUR where applicable [[memory:6424719]]
+
+## Reference Docs
+- Prisma schema: `prisma/schema.prisma`
+- API helpers: `lib/api/response.ts`, `lib/api/rate-limit.ts`
+- Decimal utilities: `lib/prisma/decimal.ts`
+- Auth & middleware: `auth.ts`, `middleware.ts`
+- Query provider: `app/query-provider.tsx`
+
+## TODO: Fill-in Details
+- Add environment setup notes specific to local Postgres/Testcontainers
+- Document chart calculations and consumption/inspection logic contracts
+
+## TypeScript Enforcement
+- No explicit `any`; prefer precise types aligned with project models
+- Zero lints before completion; run and fix lints after edits
+- Prefer integration tests for changed logic; keep UI tests minimal
+- Use centralized TanStack Query cache settings; avoid inline stale/gc times

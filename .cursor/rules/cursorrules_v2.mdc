@@ -1,0 +1,85 @@
+---
+description: Use this rules always when you need to plan something or grepp code palce. 
+alwaysApply: false
+---
+# 🚦 Cursor Rules v2
+
+## 0) Scope and Consent
+- Never modify code, run tools, or issue commands without explicit approval.
+- Pre-approved Read-only Searches: ENABLED globally.
+  - Allowed without pausing: semantic search, grep, list_dir, read_file.
+  - I will proactively run these in parallel to understand tasks faster.
+  - Disallowed without explicit approval: any edits (apply/diff tools), terminal commands, background jobs.
+
+## 1) Response Format (always start with one)
+- ✅ IMPLEMENTING CHANGES — Following checklist below...
+- ⚠️ NO CHANGES NEEDED — Brief explanation why...
+
+## 2) Applicability Matrix
+- Code edits / migrations / scripts: Full checklist required.
+- Read-only tasks (analysis, design, rules/docs updates, estimates): Skip repo searches unless essential or pre-approved.
+- Q&A only: Provide answer concisely; no tool calls unless user requests.
+
+## 3) Search Policy (when applicable)
+- Read-only searches do NOT require approval.
+- Order: Semantic search → precise grep → targeted file reads.
+- Parallelize independent searches (3–5 calls per batch) for speed.
+- Avoid interactive commands; no terminal unless explicitly approved.
+- When investigating, prefer citing code locations and short, relevant snippets.
+
+## 4) Document Findings (when investigating)
+- List only relevant files and their purpose.
+- Summarize current behavior, gaps, and risks.
+- Include minimal code citations to support findings.
+
+## 5) Propose Approach
+- Choose one: Enhance existing code / Create new files / Refactor.
+- Justify why this is best now; list risks and trade-offs.
+- Provide a step-by-step implementation plan with expected outcomes.
+
+## 6) Approval Gate
+- Stop here. Await explicit “APPROVED” before any edits or tool calls.
+
+## 7) Implementation Rules (after approval)
+- Code style: clear names, early returns, minimal nesting, typed APIs, meaningful error handling.
+- TypeScript:
+  - No explicit `any`. Use precise types and generics; align with project models.
+  - If a type is unclear, propose a minimal typed interface before editing.
+- Lints:
+  - Must be clean before marking done. Run and fix lints after edits.
+- Tests:
+  - Test stack: Vitest (jsdom) + Testing Library (`@testing-library/react`, `@testing-library/user-event`, `@testing-library/jest-dom`).
+  - Use `pnpm test`.
+  - Place tests in a sibling `__tests__` folder next to the file under test.
+  - Name: `*.test.ts` or `*.test.tsx` matching the source.
+  - Prefer integration tests; keep UI tests light.
+  - Add/update tests for changed logic in the same PR.
+- Build/Run:
+  - Use pnpm (no npm).
+- Data fetching:
+  - Standardize on TanStack Query; do not mix store-based fetching.
+  - Use centralized cache config; avoid inline stale/gc times.
+- Hooks:
+  - Define query/mutation hooks in separate files for reuse.
+- Logging:
+  - Use the project logger; never console.log.
+  - Always include a category; enable all categories automatically in dev.
+- File/Folder conventions:
+  - Create `index.ts` when adding new directories and re-export modules.
+  - Do not place new utilities in the root `utils`.
+- Minimal edits policy:
+  - Make targeted changes only; avoid unrelated refactors.
+
+## 8) Communication
+- Keep responses concise by default with headings and bullets.
+- Provide exact diffs for proposed changes; no large rewrites.
+- Status updates:
+  - Brief note before any search batch and after results.
+  - Gate before any edits; await explicit “APPROVED”.
+- Cite `files/functions/classes` with backticks; use code fences only for code/terminal.
+
+## 9) Violation Handling
+- If a step is skipped, state “CHECKLIST VIOLATION DETECTED,” then restart from Section 1.
+
+## 10) App Structure Reference
+- Keep your existing Next.js structure section as-is for navigation.
