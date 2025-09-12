@@ -17,8 +17,8 @@ jobs:
           cache: 'pnpm'
       - run: pnpm install --frozen-lockfile
       - run: pnpm prisma generate
-      - name: Run unit tests (non-integration) with coverage
-        run: pnpm vitest run "**/!(*.int).test.ts" "**/!(*.int).test.tsx" --coverage --reporter=verbose
+      - name: Run unit tests with coverage
+        run: pnpm test:ci -- --reporter=verbose
 
   integration:
     runs-on: ubuntu-latest
@@ -36,7 +36,7 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm prisma generate
       - name: Run integration tests (*.int.test.*)
-        run: pnpm vitest run "**/*.int.test.ts" "**/*.int.test.tsx" --reporter=verbose
+        run: pnpm vitest run "**/*.int.test.ts" "**/*.int.test.tsx" --reporter=verbose --passWithNoTests
       - name: Upload coverage artifact
         if: always()
         uses: actions/upload-artifact@v4
