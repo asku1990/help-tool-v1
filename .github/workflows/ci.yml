@@ -3,6 +3,13 @@ on:
   pull_request:
     branches: [develop, main]
 
+env:
+  AUTH_SECRET: dummy
+  AUTH_GITHUB_ID: dummy
+  AUTH_GITHUB_SECRET: dummy
+  ALLOWED_USERS: dummy
+  TEST_BYPASS_AUTH: '1'
+
 jobs:
   unit:
     runs-on: ubuntu-latest
