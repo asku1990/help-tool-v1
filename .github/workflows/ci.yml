@@ -18,7 +18,7 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm prisma generate
       - name: Run unit tests with coverage
-        run: pnpm test:ci -- --reporter=verbose
+        run: pnpm test -- --reporter=verbose
 
   integration:
     runs-on: ubuntu-latest
