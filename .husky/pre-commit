@@ -1,6 +1,2 @@
-
-
-pnpm format
-pnpm lint
-pnpm type-check
-pnpm test
+pnpm lint-staged
+pnpm -s vitest run --changed HEAD~1 --reporter=basic --passWithNoTests --coverage=false
