@@ -54,6 +54,8 @@ jobs:
   e2e:
     runs-on: ubuntu-latest
     if: github.event_name == 'pull_request'
+    env:
+      TEST_BYPASS_AUTH: '0'
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -66,7 +68,7 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm prisma generate
       - run: pnpm exec playwright install --with-deps
-      - run: pnpm exec playwright test e2e
+      - run: pnpm exec playwright test e2e --reporter=html
       - name: Upload Playwright report
         if: failure()
         uses: actions/upload-artifact@v4
