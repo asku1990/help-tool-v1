@@ -9,6 +9,7 @@ export { default as LicensePlate } from './LicensePlate';
 export { default as InspectionBadge } from './InspectionBadge';
 export { default as ExportExpensesButtons } from './ExportExpensesButtons';
 export { default as ExportFillUpsButton } from './ExportFillUpsButton';
+export { default as ExportMenu } from './exports/ExportMenu';
 export * from './vehicles';
 export * from './vehicle-detail';
 export * from './expenses';
