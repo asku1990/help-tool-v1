@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import { useInfiniteFillUps, useUpdateFillUp, useDeleteFillUp } from '@/hooks';
+import type { FillUpWithSegmentDto } from '@/queries/fillups';
 import { Button, Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui';
 import { FillUpListSkeleton } from '@/components/car';
 import { useUiStore } from '@/stores/ui';
@@ -11,7 +12,10 @@ export default function FillUpList({ vehicleId }: { vehicleId: string }) {
   const { data, isLoading, isError, error, hasNextPage, fetchNextPage, isFetchingNextPage } =
     useInfiniteFillUps(vehicleId, 5);
 
-  const items = useMemo(() => (data?.pages || []).flatMap(p => p.fillUps), [data]);
+  const items = useMemo<FillUpWithSegmentDto[]>(
+    () => (data?.pages || []).flatMap(p => p.fillUps),
+    [data]
+  );
   const totalFuelCost = useMemo(() => items.reduce((s, f) => s + f.totalCost, 0), [items]);
 
   if (isLoading) return <FillUpListSkeleton rows={4} />;
@@ -54,6 +58,18 @@ export default function FillUpList({ vehicleId }: { vehicleId: string }) {
               <div className="text-xs text-gray-500">
                 {f.isFull ? 'Full tank' : 'Partial'}
                 {f.notes ? ` • ${f.notes}` : ''}
+                {f.isFull && f.segment ? (
+                  <div className="text-[11px] text-gray-600 mt-0.5">
+                    Trip {f.segment.distanceKm.toFixed(0)} km • {f.segment.lPer100.toFixed(2)}{' '}
+                    L/100km
+                    {typeof f.segment.prevLPer100 === 'number' ? (
+                      <>
+                        {' '}
+                        • <Delta now={f.segment.lPer100} prev={f.segment.prevLPer100} />
+                      </>
+                    ) : null}
+                  </div>
+                ) : null}
               </div>
               <div className="sm:text-right flex gap-2 sm:justify-end">
                 <EditFillUpButton
@@ -101,6 +117,19 @@ function EmptyCta() {
 
 function formatCurrency(n: number) {
   return new Intl.NumberFormat(undefined, { style: 'currency', currency: 'EUR' }).format(n);
+}
+
+function Delta({ now, prev }: { now: number; prev: number }) {
+  const diff = now - prev;
+  const sign = diff === 0 ? '' : diff > 0 ? '+' : '−';
+  const abs = Math.abs(diff).toFixed(2);
+  const color = diff === 0 ? 'text-gray-600' : diff > 0 ? 'text-red-600' : 'text-green-600';
+  return (
+    <span className={color}>
+      Δ {sign}
+      {abs}
+    </span>
+  );
 }
 
 function EditFillUpButton({

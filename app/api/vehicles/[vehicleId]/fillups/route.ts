@@ -30,6 +30,8 @@ export async function GET(req: NextRequest, context: { params: Promise<{ vehicle
       maxLimit
     );
     const cursor = url.searchParams.get('cursor') || undefined;
+    const withSegmentsParam = url.searchParams.get('withSegments');
+    const withSegments = withSegmentsParam === '1' || withSegmentsParam === 'true';
 
     const { vehicleId } = await context.params;
 
@@ -46,7 +48,9 @@ export async function GET(req: NextRequest, context: { params: Promise<{ vehicle
     });
 
     const hasMore = items.length > limit;
-    const fillUps = (hasMore ? items.slice(0, -1) : items).map(f => ({
+    const pageItems = hasMore ? items.slice(0, -1) : items;
+
+    let fillUps = pageItems.map(f => ({
       id: f.id,
       date: f.date.toISOString(),
       odometerKm: f.odometerKm,
@@ -56,6 +60,93 @@ export async function GET(req: NextRequest, context: { params: Promise<{ vehicle
       isFull: f.isFull,
       notes: f.notes ?? undefined,
     }));
+
+    if (withSegments) {
+      // Compute segments in a pagination-safe way by backfilling older records up to previous full
+      const oldestFullInPage = [...pageItems]
+        .filter(f => f.isFull)
+        .sort((a, b) => a.date.getTime() - b.date.getTime())[0];
+
+      let olderChunk: typeof pageItems = [];
+      if (oldestFullInPage) {
+        olderChunk = await prisma.fuelFillUp.findMany({
+          where: { vehicleId: vehicle.id, date: { lte: oldestFullInPage.date } },
+          orderBy: { date: 'desc' },
+          take: 200,
+        });
+      }
+
+      const combinedMap = new Map<string, (typeof pageItems)[number]>();
+      for (const it of [...pageItems, ...olderChunk]) combinedMap.set(it.id, it);
+      const combined = Array.from(combinedMap.values());
+      const asc = combined.sort((a, b) => a.date.getTime() - b.date.getTime());
+
+      type Seg = {
+        distanceKm: number;
+        litersUsed: number;
+        lPer100: number;
+        fuelCost: number;
+        costPer100: number;
+      };
+
+      const segmentByFullId = new Map<string, Seg & { prevLPer100?: number }>();
+      const segmentsLinear: Array<{ fullId: string; lPer100: number }> = [];
+      let lastFullIndex = -1;
+      for (let i = 0; i < asc.length; i++) {
+        if (!asc[i].isFull) continue;
+        if (lastFullIndex >= 0) {
+          const prev = asc[lastFullIndex];
+          const curr = asc[i];
+          const distanceKm = curr.odometerKm - prev.odometerKm;
+          if (distanceKm > 0) {
+            const slice = asc.slice(lastFullIndex + 1, i + 1);
+            const litersUsed = slice.reduce((s, f) => s + decimalToNumber(f.liters), 0);
+            const fuelCost = slice.reduce((s, f) => s + decimalToNumber(f.totalCost), 0);
+            const lPer100 = (litersUsed / distanceKm) * 100;
+            const costPer100 = (fuelCost / distanceKm) * 100;
+            segmentByFullId.set(curr.id, { distanceKm, litersUsed, lPer100, fuelCost, costPer100 });
+            segmentsLinear.push({ fullId: curr.id, lPer100 });
+          }
+        }
+        lastFullIndex = i;
+      }
+
+      for (let i = 0; i < segmentsLinear.length; i++) {
+        const curr = segmentsLinear[i];
+        const prev = segmentsLinear[i - 1];
+        if (!prev) continue;
+        const existing = segmentByFullId.get(curr.fullId);
+        if (existing) {
+          segmentByFullId.set(curr.fullId, { ...existing, prevLPer100: prev.lPer100 });
+        }
+      }
+
+      fillUps = fillUps.map(f => {
+        if (!f.isFull) return f;
+        const seg = segmentByFullId.get(f.id);
+        if (!seg) return f;
+        return {
+          ...f,
+          segment: {
+            distanceKm: seg.distanceKm,
+            litersUsed: seg.litersUsed,
+            lPer100: seg.lPer100,
+            fuelCost: seg.fuelCost,
+            costPer100: seg.costPer100,
+            prevLPer100: seg.prevLPer100,
+          },
+        } as typeof f & {
+          segment: {
+            distanceKm: number;
+            litersUsed: number;
+            lPer100: number;
+            fuelCost: number;
+            costPer100: number;
+            prevLPer100?: number;
+          };
+        };
+      });
+    }
 
     return ok(
       { fillUps, nextCursor: hasMore ? fillUps[fillUps.length - 1]?.id : null },
