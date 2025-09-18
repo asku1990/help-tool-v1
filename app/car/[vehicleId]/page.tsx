@@ -27,8 +27,7 @@ import { useUiStore } from '@/stores/ui';
 
 import PageHeader from '@/components/layout/PageHeader';
 
-import ImportExpensesDialog from '@/components/car/ImportExpensesDialog';
-import { ExportMenu } from '@/components/car';
+import { ExportMenu, ImportMenu } from '@/components/car';
 
 export default function VehiclePage() {
   const { status } = useSession();
@@ -171,11 +170,10 @@ export default function VehiclePage() {
             Add expense
           </Button>
           {vehicleId ? (
-            <ImportExpensesDialog
+            <ImportMenu
               vehicleId={vehicleId}
-              onImported={() => {
-                expensesQuery.refetch();
-              }}
+              onExpensesImported={() => expensesQuery.refetch()}
+              onFillUpsImported={() => fillUpsQuery.refetch()}
             />
           ) : null}
           {vehicleId ? <ExportMenu vehicleId={vehicleId} /> : null}

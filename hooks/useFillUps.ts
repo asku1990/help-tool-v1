@@ -98,3 +98,44 @@ export function useDeleteFillUp(vehicleId: string, fillUpId: string) {
 }
 
 export type { FillUpDto };
+
+export function useImportFillUps(vehicleId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (
+      rows: Array<{
+        date: string;
+        odometerKm: number;
+        liters: number;
+        pricePerLiter: number;
+        totalCost: number;
+        isFull?: boolean;
+        notes?: string;
+      }>
+    ) => {
+      const results = await Promise.allSettled(
+        rows.map(r =>
+          createFillUp(vehicleId, {
+            date: r.date,
+            odometerKm: r.odometerKm,
+            liters: r.liters,
+            pricePerLiter: r.pricePerLiter,
+            totalCost: r.totalCost,
+            isFull: !!r.isFull,
+            notes: r.notes,
+          })
+        )
+      );
+      const failed = results.filter(r => r.status === 'rejected').length;
+      if (failed) {
+        throw new Error(
+          `Imported ${rows.length - failed}/${rows.length} fill-ups; ${failed} failed`
+        );
+      }
+    },
+    onSettled: () => {
+      qc.invalidateQueries({ queryKey: fillUpKeys.byVehicle(vehicleId) });
+      qc.invalidateQueries({ queryKey: fillUpKeys.infiniteByVehicle(vehicleId) });
+    },
+  });
+}
