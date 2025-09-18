@@ -1,0 +1,238 @@
+---
+alwaysApply: false
+---
+# 🚨 MANDATORY PRE-IMPLEMENTATION CHECKLIST 🚨
+
+STOP! Before writing ANY code or suggesting ANY changes:
+
+-----------------------------------------------------------
+
+## STEP 1: RESPONSE FORMAT
+
+EVERY response MUST start with either:
+
+```
+✅ IMPLEMENTING CHANGES
+Following checklist below...
+
+[or]
+
+⚠️ NO CHANGES NEEDED
+Brief explanation why...
+```
+
+-----------------------------------------------------------
+
+## STEP 2: MANDATORY CHECKLIST
+
+### A. SEARCH FIRST
+Execute and document ALL results:
+```bash
+1. grep_search for functionality
+2. file_search for similar files
+3. list_dir in relevant directories
+```
+
+### B. DOCUMENT FINDINGS
+```
+1. Existing Files Found:
+   - List ALL relevant files
+   - Include file paths and purposes
+
+2. Existing Functionality:
+   - List ALL existing features
+   - Note current implementations
+
+3. Gaps Identified:
+   - List ALL missing features
+   - Note needed improvements
+```
+
+### C. PROPOSE APPROACH
+```
+1. Recommended Action (choose one):
+   [ ] Enhance existing code
+   [ ] Create new files
+   [ ] Refactor existing code
+
+2. Justification:
+   - REQUIRED: Clear explanation
+   - Why this approach is best
+
+3. Implementation Plan:
+   - Step-by-step changes
+   - Expected outcomes
+```
+
+-----------------------------------------------------------
+
+## STEP 3: APPROVAL GATE
+
+```
+⚡️ AWAITING APPROVAL
+Stop here. Do not proceed without explicit "APPROVED" response.
+```
+
+-----------------------------------------------------------
+
+## STEP 4: IMPLEMENTATION
+
+Only after receiving "APPROVED":
+
+1. Follow approved plan exactly
+2. Document any deviations
+3. Stop and seek re-approval if plan changes
+
+-----------------------------------------------------------
+
+## ❌ VIOLATION CONSEQUENCES
+
+If ANY step is skipped:
+1. Stop immediately
+2. State "CHECKLIST VIOLATION DETECTED"
+3. Return to Step 1
+
+-----------------------------------------------------------
+
+## 🔒 ENFORCEMENT
+
+- Every response MUST follow this protocol
+- No exceptions allowed
+- No partial completions
+- Must have "APPROVED" before changes
+- New files need explicit justification
+
+## 📁 APP STRUCTURE
+
+The application follows a Next.js structure with the following key directories:
+
+### Main Directories
+- `/app` - Next.js app directory (App Router)
+  - `/dashboard` - Main manager pages
+    - `/jobs-manager` - Job management interface
+    - `/version-manager` - Version control interface
+    - `/material-manager` - Material management interface
+    - `/content-library` - Content management interface
+    - `/location-manager` - Location management interface
+    - `/personas-manager` - Personas management interface
+    - `/scene-explorer` - Scene exploration interface
+    - `/scene-importer` - Scene import interface
+    - `/tag-manager` - Tag management interface
+    - `/profile` - User profile management
+  - `/api` - API routes
+  - `/login` - Authentication pages
+  - `/settings` - Settings pages
+
+### Components
+- `/components` - Reusable UI components
+  - `/ui` - Base UI components
+  - `/shared` - Shared components
+  - `/modals` - Modal components
+  - `/dashboard` - Dashboard-specific components
+  - `/auth` - Authentication components
+  - `/job-manager` - Job management components
+    - `job-card.tsx` - Job display card
+    - `create-job-dialog.tsx` - Job creation modal
+    - `edit-job-dialog.tsx` - Job editing modal
+    - `reorder-job-dialog.tsx` - Job reordering modal
+    - `reorder-city-dialog.tsx` - City reordering modal
+  - `/version-manager` - Version management components
+  - `/material-manager` - Material management components
+  - `/personas-manager` - Personas management components
+  - `/location-manager` - Location management components
+  - `/content-library` - Content library components
+  - `/surface-type-manager` - Surface type management components
+  - `/scene-importer` - Scene import components
+  - `/explorer` - Explorer components
+    - `surface-type-cell.tsx` - Surface type cell component
+    - `hotspots-table.tsx` - Hotspots table component
+    - `scene-explorer-card.tsx` - Scene explorer card
+    - `scene-details-table.tsx` - Scene details table
+    - `editable-cell.tsx` - Editable cell component
+    - `batch-operations.tsx` - Batch operations component
+    - `/dialogs` - Explorer dialogs
+      - `/edit-scene` - Scene editing dialogs
+    - `/hooks` - Explorer-specific hooks
+  - `/tags` - Tag management components
+
+### Supporting Directories
+- `/actions` - Server actions
+  - `jobs.ts` - Job management actions
+  - `versions.ts` - Version control actions
+  - `dashboard.ts` - Dashboard actions
+  - `tag.ts` - Tag management actions
+  - `material.ts` - Material management actions
+  - `persona.ts` - Persona management actions
+  - `city.ts` - City management actions
+  - `surfaceType.ts` - Surface type management actions
+  - `audit.ts` - Audit logging actions
+  - `/scene` - Scene-related actions
+  - `/hotspot` - Hotspot management actions
+  - `/job` - Job-specific actions
+  - `/tags` - Tag-specific actions
+
+- `/stores` - State management
+  - `job-store.ts` - Job state management
+  - `version-store.ts` - Version state management
+  - `tag-store.ts` - Tag state management
+  - `material-store.ts` - Material state management
+  - `content-library-store.ts` - Content library state
+  - `scene-store.ts` - Scene state management
+  - `surface-type-store.ts` - Surface type state
+  - `personas-store.ts` - Personas state management
+
+- `/hooks` - Custom React hooks
+  - `use-material-ai-suggestions.ts` - AI suggestions for materials
+
+- `/types` - TypeScript type definitions
+  - `version.ts` - Version types
+  - `material.ts` - Material types
+  - `job.ts` - Job types
+  - `city.ts` - City types
+  - `content-library.ts` - Content library types
+  - `scene.d.ts` - Scene types
+  - `surface-type.ts` - Surface type definitions
+  - `persona.ts` - Persona types
+  - `audit.ts` - Audit logging types
+  - `api-response.ts` - API response types
+  - `next-auth.d.ts` - Authentication types
+  - `material-tagging.ts` - Material tagging types
+
+- `/utils` - Utility functions
+  - `/gameconfig` - Game configuration utilities
+  - `/ai` - AI-related utilities
+  - `/google-drive` - Google Drive integration
+  - `/material` - Material-specific utilities
+  - `/audit` - Audit logging utilities
+  - `/ui` - UI utilities
+  - `/validators` - Validation utilities
+  - `/scene` - Scene-related utilities
+  - `/errors` - Error handling utilities
+  - `tag-hierarchy.ts` - Tag hierarchy management
+  - `generate-kind-key.ts` - Key generation utilities
+  - `order-utils.ts` - Ordering utilities
+  - `reorder-dialog-utils.ts` - Reordering dialog utilities
+  - `csv.ts` - CSV handling utilities
+  - `api.ts` - API utilities
+  - `aws-secrets.ts` - AWS secrets management
+  - `blurhash.ts` - Image blur hash utilities
+
+- `/lib` - Library code
+- `/prisma` - Database schema and migrations
+  - `schema.prisma` - Main database schema
+  - `seed.ts` - Database seeding script
+  - `/migrations` - Database migrations
+  - `/seed` - Seed data
+
+- `/styles` - Styling files
+- `/public` - Static assets
+- `/providers` - React context providers
+
+### Configuration
+- `next.config.mjs` - Next.js configuration
+- `tailwind.config.ts` - Tailwind CSS configuration
+- `tsconfig.json` - TypeScript configuration
+- `package.json` - Project dependencies and scripts
+- Various other config files for ESLint, Prettier, etc.
+
+This structure should be referenced when searching for files or implementing new features.

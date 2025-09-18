@@ -1,6 +1,6 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import ImportExpensesDialog from '@/components/car/ImportExpensesDialog';
+import ImportExpensesDialog from '@/components/car/expenses/ImportExpensesDialog';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { server } from '@/test/msw/server';
 import { http, HttpResponse } from 'msw';

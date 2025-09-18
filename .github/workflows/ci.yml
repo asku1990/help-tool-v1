@@ -1,8 +1,14 @@
 name: CI
 on:
-  push:
-    branches: [main, feature/**]
   pull_request:
+    branches: [develop, main]
+
+env:
+  AUTH_SECRET: dummy
+  AUTH_GITHUB_ID: dummy
+  AUTH_GITHUB_SECRET: dummy
+  ALLOWED_USERS: dummy
+  TEST_BYPASS_AUTH: '1'
 
 jobs:
   unit:
@@ -18,7 +24,8 @@ jobs:
           cache: 'pnpm'
       - run: pnpm install --frozen-lockfile
       - run: pnpm prisma generate
-      - run: pnpm test -- --reporter=verbose
+      - name: Run unit tests with coverage
+        run: pnpm test -- --reporter=verbose
 
   integration:
     runs-on: ubuntu-latest
@@ -35,8 +42,8 @@ jobs:
           cache: 'pnpm'
       - run: pnpm install --frozen-lockfile
       - run: pnpm prisma generate
-      - name: Run integration tests
-        run: pnpm vitest run --dir app/api --reporter=verbose
+      - name: Run integration tests (*.int.test.*)
+        run: pnpm vitest run "**/*.int.test.ts" "**/*.int.test.tsx" --reporter=verbose --passWithNoTests
       - name: Upload coverage artifact
         if: always()
         uses: actions/upload-artifact@v4
@@ -47,6 +54,8 @@ jobs:
   e2e:
     runs-on: ubuntu-latest
     if: github.event_name == 'pull_request'
+    env:
+      TEST_BYPASS_AUTH: '0'
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -59,10 +68,26 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm prisma generate
       - run: pnpm exec playwright install --with-deps
-      - run: pnpm exec playwright test e2e
+      - run: pnpm exec playwright test e2e --reporter=html
       - name: Upload Playwright report
         if: failure()
         uses: actions/upload-artifact@v4
         with:
           name: playwright-report
           path: playwright-report
+
+  build:
+    runs-on: ubuntu-latest
+    needs: [unit, integration]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'pnpm'
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm prisma generate
+      - run: pnpm build
