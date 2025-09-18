@@ -1,4 +1,2 @@
-#!/usr/bin/env sh
-. "$(dirname -- "$0")/_/husky.sh"
 pnpm lint-staged
-pnpm -s vitest run --changed HEAD~1 --reporter=basic --passWithNoTests --coverage=false
+pnpm -s vitest run --changed HEAD~1 --passWithNoTests --coverage=false
