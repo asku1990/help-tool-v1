@@ -60,9 +60,7 @@ export async function GET(req: NextRequest, context: { params: Promise<{ vehicle
     });
 
     const today = new Date();
-    const yyyymmdd = `${today.getUTCFullYear()}${String(today.getUTCMonth() + 1).padStart(2, '0')}${String(
-      today.getUTCDate()
-    ).padStart(2, '0')}`;
+    const yyyymmdd = today.toISOString().slice(0, 10).replace(/-/g, '');
     const namePart = sanitizeForFilename(vehicle.name || vehicle.id);
 
     // Default CSV format

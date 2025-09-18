@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import {
   Button,
   Dialog,
@@ -11,6 +11,7 @@ import {
 } from '@/components/ui';
 import { useImportExpenses } from '@/hooks';
 import type { ExpenseDto } from '@/queries/expenses';
+import { normalizeExpenseCategory } from '@/utils';
 
 type ParsedRow = {
   id: string;
@@ -49,6 +50,15 @@ export default function ImportExpensesDialog({
   const importMutation = useImportExpenses(vehicleId);
 
   const validCount = useMemo(() => rows.filter(r => r.include && r.valid).length, [rows]);
+
+  useEffect(() => {
+    if (open) {
+      setText('');
+      setRows([]);
+      setIsParsing(false);
+      setIsImporting(false);
+    }
+  }, [open]);
 
   function tryParseDate(token: string): string | undefined {
     const t = token.trim();
@@ -137,9 +147,9 @@ export default function ImportExpensesDialog({
         const amountStr = idx.amount >= 0 ? tokens[idx.amount] : undefined;
         const amount =
           amountStr && amountStr.length > 0 ? Number(amountStr.replace(',', '.')) : undefined;
-        const category = (idx.category >= 0 ? tokens[idx.category] : undefined) as
-          | ExpenseDto['category']
-          | undefined;
+        const category = normalizeExpenseCategory(
+          idx.category >= 0 ? tokens[idx.category] : undefined
+        ) as ExpenseDto['category'] | undefined;
         const vendor = idx.vendor >= 0 ? tokens[idx.vendor] : undefined;
         const notes = idx.notes >= 0 ? tokens[idx.notes] : undefined;
         const valid = (!!amount && Number.isFinite(amount)) || !!notes;
@@ -217,7 +227,8 @@ export default function ImportExpensesDialog({
         .filter(r => r.include && r.valid)
         .map(r => ({
           date: r.date!,
-          category: (r.category || 'MAINTENANCE') as ExpenseDto['category'],
+          category: (normalizeExpenseCategory(r.category) ??
+            'MAINTENANCE') as ExpenseDto['category'],
           amount: r.amount ?? 0,
           vendor: r.vendor || undefined,
           odometerKm: typeof r.km === 'number' ? r.km : undefined,

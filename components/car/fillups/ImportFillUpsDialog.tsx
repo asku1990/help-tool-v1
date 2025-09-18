@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import {
   Button,
   Dialog,
@@ -49,6 +49,15 @@ export default function ImportFillUpsDialog({
   const importMutation = useImportFillUps(vehicleId);
 
   const validCount = useMemo(() => rows.filter(r => r.include && r.valid).length, [rows]);
+
+  useEffect(() => {
+    if (open) {
+      setText('');
+      setRows([]);
+      setIsParsing(false);
+      setIsImporting(false);
+    }
+  }, [open]);
 
   function splitSemicolonCsv(line: string): string[] {
     const result: string[] = [];
