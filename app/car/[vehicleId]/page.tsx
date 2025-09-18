@@ -29,6 +29,7 @@ import PageHeader from '@/components/layout/PageHeader';
 
 import ImportExpensesDialog from '@/components/car/ImportExpensesDialog';
 import ExportExpensesButtons from '@/components/car/ExportExpensesButtons';
+import ExportFillUpsButton from '@/components/car/ExportFillUpsButton';
 
 export default function VehiclePage() {
   const { status } = useSession();
@@ -179,6 +180,7 @@ export default function VehiclePage() {
             />
           ) : null}
           {vehicleId ? <ExportExpensesButtons vehicleId={vehicleId} /> : null}
+          {vehicleId ? <ExportFillUpsButton vehicleId={vehicleId} /> : null}
           <label htmlFor="vehicle-switcher" className="sr-only">
             Select vehicle
           </label>
