@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Button,
   Dialog,
@@ -10,16 +10,7 @@ import {
   DialogTrigger,
 } from '@/components/ui';
 
-const expenseCategories = [
-  'FUEL',
-  'MAINTENANCE',
-  'INSURANCE',
-  'TAX',
-  'PARKING',
-  'TOLL',
-  'OTHER',
-] as const;
-type ExpenseCategory = (typeof expenseCategories)[number];
+import { expenseCategories, type ExpenseCategory, addMonths } from '@/utils';
 
 export type ExpenseFormProps = {
   vehicleId: string;
@@ -28,7 +19,6 @@ export type ExpenseFormProps = {
 
 import { useUiStore } from '@/stores/ui';
 import { useCreateExpense, useUpdateVehicle, useVehicle } from '@/hooks';
-import { addMonths } from '@/utils';
 
 export default function ExpenseForm({ vehicleId, onCreated }: ExpenseFormProps) {
   const { isExpenseDialogOpen: open, setExpenseDialogOpen: setOpen } = useUiStore();
@@ -45,6 +35,19 @@ export default function ExpenseForm({ vehicleId, onCreated }: ExpenseFormProps) 
   const [nextInspectionDue, setNextInspectionDue] = useState<string>('');
   const [intervalMonthsInput, setIntervalMonthsInput] = useState<string>('');
   const [submitting, setSubmitting] = useState(false);
+  useEffect(() => {
+    if (open) {
+      setDate(new Date().toISOString().slice(0, 10));
+      setCategory('MAINTENANCE');
+      setAmount('');
+      setVendor('');
+      setOdometerKm('');
+      setNotes('');
+      setIsInspection(false);
+      setNextInspectionDue('');
+      setIntervalMonthsInput('');
+    }
+  }, [open]);
 
   const isValid = !!vehicleId && !!category && !!amount && parseFloat(amount.replace(',', '.')) > 0;
 
