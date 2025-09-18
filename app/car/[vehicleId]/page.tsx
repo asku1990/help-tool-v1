@@ -18,7 +18,8 @@ import CostSummary from '@/components/car/CostSummary';
 import FillUpList from '@/components/car/FillUpList';
 import ExpenseList from '@/components/car/ExpenseList';
 import ConsumptionBadges from '@/components/car/ConsumptionBadges';
-import ConsumptionChart from '@/components/car/ConsumptionChart';
+import ConsumptionChart, { type ChartOptions } from '@/components/car/ConsumptionChart';
+import ChartToolbar from '@/components/car/ChartToolbar';
 import LicensePlate from '@/components/car/LicensePlate';
 import InspectionBadge from '@/components/car/InspectionBadge';
 import { useExpenses, useFillUps, useVehicle, useVehicles, useUpdateVehicle } from '@/hooks';
@@ -239,9 +240,6 @@ export default function VehiclePage() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-3 space-y-4">
             <ConsumptionBadges segments={segments} />
-            <ConsumptionChart
-              segments={segments.map(s => ({ date: s.date, lPer100: s.lPer100 }))}
-            />
             <CostSummary
               costPerKmLifetime={computeCostPerKmLifetime(segments, expenses)}
               costPerKm90d={computeCostPerKm90d(segments, expenses)}
@@ -261,7 +259,17 @@ export default function VehiclePage() {
                     <Button disabled>Add fill-up</Button>
                   )}
                 </div>
-                {vehicleId ? <FillUpList vehicleId={vehicleId} /> : null}
+                {vehicleId ? (
+                  <FillUpsTabs
+                    segments={segments.map(s => ({
+                      date: s.date,
+                      lPer100: s.lPer100,
+                      costPer100: s.costPer100,
+                      distanceKm: s.distanceKm,
+                    }))}
+                    vehicleId={vehicleId}
+                  />
+                ) : null}
               </CardContent>
             </Card>
 
@@ -397,6 +405,46 @@ export default function VehiclePage() {
           </form>
         </DialogContent>
       </Dialog>
+    </div>
+  );
+}
+function FillUpsTabs({
+  segments,
+  vehicleId,
+}: {
+  segments: Array<{ date: string; lPer100: number; costPer100: number; distanceKm: number }>;
+  vehicleId: string;
+}) {
+  const [tab, setTab] = useState<'list' | 'chart'>('list');
+  const [chartOptions, setChartOptions] = useState<ChartOptions>({
+    rangeDays: 90,
+  });
+  return (
+    <div>
+      <div className="mb-3 flex items-center gap-3">
+        <button
+          type="button"
+          className={`text-sm px-3 py-1.5 rounded border ${tab === 'list' ? 'bg-gray-100' : ''}`}
+          onClick={() => setTab('list')}
+        >
+          List
+        </button>
+        <button
+          type="button"
+          className={`text-sm px-3 py-1.5 rounded border ${tab === 'chart' ? 'bg-gray-100' : ''}`}
+          onClick={() => setTab('chart')}
+        >
+          Chart
+        </button>
+      </div>
+      {tab === 'list' ? (
+        <FillUpList vehicleId={vehicleId} />
+      ) : (
+        <>
+          <ChartToolbar options={chartOptions} onChange={setChartOptions} />
+          <ConsumptionChart segments={segments} options={chartOptions} />
+        </>
+      )}
     </div>
   );
 }
