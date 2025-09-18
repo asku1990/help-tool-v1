@@ -69,8 +69,6 @@ export default function CarHomePage() {
     refetch: refetchVehicles,
   } = useVehicles(status === 'authenticated' || isDemo);
 
-  const isVehiclesPending = isVehiclesLoading;
-
   useEffect(() => {
     if (vehiclesData?.vehicles) setVehicles(vehiclesData.vehicles);
   }, [vehiclesData]);
@@ -106,12 +104,12 @@ export default function CarHomePage() {
                 <Plus className="w-4 h-4 mr-2" /> Add vehicle
               </Button>
             </div>
-            <div className="mt-6 space-y-3" aria-busy={isVehiclesPending}>
-              {isVehiclesPending && <VehicleListSkeleton rows={3} />}
-              {!isVehiclesPending && vehicles.length === 0 && (
+            <div className="mt-6 space-y-3" aria-busy={isVehiclesLoading}>
+              {isVehiclesLoading && <VehicleListSkeleton rows={3} />}
+              {!isVehiclesLoading && vehicles.length === 0 && (
                 <div className="text-gray-600 text-sm">No vehicles yet.</div>
               )}
-              {!isVehiclesPending && vehicles.length > 0 && (
+              {!isVehiclesLoading && vehicles.length > 0 && (
                 <ul className="divide-y">
                   {vehicles.map(v => (
                     <li key={v.id}>
