@@ -10,6 +10,7 @@ import {
   DialogTrigger,
 } from '@/components/ui';
 import { useImportExpenses } from '@/hooks';
+import type { ExpenseDto } from '@/queries/expenses';
 
 type ParsedRow = {
   id: string;
@@ -18,6 +19,8 @@ type ParsedRow = {
   date?: string; // yyyy-mm-dd
   km?: number;
   amount?: number;
+  category?: ExpenseDto['category'];
+  vendor?: string;
   notes?: string;
   valid: boolean;
 };
@@ -63,14 +66,98 @@ export default function ImportExpensesDialog({
   }
 
   function parseCsv(input: string): ParsedRow[] {
+    // Simple semicolon-separated CSV with quote support ("" for escaped quotes)
+    function splitSemicolonCsv(line: string): string[] {
+      const result: string[] = [];
+      let current = '';
+      let inQuotes = false;
+      for (let i = 0; i < line.length; i++) {
+        const ch = line[i];
+        if (ch === '"') {
+          if (inQuotes && line[i + 1] === '"') {
+            current += '"';
+            i++; // skip escaped quote
+          } else {
+            inQuotes = !inQuotes;
+          }
+        } else if (ch === ';' && !inQuotes) {
+          result.push(current);
+          current = '';
+        } else {
+          current += ch;
+        }
+      }
+      result.push(current);
+      return result.map(s => s.trim());
+    }
+
     const lines = input
       .split(/\r?\n/)
       .map(l => l.trim())
       .filter(l => l.length > 0);
+
+    if (lines.length === 0) return [];
+
+    const headerTokens = splitSemicolonCsv(lines[0]).map(t => t.toLowerCase());
+    const hasHeader = ['date', 'km', 'amount', 'category', 'vendor', 'notes'].some(h =>
+      headerTokens.includes(h)
+    );
+
     const out: ParsedRow[] = [];
+
+    if (hasHeader) {
+      const idx = {
+        date: headerTokens.indexOf('date'),
+        km: headerTokens.indexOf('km'),
+        amount: headerTokens.indexOf('amount'),
+        category: headerTokens.indexOf('category'),
+        vendor: headerTokens.indexOf('vendor'),
+        notes: headerTokens.indexOf('notes'),
+      };
+      for (let li = 1; li < lines.length; li++) {
+        const line = lines[li];
+        const tokens = splitSemicolonCsv(line);
+        const rawDate = idx.date >= 0 ? tokens[idx.date] : undefined;
+        const dateTok =
+          rawDate && /^\d{4}-\d{2}-\d{2}$/.test(rawDate)
+            ? rawDate
+            : rawDate
+              ? tryParseDate(rawDate)
+              : undefined;
+        if (!dateTok) continue;
+        const kmStr = idx.km >= 0 ? tokens[idx.km] : undefined;
+        const km =
+          kmStr && kmStr.length > 0 ? parseInt(kmStr.replace(/[^0-9-]/g, ''), 10) : undefined;
+        const amountStr = idx.amount >= 0 ? tokens[idx.amount] : undefined;
+        const amount =
+          amountStr && amountStr.length > 0 ? Number(amountStr.replace(',', '.')) : undefined;
+        const category = (idx.category >= 0 ? tokens[idx.category] : undefined) as
+          | ExpenseDto['category']
+          | undefined;
+        const vendor = idx.vendor >= 0 ? tokens[idx.vendor] : undefined;
+        const notes = idx.notes >= 0 ? tokens[idx.notes] : undefined;
+        const valid = (!!amount && Number.isFinite(amount)) || !!notes;
+        out.push({
+          id: `${dateTok}-${out.length}`,
+          include: valid,
+          raw: line,
+          date: dateTok,
+          km: Number.isFinite(km as number) ? (km as number) : undefined,
+          amount: Number.isFinite(amount as number)
+            ? Number((amount as number).toFixed(2))
+            : undefined,
+          category,
+          vendor,
+          notes,
+          valid,
+        });
+      }
+      return out;
+    }
+
+    // Heuristic fallback (no header)
     for (const line of lines) {
-      const tokens = line.split(';').map(s => s.trim());
-      // Keep only non-empty tokens for heuristic mapping
+      const tokens = splitSemicolonCsv(line);
       const nonEmpty = tokens.filter(s => s.length > 0);
       if (nonEmpty.length < 2) continue;
       const dateTok = tryParseDate(nonEmpty[0]);
@@ -78,10 +165,8 @@ export default function ImportExpensesDialog({
       let km: number | undefined;
       let amount: number | undefined;
       let notes: string | undefined;
-      // Next tokens: try km then amount then notes
       for (let i = 1; i < nonEmpty.length; i++) {
         const v = nonEmpty[i];
-        // number with comma or dot
         const num = Number(v.replace(',', '.'));
         if (Number.isFinite(num)) {
           if (km === undefined && num > 1000) {
@@ -127,9 +212,9 @@ export default function ImportExpensesDialog({
         .filter(r => r.include && r.valid)
         .map(r => ({
           date: r.date!,
-          category: 'MAINTENANCE' as const,
+          category: (r.category || 'MAINTENANCE') as ExpenseDto['category'],
           amount: r.amount ?? 0,
-          vendor: undefined,
+          vendor: r.vendor || undefined,
           odometerKm: typeof r.km === 'number' ? r.km : undefined,
           notes: r.notes || undefined,
         }));
