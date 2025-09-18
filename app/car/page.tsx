@@ -19,6 +19,7 @@ import { apiPost } from '@/lib/api/client';
 import { useUiStore } from '@/stores/ui';
 import PageHeader from '@/components/layout/PageHeader';
 import { computeInspectionStatus } from '@/utils';
+import { VehicleListSkeleton } from '@/components/car';
 
 export default function CarHomePage() {
   const { status } = useSession();
@@ -62,9 +63,13 @@ export default function CarHomePage() {
     }
   }, [status, router]);
 
-  const { data: vehiclesData, refetch: refetchVehicles } = useVehicles(
-    status === 'authenticated' || isDemo
-  );
+  const {
+    data: vehiclesData,
+    isLoading: isVehiclesLoading,
+    refetch: refetchVehicles,
+  } = useVehicles(status === 'authenticated' || isDemo);
+
+  const isVehiclesPending = isVehiclesLoading;
 
   useEffect(() => {
     if (vehiclesData?.vehicles) setVehicles(vehiclesData.vehicles);
@@ -101,12 +106,12 @@ export default function CarHomePage() {
                 <Plus className="w-4 h-4 mr-2" /> Add vehicle
               </Button>
             </div>
-            <div className="mt-6 space-y-3">
-              {loading && <div className="text-sm text-gray-500">Loading vehicles…</div>}
-              {!loading && vehicles.length === 0 && (
+            <div className="mt-6 space-y-3" aria-busy={isVehiclesPending}>
+              {isVehiclesPending && <VehicleListSkeleton rows={3} />}
+              {!isVehiclesPending && vehicles.length === 0 && (
                 <div className="text-gray-600 text-sm">No vehicles yet.</div>
               )}
-              {!loading && vehicles.length > 0 && (
+              {!isVehiclesPending && vehicles.length > 0 && (
                 <ul className="divide-y">
                   {vehicles.map(v => (
                     <li key={v.id}>

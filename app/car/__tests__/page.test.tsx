@@ -29,7 +29,7 @@ it('renders vehicles list and opens add vehicle dialog', async () => {
   );
   renderWithProviders(<CarHomePage />);
   await waitFor(() => expect(screen.getByText(/Vehicles/i)).toBeInTheDocument());
-  expect(screen.getByText(/Car A/i)).toBeInTheDocument();
+  expect(await screen.findByText(/Car A/i)).toBeInTheDocument();
   fireEvent.click(screen.getByRole('button', { name: /add vehicle/i }));
   expect(await screen.findByLabelText(/Add vehicle dialog/i)).toBeInTheDocument();
 });

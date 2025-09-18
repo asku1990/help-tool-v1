@@ -3,6 +3,7 @@
 import { useMemo, useState } from 'react';
 import { useInfiniteExpenses, useUpdateExpense, useDeleteExpense } from '@/hooks';
 import { Button, Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui';
+import { ExpenseListSkeleton } from '@/components/car';
 import { useUiStore } from '@/stores/ui';
 import { formatDateFi } from '@/utils';
 
@@ -13,14 +14,7 @@ export default function ExpenseList({ vehicleId }: { vehicleId: string }) {
   const items = useMemo(() => (data?.pages || []).flatMap(p => p.expenses), [data]);
   const total = useMemo(() => items.reduce((s, e) => s + e.amount, 0), [items]);
 
-  if (isLoading)
-    return (
-      <div className="space-y-2">
-        <div className="h-4 bg-gray-100 rounded animate-pulse w-40" />
-        <div className="h-4 bg-gray-100 rounded animate-pulse" />
-        <div className="h-4 bg-gray-100 rounded animate-pulse w-3/4" />
-      </div>
-    );
+  if (isLoading) return <ExpenseListSkeleton rows={3} />;
   if (isError)
     return (
       <div className="text-sm text-red-600 flex items-center justify-between">

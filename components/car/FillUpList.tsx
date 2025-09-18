@@ -3,6 +3,7 @@
 import { useMemo, useState } from 'react';
 import { useInfiniteFillUps, useUpdateFillUp, useDeleteFillUp } from '@/hooks';
 import { Button, Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui';
+import { FillUpListSkeleton } from '@/components/car';
 import { useUiStore } from '@/stores/ui';
 import { formatDateFi } from '@/utils';
 
@@ -13,14 +14,7 @@ export default function FillUpList({ vehicleId }: { vehicleId: string }) {
   const items = useMemo(() => (data?.pages || []).flatMap(p => p.fillUps), [data]);
   const totalFuelCost = useMemo(() => items.reduce((s, f) => s + f.totalCost, 0), [items]);
 
-  if (isLoading)
-    return (
-      <div className="space-y-2">
-        <div className="h-4 bg-gray-100 rounded animate-pulse w-40" />
-        <div className="h-4 bg-gray-100 rounded animate-pulse" />
-        <div className="h-4 bg-gray-100 rounded animate-pulse w-3/4" />
-      </div>
-    );
+  if (isLoading) return <FillUpListSkeleton rows={4} />;
   if (isError)
     return (
       <div className="text-sm text-red-600 flex items-center justify-between">
