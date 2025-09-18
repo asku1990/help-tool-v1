@@ -18,7 +18,8 @@ import CostSummary from '@/components/car/CostSummary';
 import FillUpList from '@/components/car/FillUpList';
 import ExpenseList from '@/components/car/ExpenseList';
 import ConsumptionBadges from '@/components/car/ConsumptionBadges';
-import ConsumptionChart, { type ChartOptions } from '@/components/car/ConsumptionChart';
+import { ConsumptionChart, ExportMenu, ImportMenu } from '@/components/car';
+import type { ChartOptions } from '@/components/car/charts/ConsumptionChart';
 import ChartToolbar from '@/components/car/ChartToolbar';
 import LicensePlate from '@/components/car/LicensePlate';
 import InspectionBadge from '@/components/car/InspectionBadge';
@@ -27,8 +28,6 @@ import { pickLastInspectionDateFromExpenses, computeInspectionStatus } from '@/u
 import { useUiStore } from '@/stores/ui';
 
 import PageHeader from '@/components/layout/PageHeader';
-
-import { ExportMenu, ImportMenu } from '@/components/car';
 
 export default function VehiclePage() {
   const { status } = useSession();

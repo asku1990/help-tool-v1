@@ -1,6 +1,6 @@
 import React from 'react';
 import { render, screen } from '@testing-library/react';
-import ConsumptionChart from '@/components/car/ConsumptionChart';
+import ConsumptionChart from '@/components/car/charts/ConsumptionChart';
 
 // Mock ResizeObserver for JSDOM
 class ResizeObserverMock {

@@ -1,5 +1,5 @@
 export { default as ConsumptionBadges } from './ConsumptionBadges';
-export { default as ConsumptionChart } from './ConsumptionChart';
+export { ConsumptionChart } from './charts';
 export { default as CostSummary } from './CostSummary';
 export { default as ExpenseForm } from './ExpenseForm';
 export { default as ExpenseList } from './ExpenseList';
