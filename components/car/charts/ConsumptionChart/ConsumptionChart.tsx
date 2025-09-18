@@ -3,16 +3,28 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { formatDateFi } from '@/utils';
 
-type Segment = {
-  date: string;
-  lPer100: number;
+export type ChartOptions = {
+  rangeDays: 30 | 90 | 180 | 0; // 0 = All
 };
 
-export default function ConsumptionChart({ segments }: { segments: Segment[] }) {
+export type SegmentPoint = {
+  date: string;
+  lPer100: number;
+  distanceKm?: number;
+};
+
+export type ConsumptionChartProps = {
+  segments: SegmentPoint[];
+  options?: ChartOptions;
+};
+
+export default function ConsumptionChart({ segments, options }: ConsumptionChartProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [width, setWidth] = useState<number>(600);
   const height = 180;
   const padding = 16;
+
+  const resolvedOptions: ChartOptions = options ?? { rangeDays: 0 };
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -27,8 +39,17 @@ export default function ConsumptionChart({ segments }: { segments: Segment[] }) 
     return () => ro.disconnect();
   }, []);
 
+  const filtered = useMemo(() => {
+    const now = new Date();
+    const from = (options ?? { rangeDays: 0 }).rangeDays
+      ? new Date(now.getTime() - resolvedOptions.rangeDays * 24 * 60 * 60 * 1000)
+      : null;
+    const s = segments.filter(p => (from ? new Date(p.date) >= from : true));
+    return s;
+  }, [segments, options]);
+
   const { points, yVals, yMin, yRange, avg, avgY, pathD, gridYs } = useMemo(() => {
-    const pts = segments.map((s, i) => ({ x: i, y: s.lPer100, date: s.date }));
+    const pts = filtered.map((s, i) => ({ x: i, y: s.lPer100, date: s.date }));
     const xMax = Math.max(1, pts.length - 1);
     const yvRaw = pts.map(p => p.y).filter(Number.isFinite);
     const hasData = yvRaw.length > 0;
@@ -56,7 +77,7 @@ export default function ConsumptionChart({ segments }: { segments: Segment[] }) 
       pathD: d,
       gridYs: gridValues.map(v => ({ v, y: toY(v) })),
     };
-  }, [segments, width]);
+  }, [filtered, width]);
 
   if (!segments.length) {
     return <div className="text-sm text-gray-500">No consumption data yet.</div>;
@@ -90,6 +111,7 @@ export default function ConsumptionChart({ segments }: { segments: Segment[] }) 
           strokeDasharray="4 4"
         />
         <path d={pathD} fill="none" stroke="#2563eb" strokeWidth="2" />
+        {/* Cost series removed per request */}
         {points.map((p, i) => {
           const x = padding + (i / Math.max(1, points.length - 1)) * (width - padding * 2);
           const y = padding + (1 - (p.y - yMin) / (yRange || 1)) * (height - padding * 2);
