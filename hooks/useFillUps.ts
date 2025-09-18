@@ -11,7 +11,7 @@ import {
 export function useFillUps(vehicleId: string) {
   return useQuery({
     queryKey: [...fillUpKeys.byVehicle(vehicleId)],
-    queryFn: () => listFillUps(vehicleId),
+    queryFn: () => listFillUps(vehicleId, { withSegments: true }),
     staleTime: 30_000,
     enabled: !!vehicleId,
   });
@@ -21,7 +21,11 @@ export function useInfiniteFillUps(vehicleId: string, pageSize = 5) {
   return useInfiniteQuery({
     queryKey: fillUpKeys.infiniteByVehicle(vehicleId),
     queryFn: ({ pageParam }) =>
-      listFillUps(vehicleId, { cursor: pageParam as string | undefined, limit: pageSize }),
+      listFillUps(vehicleId, {
+        cursor: pageParam as string | undefined,
+        limit: pageSize,
+        withSegments: true,
+      }),
     initialPageParam: undefined as string | undefined,
     getNextPageParam: lastPage => lastPage.nextCursor ?? undefined,
     enabled: !!vehicleId,

@@ -11,15 +11,30 @@ export type FillUpDto = {
   notes?: string;
 };
 
-export function listFillUps(vehicleId: string, params?: { cursor?: string; limit?: number }) {
+export type SegmentDto = {
+  distanceKm: number;
+  litersUsed: number;
+  lPer100: number;
+  fuelCost: number;
+  costPer100: number;
+  prevLPer100?: number;
+};
+
+export type FillUpWithSegmentDto = FillUpDto & { segment?: SegmentDto };
+
+export function listFillUps(
+  vehicleId: string,
+  params?: { cursor?: string; limit?: number; withSegments?: boolean }
+) {
   const search = new URLSearchParams();
   if (params?.cursor) search.set('cursor', params.cursor);
   if (typeof params?.limit === 'number') search.set('limit', String(params.limit));
+  if (params?.withSegments) search.set('withSegments', '1');
   const qs = search.toString();
   const url = qs
     ? `/api/vehicles/${vehicleId}/fillups?${qs}`
     : `/api/vehicles/${vehicleId}/fillups`;
-  return apiGet<{ fillUps: FillUpDto[]; nextCursor: string | null }>(url);
+  return apiGet<{ fillUps: FillUpWithSegmentDto[]; nextCursor: string | null }>(url);
 }
 
 export function createFillUp(
