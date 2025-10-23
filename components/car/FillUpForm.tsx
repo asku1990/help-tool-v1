@@ -116,10 +116,8 @@ export default function FillUpForm({ vehicleId, onCreated }: FillUpFormProps) {
             <label className="flex flex-col gap-1">
               <span className="text-sm">Liters</span>
               <input
-                type="number"
+                type="text"
                 inputMode="decimal"
-                step="0.01"
-                min="0"
                 value={liters}
                 onChange={e => setLiters(e.target.value)}
                 className="border rounded-md px-3 py-2"
@@ -129,10 +127,8 @@ export default function FillUpForm({ vehicleId, onCreated }: FillUpFormProps) {
             <label className="flex flex-col gap-1">
               <span className="text-sm">Price per liter</span>
               <input
-                type="number"
+                type="text"
                 inputMode="decimal"
-                step="0.001"
-                min="0"
                 value={pricePerLiter}
                 onChange={e => setPricePerLiter(e.target.value)}
                 className="border rounded-md px-3 py-2"
