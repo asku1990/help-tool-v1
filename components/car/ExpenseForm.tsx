@@ -151,8 +151,6 @@ export default function ExpenseForm({ vehicleId, onCreated }: ExpenseFormProps) 
               <input
                 type="text"
                 inputMode="decimal"
-                step="0.01"
-                min="0"
                 value={amount}
                 onChange={e => setAmount(e.target.value)}
                 className="border rounded-md px-3 py-2"
