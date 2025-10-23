@@ -42,8 +42,8 @@ export default function FillUpForm({ vehicleId, onCreated }: FillUpFormProps) {
     !!date &&
     !!odometerKm &&
     parseInt(odometerKm, 10) >= 0 &&
-    parseFloat(liters) > 0 &&
-    parseFloat(pricePerLiter) > 0;
+    parseFloat(liters.replace(',', '.')) > 0 &&
+    parseFloat(pricePerLiter.replace(',', '.')) > 0;
 
   async function submit() {
     if (!isValid) return;
