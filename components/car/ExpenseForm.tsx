@@ -49,16 +49,19 @@ export default function ExpenseForm({ vehicleId, onCreated }: ExpenseFormProps) 
     }
   }, [open]);
 
-  const isValid = !!vehicleId && !!category && !!amount && parseFloat(amount.replace(',', '.')) > 0;
+  const parsedAmount = parseFloat((amount ?? '').replace(',', '.'));
+  const amountIsOk = amount === '' || (Number.isFinite(parsedAmount) && parsedAmount >= 0);
+  const isValid = !!vehicleId && !!category && amountIsOk;
 
   async function submit() {
     if (!isValid) return;
     setSubmitting(true);
     try {
+      const normalizedAmount = amount === '' ? 0 : parseFloat(amount.replace(',', '.'));
       await createExpense.mutateAsync({
         date,
         category,
-        amount: parseFloat(amount.replace(',', '.')),
+        amount: normalizedAmount,
         vendor: vendor || undefined,
         odometerKm: odometerKm ? parseInt(odometerKm, 10) : undefined,
         notes: notes || undefined,
@@ -146,14 +149,14 @@ export default function ExpenseForm({ vehicleId, onCreated }: ExpenseFormProps) 
             <label className="flex flex-col gap-1">
               <span className="text-sm">Amount</span>
               <input
-                type="number"
+                type="text"
                 inputMode="decimal"
                 step="0.01"
                 min="0"
                 value={amount}
                 onChange={e => setAmount(e.target.value)}
                 className="border rounded-md px-3 py-2"
-                required
+                required={false}
               />
             </label>
             <label className="flex flex-col gap-1">
