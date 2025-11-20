@@ -1,6 +1,8 @@
+import { describe, it, expect, vi, type MockInstance } from 'vitest';
 import { listExpenses, createExpense, updateExpense, deleteExpense } from '@/queries/expenses';
 
-let fetchSpy: vi.SpyInstance<ReturnType<typeof fetch>, Parameters<typeof fetch>>;
+type FetchSpy = MockInstance<typeof fetch>;
+let fetchSpy: FetchSpy;
 
 describe('expenses queries', () => {
   beforeEach(() => {

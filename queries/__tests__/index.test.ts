@@ -1,3 +1,4 @@
+import { describe, it, expect } from 'vitest';
 import * as queries from '@/queries';
 
 describe('queries index barrel', () => {
