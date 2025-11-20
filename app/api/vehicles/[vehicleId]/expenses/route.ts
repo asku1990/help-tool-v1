@@ -53,6 +53,8 @@ export async function GET(req: NextRequest, context: { params: Promise<{ vehicle
       amount: decimalToNumber(e.amount),
       vendor: e.vendor ?? undefined,
       odometerKm: e.odometerKm ?? undefined,
+      liters: e.liters ? decimalToNumber(e.liters) : undefined,
+      isOilChange: e.isOilChange,
       notes: e.notes ?? undefined,
     }));
 
@@ -78,6 +80,8 @@ const CreateExpenseSchema = z.object({
   amount: z.number(),
   vendor: z.string().optional(),
   odometerKm: z.number().int().optional(),
+  liters: z.number().optional(),
+  isOilChange: z.boolean().optional(),
   notes: z.string().optional(),
 });
 
@@ -99,7 +103,7 @@ export async function POST(req: NextRequest, context: { params: Promise<{ vehicl
     if (!parsed.success) {
       return badRequest('VALIDATION_ERROR', 'Invalid request body', parsed.error.flatten());
     }
-    const { date, category, amount, vendor, odometerKm, notes } = parsed.data;
+    const { date, category, amount, vendor, odometerKm, liters, isOilChange, notes } = parsed.data;
 
     const { vehicleId } = await context.params;
 
@@ -116,6 +120,8 @@ export async function POST(req: NextRequest, context: { params: Promise<{ vehicl
         amount,
         vendor: vendor || undefined,
         odometerKm: typeof odometerKm === 'number' ? odometerKm : undefined,
+        liters: typeof liters === 'number' ? liters : undefined,
+        isOilChange: isOilChange ?? false,
         notes: notes || undefined,
       },
       select: { id: true },

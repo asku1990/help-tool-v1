@@ -9,6 +9,7 @@ export type VehicleDto = {
   licensePlate?: string | null;
   inspectionDueDate?: string | null;
   inspectionIntervalMonths?: number | null;
+  initialOdometer?: number | null;
 };
 
 export function listVehicles() {
@@ -27,6 +28,7 @@ export function createVehicle(payload: {
   licensePlate?: string;
   inspectionDueDate?: string;
   inspectionIntervalMonths?: number;
+  initialOdometer?: number;
 }) {
   return apiPost<{ id: string }>('/api/vehicles', payload);
 }
@@ -41,6 +43,7 @@ export function updateVehicle(
     licensePlate: string | null;
     inspectionDueDate: string | null;
     inspectionIntervalMonths: number | null;
+    initialOdometer: number | null;
   }>
 ) {
   return apiPatch<{ id: string }>(`/api/vehicles/${vehicleId}`, payload);

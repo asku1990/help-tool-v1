@@ -56,6 +56,7 @@ export function useUpdateVehicle(vehicleId: string) {
         licensePlate: string | null;
         inspectionDueDate: string | null;
         inspectionIntervalMonths: number | null;
+        initialOdometer: number | null;
       }>
     ) => updateVehicle(vehicleId, payload),
     onSuccess: () => {

@@ -47,6 +47,7 @@ export default function CarHomePage() {
     licensePlate: string;
     inspectionDueDate: string;
     inspectionIntervalMonths: string;
+    initialOdometer: string;
   }>({
     name: '',
     make: '',
@@ -55,6 +56,7 @@ export default function CarHomePage() {
     licensePlate: '',
     inspectionDueDate: '',
     inspectionIntervalMonths: '',
+    initialOdometer: '',
   });
 
   useEffect(() => {
@@ -188,6 +190,9 @@ export default function CarHomePage() {
                     inspectionIntervalMonths: form.inspectionIntervalMonths
                       ? parseInt(form.inspectionIntervalMonths, 10)
                       : undefined,
+                    initialOdometer: form.initialOdometer
+                      ? parseInt(form.initialOdometer, 10)
+                      : undefined,
                   });
                   setOpen(false);
                   setForm({
@@ -198,6 +203,7 @@ export default function CarHomePage() {
                     licensePlate: '',
                     inspectionDueDate: '',
                     inspectionIntervalMonths: '',
+                    initialOdometer: '',
                   });
                   await refetchVehicles();
                 } finally {
@@ -274,6 +280,18 @@ export default function CarHomePage() {
                       setForm(f => ({ ...f, inspectionIntervalMonths: e.target.value }))
                     }
                     placeholder="12"
+                  />
+                </label>
+                <label className="flex flex-col gap-1">
+                  <span className="text-sm">Initial odometer (km)</span>
+                  <input
+                    type="number"
+                    inputMode="numeric"
+                    min="0"
+                    className="border rounded-md px-3 py-2"
+                    value={form.initialOdometer}
+                    onChange={e => setForm(f => ({ ...f, initialOdometer: e.target.value }))}
+                    placeholder="0"
                   />
                 </label>
               </div>

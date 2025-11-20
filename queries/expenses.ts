@@ -7,6 +7,8 @@ export type ExpenseDto = {
   amount: number;
   vendor?: string;
   odometerKm?: number;
+  liters?: number;
+  isOilChange?: boolean;
   notes?: string;
 };
 
@@ -37,6 +39,8 @@ export function updateExpense(
     amount: number;
     vendor: string | null;
     odometerKm: number | null;
+    liters: number | null;
+    isOilChange: boolean;
     notes: string | null;
   }>
 ) {

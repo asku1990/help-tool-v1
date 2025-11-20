@@ -34,6 +34,8 @@ export default function ExpenseForm({ vehicleId, onCreated }: ExpenseFormProps) 
   const [isInspection, setIsInspection] = useState<boolean>(false);
   const [nextInspectionDue, setNextInspectionDue] = useState<string>('');
   const [intervalMonthsInput, setIntervalMonthsInput] = useState<string>('');
+  const [liters, setLiters] = useState<string>('');
+  const [isOilChange, setIsOilChange] = useState<boolean>(false);
   const [submitting, setSubmitting] = useState(false);
   useEffect(() => {
     if (open) {
@@ -64,6 +66,8 @@ export default function ExpenseForm({ vehicleId, onCreated }: ExpenseFormProps) 
         amount: normalizedAmount,
         vendor: vendor || undefined,
         odometerKm: odometerKm ? parseInt(odometerKm, 10) : undefined,
+        liters: liters ? parseFloat(liters.replace(',', '.')) : undefined,
+        isOilChange,
         notes: notes || undefined,
       });
       if (isInspection) {
@@ -178,6 +182,17 @@ export default function ExpenseForm({ vehicleId, onCreated }: ExpenseFormProps) 
                 className="border rounded-md px-3 py-2"
               />
             </label>
+            <label className="flex flex-col gap-1">
+              <span className="text-sm">Liters (optional)</span>
+              <input
+                type="text"
+                inputMode="decimal"
+                value={liters}
+                onChange={e => setLiters(e.target.value)}
+                className="border rounded-md px-3 py-2"
+                placeholder="For oil/fluid"
+              />
+            </label>
           </div>
           <label className="flex flex-col gap-1">
             <span className="text-sm">Notes (optional)</span>
@@ -216,6 +231,15 @@ export default function ExpenseForm({ vehicleId, onCreated }: ExpenseFormProps) 
                 }}
               />
               <span className="text-sm">This is an inspection</span>
+            </label>
+            <label className="inline-flex items-center gap-2">
+              <input
+                type="checkbox"
+                className="h-4 w-4"
+                checked={isOilChange}
+                onChange={e => setIsOilChange(e.target.checked)}
+              />
+              <span className="text-sm">This is an oil change</span>
             </label>
             {isInspection ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

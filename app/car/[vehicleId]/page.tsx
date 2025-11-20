@@ -23,6 +23,8 @@ import type { ChartOptions } from '@/components/car/charts/ConsumptionChart';
 import ChartToolbar from '@/components/car/ChartToolbar';
 import LicensePlate from '@/components/car/LicensePlate';
 import InspectionBadge from '@/components/car/InspectionBadge';
+import TireManager from '@/components/car/TireManager';
+import OilConsumptionChart from '@/components/car/charts/OilConsumptionChart';
 import { useExpenses, useFillUps, useVehicle, useVehicles, useUpdateVehicle } from '@/hooks';
 import { pickLastInspectionDateFromExpenses, computeInspectionStatus } from '@/utils';
 import { useUiStore } from '@/stores/ui';
@@ -75,6 +77,7 @@ export default function VehiclePage() {
     licensePlate: '',
     inspectionDueDate: '',
     inspectionIntervalMonths: '',
+    initialOdometer: '',
   });
 
   useEffect(() => {
@@ -90,6 +93,7 @@ export default function VehiclePage() {
         inspectionIntervalMonths: v.inspectionIntervalMonths
           ? String(v.inspectionIntervalMonths)
           : '',
+        initialOdometer: v.initialOdometer ? String(v.initialOdometer) : '',
       });
     }
   }, [vehicleQuery.data]);
@@ -287,6 +291,15 @@ export default function VehiclePage() {
                 {vehicleId ? <ExpenseList vehicleId={vehicleId} /> : null}
               </CardContent>
             </Card>
+
+            {vehicleId ? <TireManager vehicleId={vehicleId} /> : null}
+
+            <Card>
+              <CardContent className="!p-4 sm:!p-6">
+                <h2 className="text-lg font-semibold mb-4">Oil Consumption</h2>
+                {vehicleId ? <OilConsumptionChart vehicleId={vehicleId} /> : null}
+              </CardContent>
+            </Card>
           </div>
         </div>
       </main>
@@ -308,6 +321,9 @@ export default function VehiclePage() {
                 inspectionDueDate: editForm.inspectionDueDate || null,
                 inspectionIntervalMonths: editForm.inspectionIntervalMonths
                   ? parseInt(editForm.inspectionIntervalMonths, 10)
+                  : null,
+                initialOdometer: editForm.initialOdometer
+                  ? parseInt(editForm.initialOdometer, 10)
                   : null,
               });
               setEditOpen(false);
@@ -382,6 +398,18 @@ export default function VehiclePage() {
                     setEditForm(f => ({ ...f, inspectionIntervalMonths: e.target.value }))
                   }
                   placeholder="12"
+                />
+              </label>
+              <label className="flex flex-col gap-1">
+                <span className="text-sm">Initial Odometer</span>
+                <input
+                  type="number"
+                  inputMode="numeric"
+                  min="0"
+                  className="border rounded-md px-3 py-2"
+                  value={editForm.initialOdometer}
+                  onChange={e => setEditForm(f => ({ ...f, initialOdometer: e.target.value }))}
+                  placeholder="0"
                 />
               </label>
             </div>
