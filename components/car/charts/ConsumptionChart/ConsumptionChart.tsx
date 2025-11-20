@@ -41,12 +41,11 @@ export default function ConsumptionChart({ segments, options }: ConsumptionChart
 
   const filtered = useMemo(() => {
     const now = new Date();
-    const from = (options ?? { rangeDays: 0 }).rangeDays
+    const from = resolvedOptions.rangeDays
       ? new Date(now.getTime() - resolvedOptions.rangeDays * 24 * 60 * 60 * 1000)
       : null;
-    const s = segments.filter(p => (from ? new Date(p.date) >= from : true));
-    return s;
-  }, [segments, options]);
+    return segments.filter(p => (from ? new Date(p.date) >= from : true));
+  }, [segments, resolvedOptions.rangeDays]);
 
   const { points, yVals, yMin, yRange, avg, avgY, pathD, gridYs } = useMemo(() => {
     const pts = filtered.map((s, i) => ({ x: i, y: s.lPer100, date: s.date }));
