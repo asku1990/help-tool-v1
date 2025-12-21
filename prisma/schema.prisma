@@ -40,6 +40,10 @@ enum ExpenseCategory {
   TAX
   PARKING
   TOLL
+  OIL_CHANGE
+  OIL_TOP_UP
+  INSPECTION
+  TIRES
   OTHER
 }
 
@@ -84,16 +88,16 @@ model FuelFillUp {
 }
 
 model Expense {
-  id         String   @id @default(uuid())
-  vehicleId  String
-  date       DateTime @default(now())
-  category   ExpenseCategory
-  amount     Decimal  @db.Decimal(10, 2)
-  vendor     String?
-  odometerKm Int?
-  liters     Decimal? @db.Decimal(10, 2)
-  isOilChange Boolean @default(false)
-  notes      String?
+  id              String   @id @default(uuid())
+  vehicleId       String
+  date            DateTime @default(now())
+  category        ExpenseCategory
+  amount          Decimal  @db.Decimal(10, 2)
+  vendor          String?
+  odometerKm      Int?
+  liters          Decimal? @db.Decimal(10, 2)
+  oilConsumption  Decimal? @db.Decimal(10, 2) // L/10,000km at time of top-up
+  notes           String?
 
   vehicle    Vehicle  @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
 

@@ -44,9 +44,9 @@ describe('ExpenseForm inspection flow', () => {
     // Fill required fields
     fireEvent.change(screen.getByLabelText(/Amount/i), { target: { value: '10.00' } });
 
-    // Toggle inspection and verify prefills
-    const checkbox = screen.getByRole('checkbox', { name: /this is an inspection/i });
-    fireEvent.click(checkbox);
+    // Select INSPECTION category to trigger inspection fields
+    const categorySelect = screen.getByLabelText(/Expense category/i);
+    fireEvent.change(categorySelect, { target: { value: 'INSPECTION' } });
 
     const dueInput = await screen.findByLabelText(/Next inspection due/i);
     const intervalInput = screen.getByLabelText(/Interval \(months\)/i);

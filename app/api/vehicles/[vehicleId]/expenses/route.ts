@@ -54,7 +54,7 @@ export async function GET(req: NextRequest, context: { params: Promise<{ vehicle
       vendor: e.vendor ?? undefined,
       odometerKm: e.odometerKm ?? undefined,
       liters: e.liters ? decimalToNumber(e.liters) : undefined,
-      isOilChange: e.isOilChange,
+      oilConsumption: e.oilConsumption ? decimalToNumber(e.oilConsumption) : undefined,
       notes: e.notes ?? undefined,
     }));
 
@@ -76,12 +76,23 @@ export async function GET(req: NextRequest, context: { params: Promise<{ vehicle
 
 const CreateExpenseSchema = z.object({
   date: z.string().min(1),
-  category: z.enum(['FUEL', 'MAINTENANCE', 'INSURANCE', 'TAX', 'PARKING', 'TOLL', 'OTHER']),
+  category: z.enum([
+    'FUEL',
+    'MAINTENANCE',
+    'INSURANCE',
+    'TAX',
+    'PARKING',
+    'TOLL',
+    'OIL_CHANGE',
+    'OIL_TOP_UP',
+    'INSPECTION',
+    'TIRES',
+    'OTHER',
+  ]),
   amount: z.number(),
   vendor: z.string().optional(),
   odometerKm: z.number().int().optional(),
   liters: z.number().optional(),
-  isOilChange: z.boolean().optional(),
   notes: z.string().optional(),
 });
 
@@ -103,7 +114,7 @@ export async function POST(req: NextRequest, context: { params: Promise<{ vehicl
     if (!parsed.success) {
       return badRequest('VALIDATION_ERROR', 'Invalid request body', parsed.error.flatten());
     }
-    const { date, category, amount, vendor, odometerKm, liters, isOilChange, notes } = parsed.data;
+    const { date, category, amount, vendor, odometerKm, liters, notes } = parsed.data;
 
     const { vehicleId } = await context.params;
 
@@ -111,6 +122,38 @@ export async function POST(req: NextRequest, context: { params: Promise<{ vehicl
       where: { id: vehicleId, user: { email: session.user.email } },
     });
     if (!vehicle) return notFound();
+
+    // Calculate oilConsumption for OIL_TOP_UP expenses
+    let oilConsumption: number | undefined;
+    if (category === 'OIL_TOP_UP' && typeof odometerKm === 'number' && typeof liters === 'number') {
+      // Find the last oil change
+      const lastOilChange = await prisma.expense.findFirst({
+        where: { vehicleId: vehicle.id, category: 'OIL_CHANGE' },
+        orderBy: { date: 'desc' },
+      });
+
+      if (lastOilChange?.odometerKm !== null && lastOilChange?.odometerKm !== undefined) {
+        // Get all top-ups since last oil change
+        const topUpsSince = await prisma.expense.findMany({
+          where: {
+            vehicleId: vehicle.id,
+            category: 'OIL_TOP_UP',
+            date: { gt: lastOilChange.date },
+          },
+        });
+
+        const previousTopUpLiters = topUpsSince.reduce(
+          (sum, e) => sum + (e.liters ? decimalToNumber(e.liters) : 0),
+          0
+        );
+        const totalLiters = previousTopUpLiters + liters;
+        const distance = odometerKm - lastOilChange.odometerKm;
+
+        if (distance > 0 && totalLiters > 0) {
+          oilConsumption = (totalLiters / distance) * 10000; // L per 10,000 km
+        }
+      }
+    }
 
     const createdExpense = await prisma.expense.create({
       data: {
@@ -121,7 +164,7 @@ export async function POST(req: NextRequest, context: { params: Promise<{ vehicl
         vendor: vendor || undefined,
         odometerKm: typeof odometerKm === 'number' ? odometerKm : undefined,
         liters: typeof liters === 'number' ? liters : undefined,
-        isOilChange: isOilChange ?? false,
+        oilConsumption,
         notes: notes || undefined,
       },
       select: { id: true },

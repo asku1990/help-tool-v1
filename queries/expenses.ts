@@ -3,12 +3,23 @@ import { apiGet, apiPost, apiPatch, apiDelete } from '@/lib/api/client';
 export type ExpenseDto = {
   id: string;
   date: string;
-  category: 'FUEL' | 'MAINTENANCE' | 'INSURANCE' | 'TAX' | 'PARKING' | 'TOLL' | 'OTHER';
+  category:
+    | 'FUEL'
+    | 'MAINTENANCE'
+    | 'INSURANCE'
+    | 'TAX'
+    | 'PARKING'
+    | 'TOLL'
+    | 'OIL_CHANGE'
+    | 'OIL_TOP_UP'
+    | 'INSPECTION'
+    | 'TIRES'
+    | 'OTHER';
   amount: number;
   vendor?: string;
   odometerKm?: number;
   liters?: number;
-  isOilChange?: boolean;
+  oilConsumption?: number; // L/10,000km at time of top-up
   notes?: string;
 };
 
@@ -40,7 +51,6 @@ export function updateExpense(
     vendor: string | null;
     odometerKm: number | null;
     liters: number | null;
-    isOilChange: boolean;
     notes: string | null;
   }>
 ) {

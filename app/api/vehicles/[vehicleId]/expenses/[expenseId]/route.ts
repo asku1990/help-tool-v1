@@ -8,11 +8,24 @@ import { logger } from '@/lib/logger';
 const UpdateSchema = z.object({
   date: z.string().optional(),
   category: z
-    .enum(['FUEL', 'MAINTENANCE', 'INSURANCE', 'TAX', 'PARKING', 'TOLL', 'OTHER'])
+    .enum([
+      'FUEL',
+      'MAINTENANCE',
+      'INSURANCE',
+      'TAX',
+      'PARKING',
+      'TOLL',
+      'OIL_CHANGE',
+      'OIL_TOP_UP',
+      'INSPECTION',
+      'TIRES',
+      'OTHER',
+    ])
     .optional(),
   amount: z.number().optional(),
   vendor: z.string().nullable().optional(),
   odometerKm: z.number().int().nullable().optional(),
+  liters: z.number().nullable().optional(),
   notes: z.string().nullable().optional(),
 });
 

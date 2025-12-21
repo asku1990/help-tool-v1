@@ -4,9 +4,22 @@ CREATE TYPE "TireType" AS ENUM ('SUMMER', 'WINTER', 'ALL_SEASON');
 -- CreateEnum
 CREATE TYPE "TireStatus" AS ENUM ('ACTIVE', 'STORED', 'RETIRED');
 
+-- AlterEnum
+-- This migration adds more than one value to an enum.
+-- With PostgreSQL versions 11 and earlier, this is not possible
+-- in a single migration. This can be worked around by creating
+-- multiple migrations, each migration adding only one value to
+-- the enum.
+
+
+ALTER TYPE "ExpenseCategory" ADD VALUE 'OIL_CHANGE';
+ALTER TYPE "ExpenseCategory" ADD VALUE 'OIL_TOP_UP';
+ALTER TYPE "ExpenseCategory" ADD VALUE 'INSPECTION';
+ALTER TYPE "ExpenseCategory" ADD VALUE 'TIRES';
+
 -- AlterTable
-ALTER TABLE "Expense" ADD COLUMN     "isOilChange" BOOLEAN NOT NULL DEFAULT false,
-ADD COLUMN     "liters" DECIMAL(10,2);
+ALTER TABLE "Expense" ADD COLUMN     "liters" DECIMAL(10,2),
+ADD COLUMN     "oilConsumption" DECIMAL(10,2);
 
 -- AlterTable
 ALTER TABLE "Vehicle" ADD COLUMN     "initialOdometer" INTEGER DEFAULT 0;

@@ -1,18 +1,7 @@
 'use client';
 
 import { useMemo } from 'react';
-import { useExpenses } from '@/hooks';
-import {
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
-  Line,
-  ComposedChart,
-} from 'recharts';
+import { useExpenses, useFillUps } from '@/hooks';
 
 type OilConsumptionChartProps = {
   vehicleId: string;
@@ -20,102 +9,157 @@ type OilConsumptionChartProps = {
 
 export default function OilConsumptionChart({ vehicleId }: OilConsumptionChartProps) {
   const { data: expenseData } = useExpenses(vehicleId);
+  const { data: fillUpsData } = useFillUps(vehicleId);
 
-  const chartData = useMemo(() => {
+  const oilSummary = useMemo(() => {
     const expenses = expenseData?.expenses || [];
-    // Filter for oil related expenses (those with liters)
+    const fillUps = fillUpsData?.fillUps || [];
+
+    // Get oil-related expenses sorted by date (newest first)
     const oilExpenses = expenses
-      .filter(e => (e.liters && e.liters > 0) || e.isOilChange)
-      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+      .filter(
+        e =>
+          e.category === 'OIL_CHANGE' || e.category === 'OIL_TOP_UP' || (e.liters && e.liters > 0)
+      )
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
-    if (oilExpenses.length < 2) return [];
+    // Find last oil change
+    const lastOilChange = oilExpenses.find(e => e.category === 'OIL_CHANGE');
 
-    const dataPoints = [];
-
-    // Try to find a starting point. If the first record is an oil change, great.
-    // If not, we might just track top-ups relative to each other?
-
-    for (let i = 0; i < oilExpenses.length; i++) {
-      const curr = oilExpenses[i];
-      const prev = i > 0 ? oilExpenses[i - 1] : null;
-
-      // If it's an oil change, it resets the consumption cycle usually?
-      // Or we just plot the amount added.
-
-      // Let's calculate consumption if we have a previous reading
-      let consumption = 0;
-      if (prev && curr.odometerKm && prev.odometerKm) {
-        const dist = curr.odometerKm - prev.odometerKm;
-        if (dist > 0 && curr.liters) {
-          // Liters added * 10000 / distance
-          consumption = (curr.liters / dist) * 10000;
-        }
-      }
-
-      dataPoints.push({
-        date: new Date(curr.date).toLocaleDateString(),
-        liters: curr.liters || 0,
-        odometer: curr.odometerKm,
-        type: curr.isOilChange ? 'Change' : 'Top-up',
-        consumption: consumption > 0 ? consumption : null, // L/10,000km
-      });
+    if (!lastOilChange) {
+      return {
+        lastOilChange: null,
+        topUps: [],
+        kmSinceChange: null,
+        daysSinceChange: 0,
+        totalTopUps: 0,
+        consumption: null,
+      };
     }
 
-    return dataPoints;
-  }, [expenseData]);
+    // Get current odometer from the most recent reading (fill-up or expense)
+    const latestFillUp = fillUps[0] as { odometerKm?: number; date: string } | undefined;
+    const latestExpenseWithOdo = expenses.find(e => e.odometerKm && e.odometerKm > 0);
 
-  const averageConsumption = useMemo(() => {
-    const validPoints = chartData.filter(d => d.consumption !== null && d.consumption > 0);
-    if (validPoints.length === 0) return 0;
-    const sum = validPoints.reduce((acc, curr) => acc + (curr.consumption || 0), 0);
-    return sum / validPoints.length;
-  }, [chartData]);
+    // Use the more recent one
+    let currentOdometer: number | undefined;
+    if (latestFillUp?.odometerKm && latestExpenseWithOdo?.odometerKm) {
+      // Both exist - use the one with higher odometer (more recent)
+      currentOdometer = Math.max(latestFillUp.odometerKm, latestExpenseWithOdo.odometerKm);
+    } else {
+      currentOdometer = latestFillUp?.odometerKm || latestExpenseWithOdo?.odometerKm;
+    }
 
-  if (chartData.length === 0) {
+    const lastChangeOdometer = lastOilChange.odometerKm;
+    const kmSinceChange =
+      currentOdometer !== undefined &&
+      lastChangeOdometer !== undefined &&
+      lastChangeOdometer !== null
+        ? currentOdometer - lastChangeOdometer
+        : null;
+
+    // Get all top-ups since last oil change
+    const topUps = oilExpenses.filter(
+      e => e.category === 'OIL_TOP_UP' && new Date(e.date) > new Date(lastOilChange.date)
+    );
+
+    const totalTopUps = topUps.reduce((sum, e) => sum + (e.liters || 0), 0);
+
+    // Calculate consumption rate
+    const consumption =
+      kmSinceChange && kmSinceChange > 0 && totalTopUps > 0
+        ? (totalTopUps / kmSinceChange) * 10000
+        : null;
+
+    // Calculate days since last oil change
+    const daysSinceChange = Math.floor(
+      (Date.now() - new Date(lastOilChange.date).getTime()) / (1000 * 60 * 60 * 24)
+    );
+
+    return {
+      lastOilChange,
+      topUps,
+      kmSinceChange,
+      daysSinceChange,
+      totalTopUps,
+      consumption,
+    };
+  }, [expenseData, fillUpsData]);
+
+  if (!oilSummary.lastOilChange) {
     return (
-      <div className="text-center text-gray-500 py-8">
-        Not enough data to calculate consumption.
+      <div className="text-center text-gray-500 py-4">
+        <p>No oil changes recorded yet.</p>
+        <p className="text-xs mt-1">Add an expense with category OIL_CHANGE to start tracking.</p>
       </div>
     );
   }
 
+  const { lastOilChange, topUps, kmSinceChange, daysSinceChange, totalTopUps, consumption } =
+    oilSummary;
+
   return (
     <div className="space-y-4">
-      <div className="h-[300px] w-full">
-        <ResponsiveContainer width="100%" height="100%">
-          <ComposedChart data={chartData}>
-            <CartesianGrid strokeDasharray="3 3" vertical={false} />
-            <XAxis dataKey="date" fontSize={12} />
-            <YAxis
-              yAxisId="left"
-              orientation="left"
-              stroke="#8884d8"
-              label={{ value: 'Liters', angle: -90, position: 'insideLeft' }}
-            />
-            <YAxis
-              yAxisId="right"
-              orientation="right"
-              stroke="#82ca9d"
-              label={{ value: 'L/10k km', angle: 90, position: 'insideRight' }}
-            />
-            <Tooltip />
-            <Legend />
-            <Bar yAxisId="left" dataKey="liters" name="Oil Added (L)" fill="#8884d8" barSize={20} />
-            <Line
-              yAxisId="right"
-              type="monotone"
-              dataKey="consumption"
-              name="Consumption (L/10k km)"
-              stroke="#82ca9d"
-              strokeWidth={2}
-            />
-          </ComposedChart>
-        </ResponsiveContainer>
+      {/* Last Oil Change */}
+      <div className="p-4 border rounded-lg bg-blue-50 dark:bg-blue-900/10">
+        <div className="flex justify-between items-start">
+          <div>
+            <p className="text-sm text-gray-600 dark:text-gray-400">Last Oil Change</p>
+            <p className="font-semibold">{new Date(lastOilChange.date).toLocaleDateString()}</p>
+          </div>
+          <div className="text-right">
+            <p className="text-sm text-gray-600 dark:text-gray-400">at</p>
+            <p className="font-semibold">{lastOilChange.odometerKm?.toLocaleString() ?? '—'} km</p>
+          </div>
+        </div>
       </div>
-      <div className="text-center text-sm">
-        <span className="font-medium">Average Consumption:</span> {averageConsumption.toFixed(2)}{' '}
-        L/10,000km
+
+      {/* Since Last Change */}
+      <div className="grid grid-cols-3 gap-4">
+        <div className="p-3 border rounded-lg">
+          <p className="text-sm text-gray-600 dark:text-gray-400">Days</p>
+          <p className="text-xl font-semibold">{daysSinceChange}</p>
+        </div>
+        <div className="p-3 border rounded-lg">
+          <p className="text-sm text-gray-600 dark:text-gray-400">Km</p>
+          <p className="text-xl font-semibold">
+            {kmSinceChange !== null ? kmSinceChange.toLocaleString() : '—'}
+          </p>
+        </div>
+        <div className="p-3 border rounded-lg">
+          <p className="text-sm text-gray-600 dark:text-gray-400">Topped up</p>
+          <p className="text-xl font-semibold">
+            {totalTopUps > 0 ? `${totalTopUps.toFixed(1)} L` : 'None'}
+          </p>
+        </div>
       </div>
+
+      {/* Consumption Rate */}
+      {consumption !== null && (
+        <div className="p-3 border rounded-lg bg-amber-50 dark:bg-amber-900/10">
+          <p className="text-sm text-gray-600 dark:text-gray-400">Consumption Rate</p>
+          <p className="text-xl font-semibold text-amber-700 dark:text-amber-400">
+            {consumption.toFixed(2)} L / 10,000 km
+          </p>
+        </div>
+      )}
+
+      {/* Top-up History */}
+      {topUps.length > 0 && (
+        <div>
+          <p className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-2">
+            Top-ups since last change
+          </p>
+          <div className="space-y-1">
+            {topUps.map(t => (
+              <div key={t.id} className="flex justify-between text-sm py-1 border-b last:border-0">
+                <span>{new Date(t.date).toLocaleDateString()}</span>
+                <span className="font-medium">+{t.liters?.toFixed(1) ?? 0} L</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

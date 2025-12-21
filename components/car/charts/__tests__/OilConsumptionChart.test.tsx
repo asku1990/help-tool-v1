@@ -4,24 +4,14 @@ import { render, screen } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { ExpenseDto } from '@/queries/expenses';
 import type { useExpenses as useExpensesHook } from '@/hooks/useExpenses';
-
-// Mock recharts to avoid rendering issues in tests
-vi.mock('recharts', () => ({
-  ResponsiveContainer: ({ children }: { children?: ReactNode }) => (
-    <div data-testid="chart-container">{children}</div>
-  ),
-  ComposedChart: ({ children }: { children?: ReactNode }) => <div>{children}</div>,
-  CartesianGrid: () => <div />,
-  XAxis: () => <div />,
-  YAxis: () => <div />,
-  Tooltip: () => <div />,
-  Legend: () => <div />,
-  Bar: () => <div />,
-  Line: () => <div />,
-}));
+import type { useFillUps as useFillUpsHook } from '@/hooks/useFillUps';
 
 vi.mock('@/hooks/useExpenses', () => ({
   useExpenses: vi.fn(),
+}));
+
+vi.mock('@/hooks/useFillUps', () => ({
+  useFillUps: vi.fn(),
 }));
 
 const createWrapper = () => {
@@ -39,6 +29,7 @@ const createWrapper = () => {
 };
 
 type UseExpensesResult = ReturnType<typeof useExpensesHook>;
+type UseFillUpsResult = ReturnType<typeof useFillUpsHook>;
 
 const buildExpense = (overrides: Partial<ExpenseDto> = {}): ExpenseDto => ({
   id: overrides.id ?? 'expense-id',
@@ -48,7 +39,6 @@ const buildExpense = (overrides: Partial<ExpenseDto> = {}): ExpenseDto => ({
   vendor: overrides.vendor,
   odometerKm: overrides.odometerKm,
   liters: overrides.liters,
-  isOilChange: overrides.isOilChange,
   notes: overrides.notes,
 });
 
@@ -57,98 +47,144 @@ const buildExpensesResult = (expenses: ExpenseDto[]): UseExpensesResult =>
     data: { expenses, expensesTotal: expenses.length, nextCursor: null },
   }) as UseExpensesResult;
 
+const buildFillUpsResult = (
+  fillUps: Array<{ odometerKm: number; date: string }>
+): UseFillUpsResult =>
+  ({
+    data: { fillUps, nextCursor: null },
+  }) as unknown as UseFillUpsResult;
+
 describe('OilConsumptionChart', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it('shows message when not enough data', async () => {
+  it('shows message when no oil changes recorded', async () => {
     const { useExpenses } = await import('@/hooks/useExpenses');
-    vi.mocked(useExpenses).mockReturnValue(
-      buildExpensesResult([
-        buildExpense({
-          id: 'e1',
-          date: '2024-01-01',
-          liters: 1,
-          odometerKm: 10000,
-          isOilChange: false,
-        }),
-      ])
-    );
-
-    const OilConsumptionChart = (await import('../../charts/OilConsumptionChart')).default;
-    render(<OilConsumptionChart vehicleId="v1" />, { wrapper: createWrapper() });
-
-    expect(screen.getByText(/Not enough data to calculate consumption/i)).toBeInTheDocument();
-  });
-
-  it('displays chart with oil consumption data', async () => {
-    const { useExpenses } = await import('@/hooks/useExpenses');
-    vi.mocked(useExpenses).mockReturnValue(
-      buildExpensesResult([
-        buildExpense({
-          id: 'e1',
-          date: '2024-01-01',
-          liters: 1,
-          odometerKm: 10000,
-          isOilChange: true,
-        }),
-        buildExpense({
-          id: 'e2',
-          date: '2024-02-01',
-          liters: 0.5,
-          odometerKm: 15000,
-          isOilChange: false,
-        }),
-        buildExpense({
-          id: 'e3',
-          date: '2024-03-01',
-          liters: 0.5,
-          odometerKm: 20000,
-          isOilChange: false,
-        }),
-      ])
-    );
-
-    const OilConsumptionChart = (await import('../../charts/OilConsumptionChart')).default;
-    render(<OilConsumptionChart vehicleId="v1" />, { wrapper: createWrapper() });
-
-    expect(screen.getByText(/Average Consumption:/i)).toBeInTheDocument();
-    expect(screen.getByText(/L\/10,000km/i)).toBeInTheDocument();
-  });
-
-  it('handles empty expense data', async () => {
-    const { useExpenses } = await import('@/hooks/useExpenses');
+    const { useFillUps } = await import('@/hooks/useFillUps');
     vi.mocked(useExpenses).mockReturnValue(buildExpensesResult([]));
+    vi.mocked(useFillUps).mockReturnValue(buildFillUpsResult([]));
 
     const OilConsumptionChart = (await import('../../charts/OilConsumptionChart')).default;
     render(<OilConsumptionChart vehicleId="v1" />, { wrapper: createWrapper() });
 
-    expect(screen.getByText(/Not enough data to calculate consumption/i)).toBeInTheDocument();
+    expect(screen.getByText(/No oil changes recorded yet/i)).toBeInTheDocument();
   });
 
-  it('shows zero average when no consumption values can be computed', async () => {
+  it('displays last oil change info', async () => {
     const { useExpenses } = await import('@/hooks/useExpenses');
+    const { useFillUps } = await import('@/hooks/useFillUps');
     vi.mocked(useExpenses).mockReturnValue(
       buildExpensesResult([
         buildExpense({
           id: 'e1',
-          date: '2024-01-01',
-          isOilChange: true,
-        }),
-        buildExpense({
-          id: 'e2',
-          date: '2024-02-01',
-          liters: 1,
-          isOilChange: false,
+          date: '2024-01-15',
+          category: 'OIL_CHANGE',
+          liters: 4,
+          odometerKm: 50000,
         }),
       ])
+    );
+    vi.mocked(useFillUps).mockReturnValue(
+      buildFillUpsResult([{ odometerKm: 55000, date: '2024-02-01' }])
     );
 
     const OilConsumptionChart = (await import('../../charts/OilConsumptionChart')).default;
     render(<OilConsumptionChart vehicleId="v1" />, { wrapper: createWrapper() });
 
-    expect(screen.getByText(/Average Consumption:/i)).toBeInTheDocument();
-    expect(screen.getByText(/0\.00 L\/10,000km/i)).toBeInTheDocument();
+    expect(screen.getByText(/Last Oil Change/i)).toBeInTheDocument();
+    expect(screen.getByText(/50,000 km/i)).toBeInTheDocument();
+    expect(screen.getByText(/5,000/i)).toBeInTheDocument(); // km since change (shown as number in Km box)
+  });
+
+  it('shows top-ups since last oil change', async () => {
+    const { useExpenses } = await import('@/hooks/useExpenses');
+    const { useFillUps } = await import('@/hooks/useFillUps');
+    vi.mocked(useExpenses).mockReturnValue(
+      buildExpensesResult([
+        buildExpense({
+          id: 'e1',
+          date: '2024-01-01',
+          category: 'OIL_CHANGE',
+          liters: 4,
+          odometerKm: 50000,
+        }),
+        buildExpense({
+          id: 'e2',
+          date: '2024-02-01',
+          category: 'OIL_TOP_UP',
+          liters: 0.5,
+          odometerKm: 55000,
+        }),
+      ])
+    );
+    vi.mocked(useFillUps).mockReturnValue(
+      buildFillUpsResult([{ odometerKm: 60000, date: '2024-03-01' }])
+    );
+
+    const OilConsumptionChart = (await import('../../charts/OilConsumptionChart')).default;
+    render(<OilConsumptionChart vehicleId="v1" />, { wrapper: createWrapper() });
+
+    expect(screen.getByText(/Topped up/i)).toBeInTheDocument();
+    // Multiple elements show 0.5 L (summary + list item), so use getAllByText
+    expect(screen.getAllByText(/0\.5 L/i).length).toBeGreaterThan(0);
+    expect(screen.getByText(/Top-ups since last change/i)).toBeInTheDocument();
+  });
+
+  it('shows consumption rate when top-ups exist', async () => {
+    const { useExpenses } = await import('@/hooks/useExpenses');
+    const { useFillUps } = await import('@/hooks/useFillUps');
+    vi.mocked(useExpenses).mockReturnValue(
+      buildExpensesResult([
+        buildExpense({
+          id: 'e1',
+          date: '2024-01-01',
+          category: 'OIL_CHANGE',
+          liters: 4,
+          odometerKm: 50000,
+        }),
+        buildExpense({
+          id: 'e2',
+          date: '2024-02-01',
+          category: 'OIL_TOP_UP',
+          liters: 1,
+          odometerKm: 55000,
+        }),
+      ])
+    );
+    vi.mocked(useFillUps).mockReturnValue(
+      buildFillUpsResult([{ odometerKm: 60000, date: '2024-03-01' }])
+    );
+
+    const OilConsumptionChart = (await import('../../charts/OilConsumptionChart')).default;
+    render(<OilConsumptionChart vehicleId="v1" />, { wrapper: createWrapper() });
+
+    expect(screen.getByText(/Consumption Rate/i)).toBeInTheDocument();
+    expect(screen.getByText(/L \/ 10,000 km/i)).toBeInTheDocument();
+  });
+
+  it('shows None for topped up when no top-ups', async () => {
+    const { useExpenses } = await import('@/hooks/useExpenses');
+    const { useFillUps } = await import('@/hooks/useFillUps');
+    vi.mocked(useExpenses).mockReturnValue(
+      buildExpensesResult([
+        buildExpense({
+          id: 'e1',
+          date: '2024-01-01',
+          category: 'OIL_CHANGE',
+          liters: 4,
+          odometerKm: 50000,
+        }),
+      ])
+    );
+    vi.mocked(useFillUps).mockReturnValue(
+      buildFillUpsResult([{ odometerKm: 60000, date: '2024-03-01' }])
+    );
+
+    const OilConsumptionChart = (await import('../../charts/OilConsumptionChart')).default;
+    render(<OilConsumptionChart vehicleId="v1" />, { wrapper: createWrapper() });
+
+    expect(screen.getByText(/Topped up/i)).toBeInTheDocument();
+    expect(screen.getByText(/None/i)).toBeInTheDocument();
   });
 });

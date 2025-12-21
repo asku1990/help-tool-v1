@@ -5,6 +5,10 @@ export const expenseCategories = [
   'TAX',
   'PARKING',
   'TOLL',
+  'OIL_CHANGE',
+  'OIL_TOP_UP',
+  'INSPECTION',
+  'TIRES',
   'OTHER',
 ] as const;
 

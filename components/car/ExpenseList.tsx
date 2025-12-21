@@ -51,6 +51,11 @@ export default function ExpenseList({ vehicleId }: { vehicleId: string }) {
             </div>
             <div className="text-sm text-gray-600">
               {e.odometerKm ? `Odo: ${e.odometerKm} km` : ''}
+              {e.oilConsumption ? (
+                <span className="ml-2 text-xs text-amber-600">
+                  {e.oilConsumption.toFixed(1)} L/10k
+                </span>
+              ) : null}
             </div>
             <div className="text-sm font-medium sm:text-right">{formatCurrency(e.amount)}</div>
             {e.notes ? <div className="text-xs text-gray-500 sm:col-span-4">{e.notes}</div> : null}
@@ -98,10 +103,22 @@ function EditExpenseButton({
   item: {
     id: string;
     date: string;
-    category: 'FUEL' | 'MAINTENANCE' | 'INSURANCE' | 'TAX' | 'PARKING' | 'TOLL' | 'OTHER';
+    category:
+      | 'FUEL'
+      | 'MAINTENANCE'
+      | 'INSURANCE'
+      | 'TAX'
+      | 'PARKING'
+      | 'TOLL'
+      | 'OIL_CHANGE'
+      | 'OIL_TOP_UP'
+      | 'INSPECTION'
+      | 'TIRES'
+      | 'OTHER';
     amount: number;
     vendor?: string;
     odometerKm?: number;
+    oilConsumption?: number;
     notes?: string;
   };
 }) {
@@ -169,13 +186,23 @@ function EditExpenseButton({
                   value={state.category}
                   onChange={e => setState(s => ({ ...s, category: e.target.value }))}
                 >
-                  {['FUEL', 'MAINTENANCE', 'INSURANCE', 'TAX', 'PARKING', 'TOLL', 'OTHER'].map(
-                    c => (
-                      <option key={c} value={c}>
-                        {c}
-                      </option>
-                    )
-                  )}
+                  {[
+                    'FUEL',
+                    'MAINTENANCE',
+                    'INSURANCE',
+                    'TAX',
+                    'PARKING',
+                    'TOLL',
+                    'OIL_CHANGE',
+                    'OIL_TOP_UP',
+                    'INSPECTION',
+                    'TIRES',
+                    'OTHER',
+                  ].map(c => (
+                    <option key={c} value={c}>
+                      {c}
+                    </option>
+                  ))}
                 </select>
               </label>
               <label className="flex flex-col gap-1">
