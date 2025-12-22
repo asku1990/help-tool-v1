@@ -71,10 +71,9 @@ export async function PATCH(
     const resolvedOdometerKm = typeof nextOdometerKm === 'number' ? nextOdometerKm : null;
     const resolvedLiters = nextLiters === null ? null : decimalToNumber(nextLiters);
 
-    let oilConsumption: number | null | undefined;
-    if (nextCategory !== 'OIL_TOP_UP') {
-      oilConsumption = null;
-    } else if (
+    let oilConsumption: number | null = null;
+    if (
+      nextCategory === 'OIL_TOP_UP' &&
       resolvedOdometerKm !== null &&
       resolvedLiters !== null &&
       Number.isFinite(resolvedLiters)
@@ -87,17 +86,29 @@ export async function PATCH(
       });
 
       if (lastOilChange?.odometerKm !== null && lastOilChange?.odometerKm !== undefined) {
+        // Get all top-ups since last oil change, up to and including this expense's date
+        // Include same-day entries with lower odometer (earlier in the day)
         const topUpsSince = await prisma.expense.findMany({
           where: {
             vehicleId: vehicle.id,
             category: 'OIL_TOP_UP',
-            date: { gt: lastOilChange.date },
+            date: { gt: lastOilChange.date, lte: nextDate },
             NOT: { id: existingExpense.id },
           },
-          select: { liters: true },
+          select: { date: true, odometerKm: true, liters: true },
         });
 
-        const previousTopUpLiters = topUpsSince.reduce(
+        // Filter to include only entries before this one (by date, then by odometer for same day)
+        const previousTopUps = topUpsSince.filter(e => {
+          if (!e.odometerKm || resolvedOdometerKm === null) return true; // Include if no odometer
+          const entryDate = e.date.getTime();
+          const currentDate = nextDate.getTime();
+          if (entryDate < currentDate) return true; // Earlier day - include
+          if (entryDate === currentDate && e.odometerKm < resolvedOdometerKm) return true; // Same day, lower odometer
+          return false;
+        });
+
+        const previousTopUpLiters = previousTopUps.reduce(
           (sum, e) => sum + (e.liters ? decimalToNumber(e.liters) : 0),
           0
         );

@@ -45,7 +45,7 @@ export async function GET(req: NextRequest, context: { params: Promise<{ vehicle
 
     const fillUps = await prisma.fuelFillUp.findMany({
       where: { vehicleId: vehicle.id },
-      orderBy: { date: 'desc' },
+      orderBy: [{ date: 'desc' }, { odometerKm: 'desc' }],
       select: {
         date: true,
         odometerKm: true,

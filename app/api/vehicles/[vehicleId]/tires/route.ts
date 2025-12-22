@@ -78,6 +78,17 @@ export async function POST(req: NextRequest, context: { params: Promise<{ vehicl
     });
     if (!vehicle) return notFound();
 
+    // If creating this tire as ACTIVE, set all other non-RETIRED tires to STORED
+    if (status === 'ACTIVE') {
+      await prisma.tireSet.updateMany({
+        where: {
+          vehicleId: vehicle.id,
+          status: { not: 'RETIRED' },
+        },
+        data: { status: 'STORED' },
+      });
+    }
+
     const createdTireSet = await prisma.tireSet.create({
       data: {
         vehicleId: vehicle.id,

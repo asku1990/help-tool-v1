@@ -6,7 +6,7 @@ import { NextRequest } from 'next/server';
 vi.mock('@/lib/db', () => ({
   default: {
     vehicle: { findFirst: vi.fn() },
-    tireSet: { findMany: vi.fn(), create: vi.fn() },
+    tireSet: { findMany: vi.fn(), create: vi.fn(), updateMany: vi.fn() },
   },
 }));
 
@@ -22,7 +22,7 @@ vi.mock('@/lib/api/rate-limit', () => ({
 
 type PrismaMock = {
   vehicle: { findFirst: Mock };
-  tireSet: { findMany: Mock; create: Mock };
+  tireSet: { findMany: Mock; create: Mock; updateMany: Mock };
 };
 
 type MockVehicle = {
@@ -266,5 +266,83 @@ describe('POST /api/vehicles/[vehicleId]/tires', () => {
     const response = await POST(req, context);
 
     expect(response.status).toBe(500);
+  });
+
+  it('demotes other non-RETIRED tires to STORED when creating an ACTIVE tire', async () => {
+    const prisma = (await import('@/lib/db')).default as unknown as PrismaMock;
+    const vehicle: MockVehicle = {
+      id: 'v1',
+      userId: 'u1',
+      name: 'Test Car',
+    };
+    prisma.vehicle.findFirst.mockResolvedValueOnce(vehicle);
+    prisma.tireSet.updateMany.mockResolvedValueOnce({ count: 2 });
+    prisma.tireSet.create.mockResolvedValueOnce({ id: 't-new' });
+
+    const { POST } = await import('../route');
+    const base = new Request('http://localhost/api/vehicles/v1/tires', {
+      method: 'POST',
+      body: JSON.stringify({
+        name: 'New Active Tires',
+        type: 'ALL_SEASON',
+        status: 'ACTIVE',
+      }),
+    });
+    const req = new NextRequest(base);
+    const context = { params: Promise.resolve({ vehicleId: 'v1' }) };
+
+    const response = await POST(req, context);
+    const data = await response.json();
+
+    expect(response.status).toBe(201);
+    expect(data.data.id).toBe('t-new');
+
+    // Verify updateMany was called to demote other tires
+    expect(prisma.tireSet.updateMany).toHaveBeenCalledWith({
+      where: {
+        vehicleId: 'v1',
+        status: { not: 'RETIRED' },
+      },
+      data: { status: 'STORED' },
+    });
+
+    // Verify create was called with ACTIVE status
+    expect(prisma.tireSet.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          status: 'ACTIVE',
+          name: 'New Active Tires',
+          type: 'ALL_SEASON',
+        }),
+      })
+    );
+  });
+
+  it('does not call updateMany when creating a STORED tire', async () => {
+    const prisma = (await import('@/lib/db')).default as unknown as PrismaMock;
+    const vehicle: MockVehicle = {
+      id: 'v1',
+      userId: 'u1',
+      name: 'Test Car',
+    };
+    prisma.vehicle.findFirst.mockResolvedValueOnce(vehicle);
+    prisma.tireSet.create.mockResolvedValueOnce({ id: 't1' });
+
+    const { POST } = await import('../route');
+    const base = new Request('http://localhost/api/vehicles/v1/tires', {
+      method: 'POST',
+      body: JSON.stringify({
+        name: 'Winter Tires',
+        type: 'WINTER',
+        status: 'STORED',
+      }),
+    });
+    const req = new NextRequest(base);
+    const context = { params: Promise.resolve({ vehicleId: 'v1' }) };
+
+    const response = await POST(req, context);
+
+    expect(response.status).toBe(201);
+    expect(prisma.tireSet.updateMany).not.toHaveBeenCalled();
   });
 });

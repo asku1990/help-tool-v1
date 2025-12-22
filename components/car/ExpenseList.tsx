@@ -167,10 +167,10 @@ function EditExpenseButton({
                   | 'TIRES'
                   | 'OTHER',
                 amount: parseFloat(state.amount.replace(',', '.')),
-                vendor: state.vendor || undefined,
-                odometerKm: state.odometerKm ? parseInt(state.odometerKm, 10) : undefined,
-                liters: state.liters ? parseFloat(state.liters.replace(',', '.')) : undefined,
-                notes: state.notes || undefined,
+                vendor: state.vendor || null,
+                odometerKm: state.odometerKm ? parseInt(state.odometerKm, 10) : null,
+                liters: state.liters ? parseFloat(state.liters.replace(',', '.')) : null,
+                notes: state.notes || null,
               });
               setOpen(false);
             }}

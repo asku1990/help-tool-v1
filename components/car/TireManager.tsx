@@ -100,6 +100,7 @@ export default function TireManager({ vehicleId }: TireManagerProps) {
     setIsSwapOpen(false);
     setSwapOdometer('');
     setSelectedTireSetId('');
+    setSwapDate(new Date().toISOString().slice(0, 10));
   };
 
   const activeTireSet = data?.tireSets.find(t => t.status === 'ACTIVE');

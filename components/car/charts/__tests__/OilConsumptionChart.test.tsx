@@ -187,4 +187,72 @@ describe('OilConsumptionChart', () => {
     expect(screen.getByText(/Topped up/i)).toBeInTheDocument();
     expect(screen.getByText(/None/i)).toBeInTheDocument();
   });
+
+  it('includes same-day top-up when odometer is higher than oil change', async () => {
+    const { useExpenses } = await import('@/hooks/useExpenses');
+    const { useFillUps } = await import('@/hooks/useFillUps');
+    // Same day: oil change at 50000km, top-up at 50100km
+    vi.mocked(useExpenses).mockReturnValue(
+      buildExpensesResult([
+        buildExpense({
+          id: 'e1',
+          date: '2024-01-01',
+          category: 'OIL_CHANGE',
+          liters: 4,
+          odometerKm: 50000,
+        }),
+        buildExpense({
+          id: 'e2',
+          date: '2024-01-01', // Same day!
+          category: 'OIL_TOP_UP',
+          liters: 0.5,
+          odometerKm: 50100, // Higher odometer = happened after
+        }),
+      ])
+    );
+    vi.mocked(useFillUps).mockReturnValue(
+      buildFillUpsResult([{ odometerKm: 55000, date: '2024-02-01' }])
+    );
+
+    const OilConsumptionChart = (await import('../../charts/OilConsumptionChart')).default;
+    render(<OilConsumptionChart vehicleId="v1" />, { wrapper: createWrapper() });
+
+    // Should show the top-up, not "None"
+    expect(screen.getAllByText(/0\.5 L/i).length).toBeGreaterThan(0);
+    expect(screen.getByText(/Top-ups since last change/i)).toBeInTheDocument();
+  });
+
+  it('excludes same-day top-up when odometer is lower than oil change', async () => {
+    const { useExpenses } = await import('@/hooks/useExpenses');
+    const { useFillUps } = await import('@/hooks/useFillUps');
+    // Same day: top-up at 49900km (before oil change), oil change at 50000km
+    vi.mocked(useExpenses).mockReturnValue(
+      buildExpensesResult([
+        buildExpense({
+          id: 'e1',
+          date: '2024-01-01',
+          category: 'OIL_CHANGE',
+          liters: 4,
+          odometerKm: 50000,
+        }),
+        buildExpense({
+          id: 'e2',
+          date: '2024-01-01', // Same day!
+          category: 'OIL_TOP_UP',
+          liters: 0.5,
+          odometerKm: 49900, // Lower odometer = happened before (shouldn't count)
+        }),
+      ])
+    );
+    vi.mocked(useFillUps).mockReturnValue(
+      buildFillUpsResult([{ odometerKm: 55000, date: '2024-02-01' }])
+    );
+
+    const OilConsumptionChart = (await import('../../charts/OilConsumptionChart')).default;
+    render(<OilConsumptionChart vehicleId="v1" />, { wrapper: createWrapper() });
+
+    // Should show "None" because top-up was before oil change
+    expect(screen.getByText(/Topped up/i)).toBeInTheDocument();
+    expect(screen.getByText(/None/i)).toBeInTheDocument();
+  });
 });

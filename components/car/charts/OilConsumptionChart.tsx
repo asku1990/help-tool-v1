@@ -39,7 +39,14 @@ export default function OilConsumptionChart({ vehicleId }: OilConsumptionChartPr
 
     // Get current odometer from the most recent reading (fill-up or expense) by date
     const latestFillUp = fillUps[0] as { odometerKm?: number; date: string } | undefined;
-    const latestExpenseWithOdo = expenses.find(e => e.odometerKm && e.odometerKm > 0);
+    // Sort expenses by date desc, then odometer desc, to find the latest with odometer
+    const latestExpenseWithOdo = [...expenses]
+      .sort((a, b) => {
+        const dateDiff = new Date(b.date).getTime() - new Date(a.date).getTime();
+        if (dateDiff !== 0) return dateDiff;
+        return (b.odometerKm ?? 0) - (a.odometerKm ?? 0);
+      })
+      .find(e => e.odometerKm && e.odometerKm > 0);
 
     // Use the more recent one by date; if same date, use higher odometer
     let currentOdometer: number | undefined;
@@ -66,9 +73,19 @@ export default function OilConsumptionChart({ vehicleId }: OilConsumptionChartPr
         : null;
 
     // Get all top-ups since last oil change
-    const topUps = oilExpenses.filter(
-      e => e.category === 'OIL_TOP_UP' && new Date(e.date) > new Date(lastOilChange.date)
-    );
+    // Use >= to include same-day, then filter by odometer for same-day entries
+    const lastChangeDate = new Date(lastOilChange.date).getTime();
+    const lastChangeOdo = lastOilChange.odometerKm ?? 0;
+    const topUps = oilExpenses.filter(e => {
+      if (e.category !== 'OIL_TOP_UP') return false;
+      const entryDate = new Date(e.date).getTime();
+      if (entryDate > lastChangeDate) return true; // After oil change date
+      if (entryDate === lastChangeDate) {
+        // Same day - only include if odometer is higher (happened after)
+        return (e.odometerKm ?? 0) > lastChangeOdo;
+      }
+      return false;
+    });
 
     const totalTopUps = topUps.reduce((sum, e) => sum + (e.liters || 0), 0);
 

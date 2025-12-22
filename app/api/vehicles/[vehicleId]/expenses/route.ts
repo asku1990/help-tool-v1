@@ -40,7 +40,7 @@ export async function GET(req: NextRequest, context: { params: Promise<{ vehicle
 
     const items = await prisma.expense.findMany({
       where: { vehicleId: vehicle.id },
-      orderBy: { date: 'desc' },
+      orderBy: [{ date: 'desc' }, { odometerKm: 'desc' }],
       take: limit + 1,
       ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
     });
@@ -133,16 +133,29 @@ export async function POST(req: NextRequest, context: { params: Promise<{ vehicl
       });
 
       if (lastOilChange?.odometerKm !== null && lastOilChange?.odometerKm !== undefined) {
-        // Get all top-ups since last oil change
+        // Get all top-ups since last oil change, up to and including this expense's date
+        // Include same-day entries with lower odometer (earlier in the day)
+        const expenseDate = new Date(date);
         const topUpsSince = await prisma.expense.findMany({
           where: {
             vehicleId: vehicle.id,
             category: 'OIL_TOP_UP',
-            date: { gt: lastOilChange.date },
+            date: { gt: lastOilChange.date, lte: expenseDate },
           },
+          select: { date: true, odometerKm: true, liters: true },
         });
 
-        const previousTopUpLiters = topUpsSince.reduce(
+        // Filter to include only entries before this one (by date, then by odometer for same day)
+        const previousTopUps = topUpsSince.filter(e => {
+          if (!e.odometerKm) return true; // Include if no odometer (can't compare)
+          const entryDate = e.date.getTime();
+          const currentDate = expenseDate.getTime();
+          if (entryDate < currentDate) return true; // Earlier day - include
+          if (entryDate === currentDate && e.odometerKm < odometerKm) return true; // Same day, lower odometer
+          return false;
+        });
+
+        const previousTopUpLiters = previousTopUps.reduce(
           (sum, e) => sum + (e.liters ? decimalToNumber(e.liters) : 0),
           0
         );

@@ -84,8 +84,17 @@ export type { ExpenseDto };
 export function useUpdateExpense(vehicleId: string, expenseId: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (payload: Partial<Omit<ExpenseDto, 'id'>>) =>
-      updateExpense(vehicleId, expenseId, payload),
+    mutationFn: (
+      payload: Partial<{
+        date: string;
+        category: ExpenseDto['category'];
+        amount: number;
+        vendor: string | null;
+        odometerKm: number | null;
+        liters: number | null;
+        notes: string | null;
+      }>
+    ) => updateExpense(vehicleId, expenseId, payload),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: expenseKeys.byVehicle(vehicleId) });
       qc.invalidateQueries({ queryKey: expenseKeys.infiniteByVehicle(vehicleId) });
