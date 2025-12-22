@@ -9,7 +9,9 @@ describe('ExportMenu', () => {
     fireEvent.click(btn);
     const exp = screen.getByRole('menuitem', { name: /expenses csv/i });
     const fill = screen.getByRole('menuitem', { name: /fill-ups csv/i });
+    const tires = screen.getByRole('menuitem', { name: /tires csv/i });
     expect(exp).toHaveAttribute('href', '/api/vehicles/vid/expenses/export');
     expect(fill).toHaveAttribute('href', '/api/vehicles/vid/fillups/export');
+    expect(tires).toHaveAttribute('href', '/api/vehicles/vid/tires/export');
   });
 });

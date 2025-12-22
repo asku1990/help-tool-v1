@@ -55,6 +55,8 @@ export async function GET(req: NextRequest, context: { params: Promise<{ vehicle
         amount: true,
         category: true,
         vendor: true,
+        liters: true,
+        oilConsumption: true,
         notes: true,
       },
     });
@@ -63,16 +65,20 @@ export async function GET(req: NextRequest, context: { params: Promise<{ vehicle
     const yyyymmdd = today.toISOString().slice(0, 10).replace(/-/g, '');
     const namePart = sanitizeForFilename(vehicle.name || vehicle.id);
 
-    // Default CSV format
-    const header = 'Date;Km;Amount;Category;Vendor;Notes';
+    // Default CSV format with all fields for backup
+    const header = 'Id;Date;Km;Amount;Category;Vendor;Liters;OilConsumption;Notes';
     const lines = expenses.map(e => {
+      const id = e.id;
       const date = e.date.toISOString().slice(0, 10);
       const km = e.odometerKm ?? '';
       const amount = decimalToNumber(e.amount).toFixed(2);
       const category = e.category;
       const vendor = e.vendor ? escapeCsvField(e.vendor) : '';
+      const liters = e.liters != null ? decimalToNumber(e.liters).toFixed(2) : '';
+      const oilConsumption =
+        e.oilConsumption != null ? decimalToNumber(e.oilConsumption).toFixed(2) : '';
       const notes = e.notes ? escapeCsvField(e.notes) : '';
-      return `${date};${km};${amount};${category};${vendor};${notes}`;
+      return `${id};${date};${km};${amount};${category};${vendor};${liters};${oilConsumption};${notes}`;
     });
     const csv = [header, ...lines].join('\n');
 

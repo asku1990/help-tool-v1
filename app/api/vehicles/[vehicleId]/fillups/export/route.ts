@@ -47,6 +47,7 @@ export async function GET(req: NextRequest, context: { params: Promise<{ vehicle
       where: { vehicleId: vehicle.id },
       orderBy: [{ date: 'desc' }, { odometerKm: 'desc' }],
       select: {
+        id: true,
         date: true,
         odometerKm: true,
         liters: true,
@@ -57,8 +58,9 @@ export async function GET(req: NextRequest, context: { params: Promise<{ vehicle
       },
     });
 
-    const header = 'Date;OdometerKm;Liters;PricePerLiter;TotalCost;IsFull;Notes';
+    const header = 'Id;Date;OdometerKm;Liters;PricePerLiter;TotalCost;IsFull;Notes';
     const lines = fillUps.map(f => {
+      const id = f.id;
       const date = f.date.toISOString().slice(0, 10);
       const odometer = f.odometerKm;
       const liters = decimalToNumber(f.liters).toFixed(2);
@@ -66,7 +68,7 @@ export async function GET(req: NextRequest, context: { params: Promise<{ vehicle
       const totalCost = decimalToNumber(f.totalCost).toFixed(2);
       const isFull = f.isFull ? '1' : '0';
       const notes = f.notes ? escapeCsvField(f.notes) : '';
-      return `${date};${odometer};${liters};${pricePerLiter};${totalCost};${isFull};${notes}`;
+      return `${id};${date};${odometer};${liters};${pricePerLiter};${totalCost};${isFull};${notes}`;
     });
     const csv = [header, ...lines].join('\n');
 

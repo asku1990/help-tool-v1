@@ -7,6 +7,7 @@ export default function ExportMenu({ vehicleId }: { vehicleId: string }) {
   const [open, setOpen] = useState(false);
   const expensesCsv = useMemo(() => `/api/vehicles/${vehicleId}/expenses/export`, [vehicleId]);
   const fillupsCsv = useMemo(() => `/api/vehicles/${vehicleId}/fillups/export`, [vehicleId]);
+  const tiresCsv = useMemo(() => `/api/vehicles/${vehicleId}/tires/export`, [vehicleId]);
 
   return (
     <div className="relative inline-block">
@@ -47,6 +48,15 @@ export default function ExportMenu({ vehicleId }: { vehicleId: string }) {
             onClick={() => setOpen(false)}
           >
             Fill-ups CSV
+          </a>
+          <a
+            role="menuitem"
+            href={tiresCsv}
+            download
+            className="block px-3 py-2 text-sm hover:bg-gray-50"
+            onClick={() => setOpen(false)}
+          >
+            Tires CSV
           </a>
         </div>
       ) : null}

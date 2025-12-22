@@ -4,19 +4,23 @@ import { useState } from 'react';
 import { Button } from '@/components/ui';
 import ImportExpensesDialog from '@/components/car/expenses/ImportExpensesDialog';
 import ImportFillUpsDialog from '@/components/car/fillups/ImportFillUpsDialog';
+import ImportTiresDialog from '@/components/car/tires/ImportTiresDialog';
 
 export default function ImportMenu({
   vehicleId,
   onExpensesImported,
   onFillUpsImported,
+  onTiresImported,
 }: {
   vehicleId: string;
   onExpensesImported?: () => void;
   onFillUpsImported?: () => void;
+  onTiresImported?: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const [openExpenses, setOpenExpenses] = useState(false);
   const [openFillUps, setOpenFillUps] = useState(false);
+  const [openTires, setOpenTires] = useState(false);
 
   return (
     <div className="relative inline-block">
@@ -60,6 +64,16 @@ export default function ImportMenu({
           >
             Import Fill-ups CSV
           </button>
+          <button
+            role="menuitem"
+            className="block w-full text-left px-3 py-2 text-sm hover:bg-gray-50"
+            onClick={() => {
+              setOpen(false);
+              setOpenTires(true);
+            }}
+          >
+            Import Tires CSV
+          </button>
         </div>
       ) : null}
 
@@ -76,6 +90,13 @@ export default function ImportMenu({
         onOpenChange={setOpenFillUps}
         hideTrigger
         onImported={onFillUpsImported}
+      />
+      <ImportTiresDialog
+        vehicleId={vehicleId}
+        open={openTires}
+        onOpenChange={setOpenTires}
+        hideTrigger
+        onImported={onTiresImported}
       />
     </div>
   );

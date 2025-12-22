@@ -70,6 +70,8 @@ describe('api/vehicles/[vehicleId]/expenses/export GET (unit)', () => {
         amount: { toNumber: () => 12.3 },
         category: 'OTHER',
         vendor: 'ACME; "Shop"',
+        liters: { toNumber: () => 0.75 },
+        oilConsumption: { toNumber: () => 1.25 },
         notes: 'Multi\nLine',
       },
     ]);
@@ -84,10 +86,85 @@ describe('api/vehicles/[vehicleId]/expenses/export GET (unit)', () => {
     expect(res.headers.get('Content-Type')).toContain('text/csv');
 
     const body = await res.text();
-    expect(body.split('\n')[0]).toBe('Date;Km;Amount;Category;Vendor;Notes');
+    expect(body.split('\n')[0]).toBe(
+      'Id;Date;Km;Amount;Category;Vendor;Liters;OilConsumption;Notes'
+    );
+    // Id should be included
+    expect(body).toContain('e1;');
+    // Liters and OilConsumption should be included
+    expect(body).toContain('0.75');
+    expect(body).toContain('1.25');
     // Vendor contains semicolon and quotes, should be escaped and quoted
     expect(body).toContain('"ACME; ""Shop"""');
     // Notes contains newline, should be quoted
     expect(body).toContain('"Multi');
+  });
+
+  it('handles null liters and oilConsumption gracefully', async () => {
+    const prisma = (await import('@/lib/db')).default as unknown as {
+      vehicle: { findFirst: (_args?: unknown) => Promise<unknown> };
+      expense: { findMany: (_args?: unknown) => Promise<unknown[]> };
+    };
+    (prisma.vehicle.findFirst as unknown as Mock).mockResolvedValueOnce({
+      id: 'v1',
+      name: 'Test Car',
+    });
+    (prisma.expense.findMany as unknown as Mock).mockResolvedValueOnce([
+      {
+        id: 'e2',
+        date: new Date('2024-02-01T00:00:00.000Z'),
+        odometerKm: 20000,
+        amount: { toNumber: () => 50.0 },
+        category: 'MAINTENANCE',
+        vendor: null,
+        liters: null,
+        oilConsumption: null,
+        notes: null,
+      },
+    ]);
+
+    const res = await GET(new NextRequest('http://x/api/vehicles/v1/expenses/export'), {
+      params: Promise.resolve({ vehicleId: 'v1' }),
+    } as unknown as { params: Promise<{ vehicleId: string }> });
+
+    expect(res.status).toBe(200);
+    const body = await res.text();
+    const dataLine = body.split('\n')[1];
+    // Should have empty fields for null values (Id;Date;Km;Amount;Category;Vendor;Liters;OilConsumption;Notes)
+    expect(dataLine).toBe('e2;2024-02-01;20000;50.00;MAINTENANCE;;;;');
+  });
+
+  it('exports zero-valued liters and oilConsumption correctly', async () => {
+    const prisma = (await import('@/lib/db')).default as unknown as {
+      vehicle: { findFirst: (_args?: unknown) => Promise<unknown> };
+      expense: { findMany: (_args?: unknown) => Promise<unknown[]> };
+    };
+    (prisma.vehicle.findFirst as unknown as Mock).mockResolvedValueOnce({
+      id: 'v1',
+      name: 'Test Car',
+    });
+    (prisma.expense.findMany as unknown as Mock).mockResolvedValueOnce([
+      {
+        id: 'e3',
+        date: new Date('2024-03-01T00:00:00.000Z'),
+        odometerKm: 25000,
+        amount: { toNumber: () => 0 },
+        category: 'OIL_TOP_UP',
+        vendor: null,
+        liters: { toNumber: () => 0 },
+        oilConsumption: { toNumber: () => 0 },
+        notes: 'Zero consumption test',
+      },
+    ]);
+
+    const res = await GET(new NextRequest('http://x/api/vehicles/v1/expenses/export'), {
+      params: Promise.resolve({ vehicleId: 'v1' }),
+    } as unknown as { params: Promise<{ vehicleId: string }> });
+
+    expect(res.status).toBe(200);
+    const body = await res.text();
+    const dataLine = body.split('\n')[1];
+    // Zero values should be exported as "0.00", not as empty strings
+    expect(dataLine).toBe('e3;2024-03-01;25000;0.00;OIL_TOP_UP;;0.00;0.00;Zero consumption test');
   });
 });

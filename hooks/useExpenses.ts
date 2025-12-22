@@ -124,6 +124,7 @@ export function useImportExpenses(vehicleId: string) {
         odometerKm?: number;
         category?: ExpenseDto['category'];
         vendor?: string;
+        liters?: number;
       }>
     ) => {
       const results = await Promise.allSettled(
@@ -134,6 +135,7 @@ export function useImportExpenses(vehicleId: string) {
             amount: r.amount,
             vendor: r.vendor,
             odometerKm: r.odometerKm,
+            liters: r.liters,
             notes: r.notes,
           })
         )

@@ -11,7 +11,7 @@ import {
 } from '@/components/ui';
 import { useImportExpenses } from '@/hooks';
 import type { ExpenseDto } from '@/queries/expenses';
-import { normalizeExpenseCategory } from '@/utils';
+import { normalizeExpenseCategory, expenseCategories } from '@/utils';
 
 type ParsedRow = {
   id: string;
@@ -22,6 +22,7 @@ type ParsedRow = {
   amount?: number;
   category?: ExpenseDto['category'];
   vendor?: string;
+  liters?: number;
   notes?: string;
   valid: boolean;
 };
@@ -115,7 +116,7 @@ export default function ImportExpensesDialog({
     if (lines.length === 0) return [];
 
     const headerTokens = splitSemicolonCsv(lines[0]).map(t => t.toLowerCase());
-    const hasHeader = ['date', 'km', 'amount', 'category', 'vendor', 'notes'].some(h =>
+    const hasHeader = ['date', 'km', 'amount', 'category', 'vendor', 'liters', 'notes'].some(h =>
       headerTokens.includes(h)
     );
 
@@ -128,6 +129,7 @@ export default function ImportExpensesDialog({
         amount: headerTokens.indexOf('amount'),
         category: headerTokens.indexOf('category'),
         vendor: headerTokens.indexOf('vendor'),
+        liters: headerTokens.indexOf('liters'),
         notes: headerTokens.indexOf('notes'),
       };
       for (let li = 1; li < lines.length; li++) {
@@ -151,8 +153,15 @@ export default function ImportExpensesDialog({
           idx.category >= 0 ? tokens[idx.category] : undefined
         ) as ExpenseDto['category'] | undefined;
         const vendor = idx.vendor >= 0 ? tokens[idx.vendor] : undefined;
+        const litersStr = idx.liters >= 0 ? tokens[idx.liters] : undefined;
+        const liters =
+          litersStr && litersStr.length > 0 ? Number(litersStr.replace(',', '.')) : undefined;
         const notes = idx.notes >= 0 ? tokens[idx.notes] : undefined;
-        const valid = (!!amount && Number.isFinite(amount)) || !!notes;
+        // Valid if has a finite amount (including 0), or has notes, or has liters (for OIL_TOP_UP)
+        const valid =
+          (amount !== undefined && Number.isFinite(amount)) ||
+          !!notes ||
+          (liters !== undefined && Number.isFinite(liters));
         out.push({
           id: `${dateTok}-${out.length}`,
           include: valid,
@@ -164,6 +173,7 @@ export default function ImportExpensesDialog({
             : undefined,
           category,
           vendor,
+          liters: Number.isFinite(liters as number) ? (liters as number) : undefined,
           notes,
           valid,
         });
@@ -195,7 +205,8 @@ export default function ImportExpensesDialog({
         }
         if (notes === undefined) notes = v;
       }
-      const valid = !!amount || !!notes;
+      // Valid if has amount (including 0) or has notes
+      const valid = amount !== undefined || !!notes;
       out.push({
         id: `${dateTok}-${out.length}`,
         include: valid,
@@ -232,6 +243,7 @@ export default function ImportExpensesDialog({
           amount: r.amount ?? 0,
           vendor: r.vendor || undefined,
           odometerKm: typeof r.km === 'number' ? r.km : undefined,
+          liters: typeof r.liters === 'number' ? r.liters : undefined,
           notes: r.notes || undefined,
         }));
       await importMutation.mutateAsync(payload);
@@ -291,8 +303,11 @@ export default function ImportExpensesDialog({
                   <tr className="bg-gray-50">
                     <th className="p-2 text-left">Import</th>
                     <th className="p-2 text-left">Date</th>
+                    <th className="p-2 text-left">Category</th>
                     <th className="p-2 text-left">Km</th>
                     <th className="p-2 text-left">Amount</th>
+                    <th className="p-2 text-left">Vendor</th>
+                    <th className="p-2 text-left">Liters</th>
                     <th className="p-2 text-left">Notes</th>
                   </tr>
                 </thead>
@@ -327,6 +342,28 @@ export default function ImportExpensesDialog({
                         />
                       </td>
                       <td className="p-2 align-top">
+                        <select
+                          className="border rounded px-2 py-1 text-xs"
+                          value={r.category || 'MAINTENANCE'}
+                          onChange={e =>
+                            setRows(prev => {
+                              const clone = [...prev];
+                              clone[idx] = {
+                                ...clone[idx],
+                                category: e.target.value as ExpenseDto['category'],
+                              };
+                              return clone;
+                            })
+                          }
+                        >
+                          {expenseCategories.map(cat => (
+                            <option key={cat} value={cat}>
+                              {cat.replace(/_/g, ' ')}
+                            </option>
+                          ))}
+                        </select>
+                      </td>
+                      <td className="p-2 align-top">
                         <input
                           type="number"
                           inputMode="numeric"
@@ -358,6 +395,42 @@ export default function ImportExpensesDialog({
                               clone[idx] = {
                                 ...clone[idx],
                                 amount: v ? parseFloat(v) : undefined,
+                              };
+                              return clone;
+                            })
+                          }
+                        />
+                      </td>
+                      <td className="p-2 align-top">
+                        <input
+                          type="text"
+                          className="border rounded px-2 py-1 w-28"
+                          placeholder="Vendor"
+                          value={r.vendor || ''}
+                          onChange={e =>
+                            setRows(prev => {
+                              const clone = [...prev];
+                              clone[idx] = { ...clone[idx], vendor: e.target.value || undefined };
+                              return clone;
+                            })
+                          }
+                        />
+                      </td>
+                      <td className="p-2 align-top">
+                        <input
+                          type="text"
+                          inputMode="decimal"
+                          pattern="^[0-9]*[.,]?[0-9]*$"
+                          className="border rounded px-2 py-1 w-20"
+                          placeholder="L"
+                          value={typeof r.liters === 'number' ? String(r.liters) : ''}
+                          onChange={e =>
+                            setRows(prev => {
+                              const clone = [...prev];
+                              const v = e.target.value.replace(',', '.');
+                              clone[idx] = {
+                                ...clone[idx],
+                                liters: v ? parseFloat(v) : undefined,
                               };
                               return clone;
                             })

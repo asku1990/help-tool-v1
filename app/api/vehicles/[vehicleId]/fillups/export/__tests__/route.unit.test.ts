@@ -64,6 +64,7 @@ describe('api/vehicles/[vehicleId]/fillups/export GET (unit)', () => {
     });
     (prisma.fuelFillUp.findMany as unknown as Mock).mockResolvedValueOnce([
       {
+        id: 'f1',
         date: new Date('2024-02-01T00:00:00.000Z'),
         odometerKm: 15000,
         liters: { toNumber: () => 40.5 },
@@ -83,13 +84,14 @@ describe('api/vehicles/[vehicleId]/fillups/export GET (unit)', () => {
     expect(disp).toMatch(/fillups_My_Car_name_\d{8}\.csv/);
     const body = await res.text();
     const [header, line] = body.split('\n');
-    expect(header).toBe('Date;OdometerKm;Liters;PricePerLiter;TotalCost;IsFull;Notes');
+    expect(header).toBe('Id;Date;OdometerKm;Liters;PricePerLiter;TotalCost;IsFull;Notes');
     const cols = line.split(';');
-    expect(cols[0]).toBe('2024-02-01');
-    expect(cols[1]).toBe('15000');
-    expect(cols[2]).toBe('40.50');
-    expect(cols[3]).toBe('1.999');
-    expect(cols[4]).toBe('80.97');
-    expect(cols[5]).toBe('1');
+    expect(cols[0]).toBe('f1');
+    expect(cols[1]).toBe('2024-02-01');
+    expect(cols[2]).toBe('15000');
+    expect(cols[3]).toBe('40.50');
+    expect(cols[4]).toBe('1.999');
+    expect(cols[5]).toBe('80.97');
+    expect(cols[6]).toBe('1');
   });
 });

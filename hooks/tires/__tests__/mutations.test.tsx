@@ -19,6 +19,7 @@ import { useUpdateTireSet } from '../useUpdateTireSet';
 import { useLogTireChange } from '../useLogTireChange';
 import { useUpdateTireChangeLog } from '../useUpdateTireChangeLog';
 import { useDeleteTireChangeLog } from '../useDeleteTireChangeLog';
+import { useImportTires } from '../useImportTires';
 import * as tiresQueries from '@/queries/tires';
 
 const createWrapper = () => {
@@ -108,5 +109,86 @@ describe('tire mutation hooks', () => {
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(tiresQueries.deleteTireChangeLog).toHaveBeenCalledWith('v1', 'log1');
+  });
+
+  describe('useImportTires', () => {
+    it('imports tire sets and change logs successfully', async () => {
+      vi.mocked(tiresQueries.createTireSet).mockResolvedValue({ id: 'new-ts1' });
+      vi.mocked(tiresQueries.logTireChange).mockResolvedValue({ id: 'new-log1' });
+
+      const { result } = renderHook(() => useImportTires('v1'), { wrapper: createWrapper() });
+
+      result.current.mutate({
+        tireSets: [{ name: 'Summer Set', type: 'SUMMER', status: 'STORED' }],
+        changeLogs: [{ tireSetId: 'Summer Set', date: '2024-06-01', odometerKm: 10000 }],
+      });
+
+      await waitFor(() => expect(result.current.isSuccess).toBe(true));
+      expect(tiresQueries.createTireSet).toHaveBeenCalledWith('v1', {
+        name: 'Summer Set',
+        type: 'SUMMER',
+        status: 'STORED',
+        purchaseDate: undefined,
+        notes: undefined,
+      });
+      expect(tiresQueries.logTireChange).toHaveBeenCalledWith('v1', {
+        tireSetId: 'new-ts1',
+        date: '2024-06-01',
+        odometerKm: 10000,
+        notes: undefined,
+      });
+    });
+
+    it('uses exportId mapping for change logs', async () => {
+      vi.mocked(tiresQueries.createTireSet).mockResolvedValue({ id: 'new-ts1' });
+      vi.mocked(tiresQueries.logTireChange).mockResolvedValue({ id: 'new-log1' });
+
+      const tireSetIdMap = new Map([['old-export-id', 'Summer Set']]);
+
+      const { result } = renderHook(() => useImportTires('v1'), { wrapper: createWrapper() });
+
+      result.current.mutate({
+        tireSets: [{ name: 'Summer Set', type: 'SUMMER' }],
+        changeLogs: [{ tireSetId: 'old-export-id', date: '2024-06-01', odometerKm: 10000 }],
+        tireSetIdMap,
+      });
+
+      await waitFor(() => expect(result.current.isSuccess).toBe(true));
+      expect(tiresQueries.logTireChange).toHaveBeenCalledWith('v1', {
+        tireSetId: 'new-ts1',
+        date: '2024-06-01',
+        odometerKm: 10000,
+        notes: undefined,
+      });
+    });
+
+    it('throws error when tire set creation fails', async () => {
+      vi.mocked(tiresQueries.createTireSet).mockRejectedValue(new Error('creation failed'));
+
+      const { result } = renderHook(() => useImportTires('v1'), { wrapper: createWrapper() });
+
+      result.current.mutate({
+        tireSets: [{ name: 'Summer Set', type: 'SUMMER' }],
+        changeLogs: [],
+      });
+
+      await waitFor(() => expect(result.current.isError).toBe(true));
+      expect(result.current.error?.message).toMatch(/0\/1 tire sets/);
+    });
+
+    it('throws error when change log creation fails', async () => {
+      vi.mocked(tiresQueries.createTireSet).mockResolvedValue({ id: 'new-ts1' });
+      vi.mocked(tiresQueries.logTireChange).mockRejectedValue(new Error('log failed'));
+
+      const { result } = renderHook(() => useImportTires('v1'), { wrapper: createWrapper() });
+
+      result.current.mutate({
+        tireSets: [{ name: 'Summer Set', type: 'SUMMER' }],
+        changeLogs: [{ tireSetId: 'Summer Set', date: '2024-06-01', odometerKm: 10000 }],
+      });
+
+      await waitFor(() => expect(result.current.isError).toBe(true));
+      expect(result.current.error?.message).toMatch(/0\/1 change logs/);
+    });
   });
 });

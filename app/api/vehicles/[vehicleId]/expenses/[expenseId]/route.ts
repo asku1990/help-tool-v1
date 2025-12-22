@@ -100,7 +100,7 @@ export async function PATCH(
 
         // Filter to include only entries before this one (by date, then by odometer for same day)
         const previousTopUps = topUpsSince.filter(e => {
-          if (!e.odometerKm || resolvedOdometerKm === null) return true; // Include if no odometer
+          if (!e.odometerKm) return true; // Include if no odometer (can't compare)
           const entryDate = e.date.getTime();
           const currentDate = nextDate.getTime();
           if (entryDate < currentDate) return true; // Earlier day - include
