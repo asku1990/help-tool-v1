@@ -118,6 +118,7 @@ function EditExpenseButton({
     amount: number;
     vendor?: string;
     odometerKm?: number;
+    liters?: number;
     oilConsumption?: number;
     notes?: string;
   };
@@ -129,6 +130,7 @@ function EditExpenseButton({
     amount: String(item.amount),
     vendor: item.vendor || '',
     odometerKm: item.odometerKm ? String(item.odometerKm) : '',
+    liters: item.liters ? String(item.liters) : '',
     notes: item.notes || '',
   });
   const update = useUpdateExpense(vehicleId, item.id);
@@ -159,10 +161,15 @@ function EditExpenseButton({
                   | 'TAX'
                   | 'PARKING'
                   | 'TOLL'
+                  | 'OIL_CHANGE'
+                  | 'OIL_TOP_UP'
+                  | 'INSPECTION'
+                  | 'TIRES'
                   | 'OTHER',
                 amount: parseFloat(state.amount.replace(',', '.')),
                 vendor: state.vendor || undefined,
                 odometerKm: state.odometerKm ? parseInt(state.odometerKm, 10) : undefined,
+                liters: state.liters ? parseFloat(state.liters.replace(',', '.')) : undefined,
                 notes: state.notes || undefined,
               });
               setOpen(false);
@@ -233,6 +240,17 @@ function EditExpenseButton({
                   className="border rounded-md px-3 py-2"
                   value={state.odometerKm}
                   onChange={e => setState(s => ({ ...s, odometerKm: e.target.value }))}
+                />
+              </label>
+              <label className="flex flex-col gap-1">
+                <span className="text-sm">Liters</span>
+                <input
+                  type="text"
+                  inputMode="decimal"
+                  className="border rounded-md px-3 py-2"
+                  value={state.liters}
+                  onChange={e => setState(s => ({ ...s, liters: e.target.value }))}
+                  placeholder="For oil/fluid"
                 />
               </label>
               <label className="flex flex-col gap-1 sm:col-span-2">

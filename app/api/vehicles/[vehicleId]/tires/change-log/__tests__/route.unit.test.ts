@@ -240,9 +240,13 @@ describe('POST /api/vehicles/[vehicleId]/tires/change-log', () => {
     expect(response.status).toBe(201);
     expect(data.data.id).toBe('cl1');
 
-    // Verify that all tire sets were set to STORED first
+    // Verify that all non-retired tire sets (except the one being mounted) were set to STORED
     expect(prisma.tireSet.updateMany).toHaveBeenCalledWith({
-      where: { vehicleId: 'v1' },
+      where: {
+        vehicleId: 'v1',
+        id: { not: '550e8400-e29b-41d4-a716-446655440000' },
+        status: { not: 'RETIRED' },
+      },
       data: { status: 'STORED' },
     });
 

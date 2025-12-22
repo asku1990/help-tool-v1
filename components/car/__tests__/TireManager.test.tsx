@@ -14,9 +14,21 @@ vi.mock('@/queries/tires', () => ({
   getTireChangeHistory: vi.fn(),
 }));
 
-vi.mock('@/hooks', () => ({
-  useLatestOdometer: vi.fn(),
-}));
+vi.mock('@/hooks', async importOriginal => {
+  const actual = await importOriginal<typeof import('@/hooks')>();
+  return {
+    ...actual,
+    useLatestOdometer: vi.fn(),
+    useTireSets: vi.fn(),
+    useTireChangeHistory: vi.fn(),
+    useCreateTireSet: vi.fn(),
+    useUpdateTireSet: vi.fn(),
+    useDeleteTireSet: vi.fn(),
+    useLogTireChange: vi.fn(),
+    useUpdateTireChangeLog: vi.fn(),
+    useDeleteTireChangeLog: vi.fn(),
+  };
+});
 
 const createWrapper = () => {
   const queryClient = new QueryClient({
@@ -56,18 +68,54 @@ const buildTireSet = (overrides: Partial<TireSetDto> = {}): TireSetDto => ({
 });
 
 describe('TireManager', () => {
+  const mockMutateAsync = vi.fn();
+  const mockMutate = vi.fn();
+  const mockMutation = {
+    mutateAsync: mockMutateAsync,
+    mutate: mockMutate,
+    isPending: false,
+  };
+
   beforeEach(async () => {
     vi.clearAllMocks();
-    const { getTireChangeHistory } = await import('@/queries/tires');
-    vi.mocked(getTireChangeHistory).mockResolvedValue({ history: [] });
+    mockMutateAsync.mockResolvedValue({});
+    mockMutate.mockResolvedValue({});
 
-    const { useLatestOdometer } = await import('@/hooks');
-    vi.mocked(useLatestOdometer).mockReturnValue(null);
+    const hooks = await import('@/hooks');
+    vi.mocked(hooks.useLatestOdometer).mockReturnValue(null);
+    vi.mocked(hooks.useTireSets).mockReturnValue({
+      data: { tireSets: [] },
+      isLoading: false,
+    } as unknown as ReturnType<typeof hooks.useTireSets>);
+    vi.mocked(hooks.useTireChangeHistory).mockReturnValue({
+      data: { history: [] },
+    } as unknown as ReturnType<typeof hooks.useTireChangeHistory>);
+    vi.mocked(hooks.useCreateTireSet).mockReturnValue(
+      mockMutation as unknown as ReturnType<typeof hooks.useCreateTireSet>
+    );
+    vi.mocked(hooks.useUpdateTireSet).mockReturnValue(
+      mockMutation as unknown as ReturnType<typeof hooks.useUpdateTireSet>
+    );
+    vi.mocked(hooks.useDeleteTireSet).mockReturnValue(
+      mockMutation as unknown as ReturnType<typeof hooks.useDeleteTireSet>
+    );
+    vi.mocked(hooks.useLogTireChange).mockReturnValue(
+      mockMutation as unknown as ReturnType<typeof hooks.useLogTireChange>
+    );
+    vi.mocked(hooks.useUpdateTireChangeLog).mockReturnValue(
+      mockMutation as unknown as ReturnType<typeof hooks.useUpdateTireChangeLog>
+    );
+    vi.mocked(hooks.useDeleteTireChangeLog).mockReturnValue(
+      mockMutation as unknown as ReturnType<typeof hooks.useDeleteTireChangeLog>
+    );
   });
 
   it('renders loading state initially', async () => {
-    const { listTireSets } = await import('@/queries/tires');
-    vi.mocked(listTireSets).mockReturnValue(new Promise(() => {})); // Never resolves
+    const hooks = await import('@/hooks');
+    vi.mocked(hooks.useTireSets).mockReturnValue({
+      data: undefined,
+      isLoading: true,
+    } as unknown as ReturnType<typeof hooks.useTireSets>);
 
     const TireManager = (await import('../TireManager')).default;
     render(<TireManager vehicleId="v1" />, { wrapper: createWrapper() });
@@ -76,23 +124,26 @@ describe('TireManager', () => {
   });
 
   it('renders tire sets when loaded', async () => {
-    const { listTireSets } = await import('@/queries/tires');
-    vi.mocked(listTireSets).mockResolvedValue({
-      tireSets: [
-        buildTireSet({
-          id: 't1',
-          status: 'ACTIVE',
-          changeLogs: [buildChangeLog({ tireSetId: 't1', odometerKm: 10000 })],
-        }),
-        buildTireSet({
-          id: 't2',
-          name: 'Winter Tires',
-          type: 'WINTER',
-          status: 'STORED',
-          changeLogs: [],
-        }),
-      ],
-    });
+    const hooks = await import('@/hooks');
+    vi.mocked(hooks.useTireSets).mockReturnValue({
+      data: {
+        tireSets: [
+          buildTireSet({
+            id: 't1',
+            status: 'ACTIVE',
+            changeLogs: [buildChangeLog({ tireSetId: 't1', odometerKm: 10000 })],
+          }),
+          buildTireSet({
+            id: 't2',
+            name: 'Winter Tires',
+            type: 'WINTER',
+            status: 'STORED',
+            changeLogs: [],
+          }),
+        ],
+      },
+      isLoading: false,
+    } as unknown as ReturnType<typeof hooks.useTireSets>);
 
     const TireManager = (await import('../TireManager')).default;
     render(<TireManager vehicleId="v1" />, { wrapper: createWrapper() });
@@ -102,12 +153,16 @@ describe('TireManager', () => {
     });
 
     expect(screen.getByText('Winter Tires')).toBeInTheDocument();
-    expect(screen.getByText('Stored Sets')).toBeInTheDocument();
+    // The "Stored" heading for stored tire sets section
+    expect(screen.getByRole('heading', { name: 'Stored', level: 4 })).toBeInTheDocument();
   });
 
   it('shows add tire set dialog when clicking Add Set', async () => {
-    const { listTireSets } = await import('@/queries/tires');
-    vi.mocked(listTireSets).mockResolvedValue({ tireSets: [] });
+    const hooks = await import('@/hooks');
+    vi.mocked(hooks.useTireSets).mockReturnValue({
+      data: { tireSets: [] },
+      isLoading: false,
+    } as unknown as ReturnType<typeof hooks.useTireSets>);
 
     const user = userEvent.setup();
     const TireManager = (await import('../TireManager')).default;
@@ -125,9 +180,11 @@ describe('TireManager', () => {
   });
 
   it('creates a tire set through the dialog', async () => {
-    const { listTireSets, createTireSet } = await import('@/queries/tires');
-    vi.mocked(listTireSets).mockResolvedValue({ tireSets: [] });
-    vi.mocked(createTireSet).mockResolvedValue({ id: 't1' });
+    const hooks = await import('@/hooks');
+    vi.mocked(hooks.useTireSets).mockReturnValue({
+      data: { tireSets: [] },
+      isLoading: false,
+    } as unknown as ReturnType<typeof hooks.useTireSets>);
 
     const user = userEvent.setup();
     const TireManager = (await import('../TireManager')).default;
@@ -145,8 +202,7 @@ describe('TireManager', () => {
     await user.click(screen.getByRole('button', { name: /Add Tire Set/i }));
 
     await waitFor(() => {
-      expect(createTireSet).toHaveBeenCalledWith(
-        'v1',
+      expect(mockMutateAsync).toHaveBeenCalledWith(
         expect.objectContaining({
           name: 'Winter Set',
           type: 'WINTER',
@@ -157,24 +213,26 @@ describe('TireManager', () => {
   });
 
   it('deletes a tire set after confirmation', async () => {
-    const { listTireSets, deleteTireSet } = await import('@/queries/tires');
-    vi.mocked(listTireSets).mockResolvedValue({
-      tireSets: [
-        buildTireSet({
-          id: 'active',
-          name: 'Mounted',
-          changeLogs: [buildChangeLog({ tireSetId: 'active' })],
-        }),
-        buildTireSet({
-          id: 'stored',
-          name: 'Stored',
-          type: 'WINTER',
-          status: 'STORED',
-          changeLogs: [],
-        }),
-      ],
-    });
-    vi.mocked(deleteTireSet).mockResolvedValue({ id: 'stored' });
+    const hooks = await import('@/hooks');
+    vi.mocked(hooks.useTireSets).mockReturnValue({
+      data: {
+        tireSets: [
+          buildTireSet({
+            id: 'active',
+            name: 'Mounted',
+            changeLogs: [buildChangeLog({ tireSetId: 'active' })],
+          }),
+          buildTireSet({
+            id: 'stored',
+            name: 'Stored',
+            type: 'WINTER',
+            status: 'STORED',
+            changeLogs: [],
+          }),
+        ],
+      },
+      isLoading: false,
+    } as unknown as ReturnType<typeof hooks.useTireSets>);
     vi.spyOn(window, 'confirm').mockReturnValue(true);
 
     const user = userEvent.setup();
@@ -185,32 +243,36 @@ describe('TireManager', () => {
       expect(screen.queryByText('Loading tires...')).not.toBeInTheDocument();
     });
 
-    await user.click(screen.getByRole('button', { name: /Delete/i }));
+    // Click the delete button (×)
+    const deleteButtons = screen.getAllByRole('button', { name: /×/ });
+    await user.click(deleteButtons[0]);
 
     await waitFor(() => {
-      expect(deleteTireSet).toHaveBeenCalledWith('v1', 'stored');
+      expect(mockMutate).toHaveBeenCalledWith('stored');
     });
   });
 
   it('logs a tire change when swapping sets', async () => {
-    const { listTireSets, logTireChange } = await import('@/queries/tires');
-    vi.mocked(listTireSets).mockResolvedValue({
-      tireSets: [
-        buildTireSet({
-          id: 'active',
-          name: 'Mounted',
-          changeLogs: [buildChangeLog({ tireSetId: 'active' })],
-        }),
-        buildTireSet({
-          id: 'stored',
-          name: 'Stored',
-          type: 'WINTER',
-          status: 'STORED',
-          changeLogs: [],
-        }),
-      ],
-    });
-    vi.mocked(logTireChange).mockResolvedValue({ id: 'log1' });
+    const hooks = await import('@/hooks');
+    vi.mocked(hooks.useTireSets).mockReturnValue({
+      data: {
+        tireSets: [
+          buildTireSet({
+            id: 'active',
+            name: 'Mounted',
+            changeLogs: [buildChangeLog({ tireSetId: 'active' })],
+          }),
+          buildTireSet({
+            id: 'stored',
+            name: 'Stored',
+            type: 'WINTER',
+            status: 'STORED',
+            changeLogs: [],
+          }),
+        ],
+      },
+      isLoading: false,
+    } as unknown as ReturnType<typeof hooks.useTireSets>);
     vi.spyOn(window, 'alert').mockImplementation(() => undefined);
 
     const user = userEvent.setup();
@@ -229,8 +291,7 @@ describe('TireManager', () => {
     await user.click(screen.getByRole('button', { name: /Confirm Swap/i }));
 
     await waitFor(() => {
-      expect(logTireChange).toHaveBeenCalledWith(
-        'v1',
+      expect(mockMutateAsync).toHaveBeenCalledWith(
         expect.objectContaining({
           tireSetId: 'stored',
           odometerKm: 12000,
@@ -240,40 +301,46 @@ describe('TireManager', () => {
   });
 
   it('shows computed km when totalKm is 0 but history exists', async () => {
-    const { listTireSets, getTireChangeHistory } = await import('@/queries/tires');
-    vi.mocked(listTireSets).mockResolvedValue({
-      tireSets: [
-        buildTireSet({
-          id: 'active',
-          name: 'Mounted',
-          status: 'ACTIVE',
-          totalKm: 0,
-          changeLogs: [
-            buildChangeLog({ tireSetId: 'active', date: '2024-04-01', odometerKm: 15000 }),
-          ],
-        }),
-        buildTireSet({
-          id: 'stored',
-          name: 'Stored',
-          type: 'WINTER',
-          status: 'STORED',
-          totalKm: 0,
-          changeLogs: [],
-        }),
-      ],
-    });
-    vi.mocked(getTireChangeHistory).mockResolvedValue({
-      history: [
-        buildChangeLog({ tireSetId: 'stored', date: '2024-01-01', odometerKm: 10000 }),
-        buildChangeLog({ tireSetId: 'active', date: '2024-04-01', odometerKm: 15000 }),
-      ],
-    });
+    const hooks = await import('@/hooks');
+    vi.mocked(hooks.useTireSets).mockReturnValue({
+      data: {
+        tireSets: [
+          buildTireSet({
+            id: 'active',
+            name: 'Mounted',
+            status: 'ACTIVE',
+            totalKm: 0,
+            changeLogs: [
+              buildChangeLog({ tireSetId: 'active', date: '2024-04-01', odometerKm: 15000 }),
+            ],
+          }),
+          buildTireSet({
+            id: 'stored',
+            name: 'Stored',
+            type: 'WINTER',
+            status: 'STORED',
+            totalKm: 0,
+            changeLogs: [],
+          }),
+        ],
+      },
+      isLoading: false,
+    } as unknown as ReturnType<typeof hooks.useTireSets>);
+    vi.mocked(hooks.useTireChangeHistory).mockReturnValue({
+      data: {
+        history: [
+          buildChangeLog({ tireSetId: 'stored', date: '2024-01-01', odometerKm: 10000 }),
+          buildChangeLog({ tireSetId: 'active', date: '2024-04-01', odometerKm: 15000 }),
+        ],
+      },
+    } as unknown as ReturnType<typeof hooks.useTireChangeHistory>);
 
     const TireManager = (await import('../TireManager')).default;
     render(<TireManager vehicleId="v1" />, { wrapper: createWrapper() });
 
     await waitFor(() => {
-      expect(screen.getByText('Stored')).toBeInTheDocument();
+      // The "Stored" heading for stored tire sets section
+      expect(screen.getByRole('heading', { name: 'Stored', level: 4 })).toBeInTheDocument();
     });
 
     const totalLines = screen.getAllByText(/Total:/i);

@@ -50,9 +50,8 @@ export function updateTireSet(
     name: string;
     type: TireType;
     status: TireStatus;
-    inspectionDueDate: string | null;
-    inspectionIntervalMonths: number | null;
-    initialOdometer: number | null;
+    purchaseDate: string | null;
+    notes: string | null;
   }>
 ) {
   return apiPatch<{ id: string }>(`/api/vehicles/${vehicleId}/tires/${tireSetId}`, payload);
@@ -76,4 +75,20 @@ export function logTireChange(
 
 export function getTireChangeHistory(vehicleId: string) {
   return apiGet<{ history: TireChangeLogDto[] }>(`/api/vehicles/${vehicleId}/tires/change-log`);
+}
+
+export function updateTireChangeLog(
+  vehicleId: string,
+  logId: string,
+  payload: Partial<{
+    date: string;
+    odometerKm: number;
+    notes: string | null;
+  }>
+) {
+  return apiPatch<{ id: string }>(`/api/vehicles/${vehicleId}/tires/change-log/${logId}`, payload);
+}
+
+export function deleteTireChangeLog(vehicleId: string, logId: string) {
+  return apiDelete<{ id: string }>(`/api/vehicles/${vehicleId}/tires/change-log/${logId}`);
 }

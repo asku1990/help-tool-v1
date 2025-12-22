@@ -6,6 +6,8 @@ import {
   deleteTireSet,
   logTireChange,
   getTireChangeHistory,
+  updateTireChangeLog,
+  deleteTireChangeLog,
 } from '../tires';
 
 type FetchSpy = MockInstance<typeof fetch>;
@@ -99,5 +101,35 @@ describe('tires queries', () => {
 
     await getTireChangeHistory('v1');
     expect(fetch).toHaveBeenCalledWith('/api/vehicles/v1/tires/change-log', expect.anything());
+  });
+
+  it('updateTireChangeLog patches change log', async () => {
+    fetchSpy.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ data: { id: 'log1' } }),
+    } as Response);
+
+    const res = await updateTireChangeLog('v1', 'log1', { odometerKm: 12000 });
+    expect(res).toEqual({ id: 'log1' });
+    expect(fetch).toHaveBeenCalledWith(
+      '/api/vehicles/v1/tires/change-log/log1',
+      expect.objectContaining({
+        method: 'PATCH',
+        body: JSON.stringify({ odometerKm: 12000 }),
+      })
+    );
+  });
+
+  it('deleteTireChangeLog calls delete endpoint', async () => {
+    fetchSpy.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ data: { id: 'log1' } }),
+    } as Response);
+
+    await deleteTireChangeLog('v1', 'log1');
+    expect(fetch).toHaveBeenCalledWith(
+      '/api/vehicles/v1/tires/change-log/log1',
+      expect.objectContaining({ method: 'DELETE' })
+    );
   });
 });

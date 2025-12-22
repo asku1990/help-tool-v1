@@ -41,7 +41,8 @@ export default function FillUpForm({ vehicleId, onCreated }: FillUpFormProps) {
       setIsFull(true);
       setNotes('');
     }
-  }, [open, lastOdometer]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]); // Only reset on dialog open/close, not on lastOdometer changes
 
   const totalCost = useMemo(() => {
     const l = parseFloat((liters || '0').replace(',', '.'));

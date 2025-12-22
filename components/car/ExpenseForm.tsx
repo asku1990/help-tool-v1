@@ -35,6 +35,7 @@ export default function ExpenseForm({ vehicleId, onCreated }: ExpenseFormProps) 
   const [odometerEdited, setOdometerEdited] = useState(false);
   const [notes, setNotes] = useState<string>('');
   const [nextInspectionDue, setNextInspectionDue] = useState<string>('');
+  const [inspectionDueEdited, setInspectionDueEdited] = useState(false);
   const [intervalMonthsInput, setIntervalMonthsInput] = useState<string>('');
   const [liters, setLiters] = useState<string>('');
   const [submitting, setSubmitting] = useState(false);
@@ -50,19 +51,22 @@ export default function ExpenseForm({ vehicleId, onCreated }: ExpenseFormProps) 
       setOdometerEdited(false);
       setNotes('');
       setNextInspectionDue('');
+      setInspectionDueEdited(false);
       setIntervalMonthsInput('');
       setLiters('');
     }
-  }, [open, latestOdometer]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]); // Only reset on dialog open/close, not on latestOdometer changes
 
-  // Auto-populate inspection fields when category changes to INSPECTION
+  // Auto-populate inspection fields when category changes to INSPECTION or date changes
   useEffect(() => {
     if (category === 'INSPECTION') {
       const existing = vehicleQuery.data?.vehicle?.inspectionIntervalMonths;
       if (existing && !intervalMonthsInput) {
         setIntervalMonthsInput(String(existing));
       }
-      if (existing && !nextInspectionDue) {
+      // Only auto-calculate if user hasn't manually edited the date
+      if (existing && !inspectionDueEdited) {
         const computed = addMonths(new Date(date), existing);
         const iso = new Date(computed.getTime() - computed.getTimezoneOffset() * 60000)
           .toISOString()
@@ -75,7 +79,7 @@ export default function ExpenseForm({ vehicleId, onCreated }: ExpenseFormProps) 
     date,
     vehicleQuery.data?.vehicle?.inspectionIntervalMonths,
     intervalMonthsInput,
-    nextInspectionDue,
+    inspectionDueEdited,
   ]);
 
   const parsedAmount = parseFloat((amount ?? '').replace(',', '.'));
@@ -129,6 +133,7 @@ export default function ExpenseForm({ vehicleId, onCreated }: ExpenseFormProps) 
       setOdometerKm('');
       setLiters('');
       setNextInspectionDue('');
+      setInspectionDueEdited(false);
       setIntervalMonthsInput('');
     } finally {
       setSubmitting(false);
@@ -247,7 +252,10 @@ export default function ExpenseForm({ vehicleId, onCreated }: ExpenseFormProps) 
                     type="date"
                     className="border rounded-md px-3 py-2"
                     value={nextInspectionDue}
-                    onChange={e => setNextInspectionDue(e.target.value)}
+                    onChange={e => {
+                      setNextInspectionDue(e.target.value);
+                      setInspectionDueEdited(true);
+                    }}
                   />
                 </label>
                 <label className="flex flex-col gap-1">

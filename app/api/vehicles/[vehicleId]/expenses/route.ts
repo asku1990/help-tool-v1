@@ -53,8 +53,8 @@ export async function GET(req: NextRequest, context: { params: Promise<{ vehicle
       amount: decimalToNumber(e.amount),
       vendor: e.vendor ?? undefined,
       odometerKm: e.odometerKm ?? undefined,
-      liters: e.liters ? decimalToNumber(e.liters) : undefined,
-      oilConsumption: e.oilConsumption ? decimalToNumber(e.oilConsumption) : undefined,
+      liters: e.liters != null ? decimalToNumber(e.liters) : undefined,
+      oilConsumption: e.oilConsumption != null ? decimalToNumber(e.oilConsumption) : undefined,
       notes: e.notes ?? undefined,
     }));
 

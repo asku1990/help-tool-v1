@@ -119,9 +119,13 @@ export async function POST(req: NextRequest, context: { params: Promise<{ vehicl
       select: { id: true },
     });
 
-    // Update tire set statuses: mounted set becomes ACTIVE, all others become STORED
+    // Update tire set statuses: mounted set becomes ACTIVE, all others (except RETIRED) become STORED
     await prisma.tireSet.updateMany({
-      where: { vehicleId: vehicle.id },
+      where: {
+        vehicleId: vehicle.id,
+        id: { not: tireSetId },
+        status: { not: 'RETIRED' },
+      },
       data: { status: 'STORED' },
     });
     await prisma.tireSet.update({
