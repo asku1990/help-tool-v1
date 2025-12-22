@@ -11,6 +11,11 @@ vi.mock('@/queries/tires', () => ({
   createTireSet: vi.fn(),
   deleteTireSet: vi.fn(),
   logTireChange: vi.fn(),
+  getTireChangeHistory: vi.fn(),
+}));
+
+vi.mock('@/hooks', () => ({
+  useLatestOdometer: vi.fn(),
 }));
 
 const createWrapper = () => {
@@ -42,6 +47,7 @@ const buildTireSet = (overrides: Partial<TireSetDto> = {}): TireSetDto => ({
   name: overrides.name ?? 'Summer Tires',
   type: overrides.type ?? 'SUMMER',
   status: overrides.status ?? 'ACTIVE',
+  totalKm: overrides.totalKm ?? 0,
   purchaseDate: overrides.purchaseDate ?? null,
   notes: overrides.notes ?? null,
   createdAt: overrides.createdAt ?? '2024-01-01T00:00:00.000Z',
@@ -50,8 +56,13 @@ const buildTireSet = (overrides: Partial<TireSetDto> = {}): TireSetDto => ({
 });
 
 describe('TireManager', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     vi.clearAllMocks();
+    const { getTireChangeHistory } = await import('@/queries/tires');
+    vi.mocked(getTireChangeHistory).mockResolvedValue({ history: [] });
+
+    const { useLatestOdometer } = await import('@/hooks');
+    vi.mocked(useLatestOdometer).mockReturnValue(null);
   });
 
   it('renders loading state initially', async () => {
@@ -226,5 +237,49 @@ describe('TireManager', () => {
         })
       );
     });
+  });
+
+  it('shows computed km when totalKm is 0 but history exists', async () => {
+    const { listTireSets, getTireChangeHistory } = await import('@/queries/tires');
+    vi.mocked(listTireSets).mockResolvedValue({
+      tireSets: [
+        buildTireSet({
+          id: 'active',
+          name: 'Mounted',
+          status: 'ACTIVE',
+          totalKm: 0,
+          changeLogs: [
+            buildChangeLog({ tireSetId: 'active', date: '2024-04-01', odometerKm: 15000 }),
+          ],
+        }),
+        buildTireSet({
+          id: 'stored',
+          name: 'Stored',
+          type: 'WINTER',
+          status: 'STORED',
+          totalKm: 0,
+          changeLogs: [],
+        }),
+      ],
+    });
+    vi.mocked(getTireChangeHistory).mockResolvedValue({
+      history: [
+        buildChangeLog({ tireSetId: 'stored', date: '2024-01-01', odometerKm: 10000 }),
+        buildChangeLog({ tireSetId: 'active', date: '2024-04-01', odometerKm: 15000 }),
+      ],
+    });
+
+    const TireManager = (await import('../TireManager')).default;
+    render(<TireManager vehicleId="v1" />, { wrapper: createWrapper() });
+
+    await waitFor(() => {
+      expect(screen.getByText('Stored')).toBeInTheDocument();
+    });
+
+    const totalLines = screen.getAllByText(/Total:/i);
+    const has5000km = totalLines.some(line =>
+      (line.textContent ?? '').replace(/\D/g, '').includes('5000')
+    );
+    expect(has5000km).toBe(true);
   });
 });

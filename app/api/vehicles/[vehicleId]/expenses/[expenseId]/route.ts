@@ -56,6 +56,7 @@ export async function PATCH(
         vendor: parsed.data.vendor === undefined ? undefined : (parsed.data.vendor ?? null),
         odometerKm:
           parsed.data.odometerKm === undefined ? undefined : (parsed.data.odometerKm ?? null),
+        liters: parsed.data.liters === undefined ? undefined : (parsed.data.liters ?? null),
         notes: parsed.data.notes === undefined ? undefined : (parsed.data.notes ?? null),
       },
       select: { id: true },

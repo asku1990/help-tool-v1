@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import {
   Button,
   Card,
@@ -19,8 +19,11 @@ import {
   createTireSet,
   deleteTireSet,
   logTireChange,
+  getTireChangeHistory,
   type TireType,
 } from '@/queries/tires';
+import { useLatestOdometer } from '@/hooks';
+import { calculateTireUsage, formatDuration } from '@/utils';
 
 type TireManagerProps = {
   vehicleId: string;
@@ -32,6 +35,22 @@ export default function TireManager({ vehicleId }: TireManagerProps) {
     queryKey: ['tireSets', vehicleId],
     queryFn: () => listTireSets(vehicleId),
   });
+
+  const { data: historyData } = useQuery({
+    queryKey: ['tireChangeHistory', vehicleId],
+    queryFn: () => getTireChangeHistory(vehicleId),
+  });
+
+  const hasHistory = (historyData?.history.length ?? 0) > 0;
+
+  const latestOdometer = useLatestOdometer(vehicleId);
+
+  // Calculate usage stats for all tire sets
+  const usageStats = useMemo(() => {
+    const tireSets = data?.tireSets || [];
+    const history = historyData?.history || [];
+    return calculateTireUsage(tireSets, history, latestOdometer ?? undefined);
+  }, [data?.tireSets, historyData?.history, latestOdometer]);
 
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [isSwapOpen, setIsSwapOpen] = useState(false);
@@ -78,7 +97,7 @@ export default function TireManager({ vehicleId }: TireManagerProps) {
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tireSets', vehicleId] });
-      // Also invalidate vehicle/history if needed?
+      queryClient.invalidateQueries({ queryKey: ['tireChangeHistory', vehicleId] });
       setIsSwapOpen(false);
       setSwapOdometer('');
       setSelectedTireSetId('');
@@ -156,21 +175,49 @@ export default function TireManager({ vehicleId }: TireManagerProps) {
                   Current: {activeTireSet.name}
                 </h3>
                 <p className="text-sm text-green-700 dark:text-green-400">
-                  {activeTireSet.type} • Installed since{' '}
+                  {activeTireSet.type} • Installed{' '}
                   {activeTireSet.changeLogs?.[0]?.date
                     ? new Date(activeTireSet.changeLogs[0].date).toLocaleDateString()
                     : 'Unknown'}
+                  {activeTireSet.changeLogs?.[0]?.odometerKm != null && (
+                    <> @ {activeTireSet.changeLogs[0].odometerKm.toLocaleString()} km</>
+                  )}
                 </p>
+                {(() => {
+                  const stats = usageStats.get(activeTireSet.id);
+                  // Calculate only current period km (from last mount to now)
+                  const lastMountOdo = activeTireSet.changeLogs?.[0]?.odometerKm || 0;
+                  const currentPeriodKm =
+                    latestOdometer != null && latestOdometer > lastMountOdo
+                      ? latestOdometer - lastMountOdo
+                      : 0;
+                  const storedKm = activeTireSet.totalKm;
+                  const totalKm =
+                    storedKm > 0
+                      ? storedKm + currentPeriodKm
+                      : hasHistory
+                        ? (stats?.totalKm ?? 0)
+                        : currentPeriodKm;
+                  const totalDays = stats?.totalDays || 0;
+
+                  if (totalKm === 0 && totalDays === 0) return null;
+                  return (
+                    <p className="text-sm text-green-600 dark:text-green-400 mt-1">
+                      Usage: {totalKm.toLocaleString()} km • {formatDuration(totalDays)}
+                    </p>
+                  );
+                })()}
               </div>
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => {
-                  // To swap, we need to select a DIFFERENT set.
-                  // If there are no other sets, prompt to add one?
                   if (otherTireSets.length === 0) {
                     alert('Add another tire set first to swap.');
                     return;
+                  }
+                  if (latestOdometer != null) {
+                    setSwapOdometer(String(latestOdometer));
                   }
                   setIsSwapOpen(true);
                 }}
@@ -183,7 +230,15 @@ export default function TireManager({ vehicleId }: TireManagerProps) {
           <div className="text-center py-4 text-gray-500">
             No active tire set.
             {data?.tireSets.length && data.tireSets.length > 0 ? (
-              <Button variant="link" onClick={() => setIsSwapOpen(true)}>
+              <Button
+                variant="link"
+                onClick={() => {
+                  if (latestOdometer != null) {
+                    setSwapOdometer(String(latestOdometer));
+                  }
+                  setIsSwapOpen(true);
+                }}
+              >
                 Mount a set
               </Button>
             ) : null}
@@ -194,28 +249,48 @@ export default function TireManager({ vehicleId }: TireManagerProps) {
         {otherTireSets.length > 0 && (
           <div className="space-y-2">
             <h4 className="text-sm font-medium text-gray-500">Stored Sets</h4>
-            {otherTireSets.map(set => (
-              <div key={set.id} className="flex justify-between items-center p-3 border rounded">
-                <div>
-                  <p className="font-medium">{set.name}</p>
-                  <p className="text-xs text-gray-500">{set.type}</p>
+            {otherTireSets.map(set => {
+              const stats = usageStats.get(set.id);
+              return (
+                <div key={set.id} className="flex justify-between items-center p-3 border rounded">
+                  <div>
+                    <p className="font-medium">{set.name}</p>
+                    <p className="text-xs text-gray-500">
+                      {set.type}
+                      {stats && stats.lastUnmountedDate && (
+                        <> • Last used: {new Date(stats.lastUnmountedDate).toLocaleDateString()}</>
+                      )}
+                    </p>
+                    {(() => {
+                      const storedKm = set.totalKm;
+                      const totalKm =
+                        storedKm > 0 ? storedKm : hasHistory ? (stats?.totalKm ?? 0) : 0;
+                      const totalDays = stats?.totalDays || 0;
+                      if (totalKm === 0 && totalDays === 0) return null;
+                      return (
+                        <p className="text-xs text-gray-400">
+                          Total: {totalKm.toLocaleString()} km • {formatDuration(totalDays)}
+                        </p>
+                      );
+                    })()}
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-red-500 hover:text-red-700"
+                      onClick={() => {
+                        if (confirm('Delete this tire set?')) {
+                          deleteMutation.mutate(set.id);
+                        }
+                      }}
+                    >
+                      Delete
+                    </Button>
+                  </div>
                 </div>
-                <div className="flex gap-2">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="text-red-500 hover:text-red-700"
-                    onClick={() => {
-                      if (confirm('Delete this tire set?')) {
-                        deleteMutation.mutate(set.id);
-                      }
-                    }}
-                  >
-                    Delete
-                  </Button>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
 
@@ -259,7 +334,11 @@ export default function TireManager({ vehicleId }: TireManagerProps) {
                   className="w-full border rounded px-3 py-2"
                   value={swapOdometer}
                   onChange={e => setSwapOdometer(e.target.value)}
-                  placeholder="Current reading"
+                  placeholder={
+                    latestOdometer != null
+                      ? `Last: ${latestOdometer.toLocaleString()} km`
+                      : 'Current reading'
+                  }
                 />
               </label>
               <Button

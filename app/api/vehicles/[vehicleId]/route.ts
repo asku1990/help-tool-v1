@@ -25,6 +25,7 @@ export async function GET(_req: NextRequest, context: { params: Promise<{ vehicl
         licensePlate: true,
         inspectionDueDate: true,
         inspectionIntervalMonths: true,
+        initialOdometer: true,
       },
     });
     if (!vehicle) return notFound();
@@ -54,6 +55,7 @@ const UpdateVehicleSchema = z.object({
     .optional()
     .nullable(),
   inspectionIntervalMonths: z.number().int().min(1).max(60).optional().nullable(),
+  initialOdometer: z.number().int().min(0).optional().nullable(),
 });
 
 export async function PATCH(req: NextRequest, context: { params: Promise<{ vehicleId: string }> }) {
@@ -92,6 +94,12 @@ export async function PATCH(req: NextRequest, context: { params: Promise<{ vehic
           typeof data.inspectionIntervalMonths === 'number'
             ? data.inspectionIntervalMonths
             : data.inspectionIntervalMonths === null
+              ? null
+              : undefined,
+        initialOdometer:
+          typeof data.initialOdometer === 'number'
+            ? data.initialOdometer
+            : data.initialOdometer === null
               ? null
               : undefined,
       },

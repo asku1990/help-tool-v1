@@ -1,5 +1,5 @@
 export { default as ConsumptionBadges } from './ConsumptionBadges';
-export { ConsumptionChart, OilConsumptionChart, TireUsageChart } from './charts';
+export { ConsumptionChart, OilConsumptionChart } from './charts';
 export { default as CostSummary } from './CostSummary';
 export { default as TireManager } from './TireManager';
 export { default as ExpenseForm } from './ExpenseForm';

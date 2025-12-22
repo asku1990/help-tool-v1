@@ -31,6 +31,7 @@ CREATE TABLE "TireSet" (
     "name" TEXT NOT NULL,
     "type" "TireType" NOT NULL,
     "status" "TireStatus" NOT NULL DEFAULT 'ACTIVE',
+    "totalKm" INTEGER NOT NULL DEFAULT 0,
     "purchaseDate" TIMESTAMP(3),
     "notes" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,

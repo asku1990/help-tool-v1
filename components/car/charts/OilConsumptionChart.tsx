@@ -37,15 +37,22 @@ export default function OilConsumptionChart({ vehicleId }: OilConsumptionChartPr
       };
     }
 
-    // Get current odometer from the most recent reading (fill-up or expense)
+    // Get current odometer from the most recent reading (fill-up or expense) by date
     const latestFillUp = fillUps[0] as { odometerKm?: number; date: string } | undefined;
     const latestExpenseWithOdo = expenses.find(e => e.odometerKm && e.odometerKm > 0);
 
-    // Use the more recent one
+    // Use the more recent one by date; if same date, use higher odometer
     let currentOdometer: number | undefined;
     if (latestFillUp?.odometerKm && latestExpenseWithOdo?.odometerKm) {
-      // Both exist - use the one with higher odometer (more recent)
-      currentOdometer = Math.max(latestFillUp.odometerKm, latestExpenseWithOdo.odometerKm);
+      const fillUpDate = new Date(latestFillUp.date).getTime();
+      const expenseDate = new Date(latestExpenseWithOdo.date).getTime();
+      if (fillUpDate !== expenseDate) {
+        currentOdometer =
+          fillUpDate > expenseDate ? latestFillUp.odometerKm : latestExpenseWithOdo.odometerKm;
+      } else {
+        // Same date - use higher odometer (since odometer only increases)
+        currentOdometer = Math.max(latestFillUp.odometerKm, latestExpenseWithOdo.odometerKm);
+      }
     } else {
       currentOdometer = latestFillUp?.odometerKm || latestExpenseWithOdo?.odometerKm;
     }

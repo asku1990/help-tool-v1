@@ -115,4 +115,3 @@ This creates confusion: Do I add a tire expense OR use TireManager? What's the d
 2. How often do you swap tires?
 
 - Twice a year (summer/winter)?
-- Rarely?

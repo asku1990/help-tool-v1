@@ -46,7 +46,7 @@ export default function ExpenseForm({ vehicleId, onCreated }: ExpenseFormProps) 
       setCategory('MAINTENANCE');
       setAmount('');
       setVendor('');
-      setOdometerKm(latestOdometer ? String(latestOdometer) : '');
+      setOdometerKm(latestOdometer != null ? String(latestOdometer) : '');
       setOdometerEdited(false);
       setNotes('');
       setNextInspectionDue('');
@@ -127,6 +127,7 @@ export default function ExpenseForm({ vehicleId, onCreated }: ExpenseFormProps) 
       setVendor('');
       setNotes('');
       setOdometerKm('');
+      setLiters('');
       setNextInspectionDue('');
       setIntervalMonthsInput('');
     } finally {

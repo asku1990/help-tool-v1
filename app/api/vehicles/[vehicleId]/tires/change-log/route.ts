@@ -85,6 +85,29 @@ export async function POST(req: NextRequest, context: { params: Promise<{ vehicl
       );
     }
 
+    // Find the currently active tire set and its last change log
+    const activeTireSet = await prisma.tireSet.findFirst({
+      where: { vehicleId: vehicle.id, status: 'ACTIVE' },
+      include: {
+        changeLogs: {
+          orderBy: { date: 'desc' },
+          take: 1,
+        },
+      },
+    });
+
+    // Calculate km driven on the previously active tire and update its totalKm
+    if (activeTireSet && activeTireSet.changeLogs.length > 0) {
+      const lastMountOdometer = activeTireSet.changeLogs[0].odometerKm;
+      const kmDriven = odometerKm - lastMountOdometer;
+      if (kmDriven > 0) {
+        await prisma.tireSet.update({
+          where: { id: activeTireSet.id },
+          data: { totalKm: { increment: kmDriven } },
+        });
+      }
+    }
+
     const log = await prisma.tireChangeLog.create({
       data: {
         vehicleId: vehicle.id,

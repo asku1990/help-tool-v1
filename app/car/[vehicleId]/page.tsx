@@ -25,7 +25,6 @@ import LicensePlate from '@/components/car/LicensePlate';
 import InspectionBadge from '@/components/car/InspectionBadge';
 import TireManager from '@/components/car/TireManager';
 import OilConsumptionChart from '@/components/car/charts/OilConsumptionChart';
-import TireUsageChart from '@/components/car/charts/TireUsageChart';
 import { useExpenses, useFillUps, useVehicle, useVehicles, useUpdateVehicle } from '@/hooks';
 import { pickLastInspectionDateFromExpenses, computeInspectionStatus } from '@/utils';
 import { useUiStore } from '@/stores/ui';
@@ -310,13 +309,6 @@ export default function VehiclePage() {
               <CardContent className="!p-4 sm:!p-6">
                 <h2 className="text-lg font-semibold mb-4">Oil Consumption</h2>
                 {vehicleId ? <OilConsumptionChart vehicleId={vehicleId} /> : null}
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardContent className="!p-4 sm:!p-6">
-                <h2 className="text-lg font-semibold mb-4">Tire Usage</h2>
-                {vehicleId ? <TireUsageChart vehicleId={vehicleId} /> : null}
               </CardContent>
             </Card>
           </div>

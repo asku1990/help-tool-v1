@@ -18,6 +18,7 @@ export type TireSetDto = {
   name: string;
   type: TireType;
   status: TireStatus;
+  totalKm: number;
   purchaseDate?: string | null;
   notes?: string | null;
   createdAt: string;

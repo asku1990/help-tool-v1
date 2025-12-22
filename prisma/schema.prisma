@@ -122,6 +122,7 @@ model TireSet {
   name         String
   type         TireType
   status       TireStatus @default(ACTIVE)
+  totalKm      Int        @default(0)
   purchaseDate DateTime?
   notes        String?
   createdAt    DateTime   @default(now())
