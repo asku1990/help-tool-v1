@@ -7,7 +7,7 @@ import { logger } from '@/lib/logger';
 import { decimalToNumber } from '@/lib/prisma/decimal';
 
 const UpdateSchema = z.object({
-  date: z.string().optional(),
+  date: z.string().min(1, 'Date cannot be empty').optional(),
   category: z
     .enum([
       'FUEL',
