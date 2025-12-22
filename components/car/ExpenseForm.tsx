@@ -56,7 +56,14 @@ export default function ExpenseForm({ vehicleId, onCreated }: ExpenseFormProps) 
       setLiters('');
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open]); // Only reset on dialog open/close, not on latestOdometer changes
+  }, [open]); // Only reset on dialog open/close
+
+  // Pre-fill odometer when data arrives (if dialog is open and user hasn't edited)
+  useEffect(() => {
+    if (open && !odometerEdited && latestOdometer != null && odometerKm === '') {
+      setOdometerKm(String(latestOdometer));
+    }
+  }, [open, odometerEdited, latestOdometer, odometerKm]);
 
   // Auto-populate inspection fields when category changes to INSPECTION or date changes
   useEffect(() => {

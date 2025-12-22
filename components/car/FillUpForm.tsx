@@ -30,7 +30,7 @@ export default function FillUpForm({ vehicleId, onCreated }: FillUpFormProps) {
   const [notes, setNotes] = useState<string>('');
   const [submitting, setSubmitting] = useState(false);
 
-  // Pre-fill odometer when dialog opens
+  // Reset form when dialog opens
   useEffect(() => {
     if (open) {
       setOdometerKm(lastOdometer !== null ? String(lastOdometer) : '');
@@ -42,7 +42,14 @@ export default function FillUpForm({ vehicleId, onCreated }: FillUpFormProps) {
       setNotes('');
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open]); // Only reset on dialog open/close, not on lastOdometer changes
+  }, [open]); // Only reset on dialog open/close
+
+  // Pre-fill odometer when data arrives (if dialog is open and user hasn't edited)
+  useEffect(() => {
+    if (open && !odometerEdited && lastOdometer !== null && odometerKm === '') {
+      setOdometerKm(String(lastOdometer));
+    }
+  }, [open, odometerEdited, lastOdometer, odometerKm]);
 
   const totalCost = useMemo(() => {
     const l = parseFloat((liters || '0').replace(',', '.'));
