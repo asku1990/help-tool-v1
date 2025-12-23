@@ -1,13 +1,4 @@
-import { vi } from 'vitest';
-
-vi.mock('@/auth', () => ({
-  auth: vi.fn(),
-}));
-vi.mock('@/lib/db', () => ({
-  default: {},
-}));
-
-import { escapeCsvField, sanitizeForFilename } from '../route';
+import { escapeCsvField, sanitizeForFilename } from '../csv';
 
 describe('export helpers', () => {
   it('quotes fields that contain separators or quotes', () => {

@@ -4,19 +4,7 @@ import prisma from '@/lib/db';
 import { checkRateLimit, rateLimitHeaders, rateLimitKey } from '@/lib/api/rate-limit';
 import { logger } from '@/lib/logger';
 import { decimalToNumber } from '@/lib/prisma/decimal';
-
-export function escapeCsvField(value: string): string {
-  const mustQuote = /[";\n\r]/.test(value);
-  const escaped = value.replace(/"/g, '""');
-  return mustQuote ? `"${escaped}"` : escaped;
-}
-
-export function sanitizeForFilename(input: string): string {
-  return input
-    .replace(/[^a-zA-Z0-9-_]+/g, '_')
-    .replace(/_+/g, '_')
-    .replace(/^_+|_+$/g, '');
-}
+import { escapeCsvField, sanitizeForFilename } from './csv';
 
 export async function GET(req: NextRequest, context: { params: Promise<{ vehicleId: string }> }) {
   try {
