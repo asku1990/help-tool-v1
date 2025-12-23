@@ -1,7 +1,14 @@
 import React from 'react';
-import { renderHook, waitFor, act } from '@testing-library/react';
+import { act, renderHook, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { useExpenses, useCreateExpense } from '@/hooks/useExpenses';
+import { vi } from 'vitest';
+import {
+  useExpenses,
+  useCreateExpense,
+  useImportExpenses,
+  useImportExpensesToVehicle,
+} from '@/hooks/useExpenses';
+import * as expensesQueries from '@/queries/expenses';
 
 function wrapper({ children }: { children: React.ReactNode }) {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -28,7 +35,56 @@ it('useCreateExpense optimistic update does not throw', async () => {
       date: new Date().toISOString(),
       category: 'MAINTENANCE',
       amount: 10,
-    } as any);
+    });
   });
   mock.mockRestore();
+});
+
+it('useImportExpenses forwards oil consumption to createExpense', async () => {
+  const createMock = vi
+    .spyOn(expensesQueries, 'createExpense')
+    .mockResolvedValue({ id: 'imported' });
+  const { result } = renderHook(() => useImportExpenses('vid'), { wrapper });
+
+  await act(async () => {
+    await result.current.mutateAsync([
+      {
+        date: '2024-01-01',
+        amount: 20,
+        oilConsumption: 3.5,
+      },
+    ]);
+  });
+
+  expect(createMock).toHaveBeenCalledWith('vid', expect.objectContaining({ oilConsumption: 3.5 }));
+
+  createMock.mockRestore();
+});
+
+it('useImportExpensesToVehicle forwards vehicleId and oilConsumption', async () => {
+  const createMock = vi
+    .spyOn(expensesQueries, 'createExpense')
+    .mockResolvedValue({ id: 'imported' });
+  const { result } = renderHook(() => useImportExpensesToVehicle(), { wrapper });
+
+  await act(async () => {
+    await result.current.mutateAsync({
+      vehicleId: 'vehicle-123',
+      rows: [{ date: '2024-01-01', amount: 20, oilConsumption: 3.5 }],
+    });
+  });
+
+  expect(createMock).toHaveBeenCalledWith(
+    'vehicle-123',
+    expect.objectContaining({ oilConsumption: 3.5 })
+  );
+
+  createMock.mockRestore();
+});
+
+it('useImportExpensesToVehicle errors when vehicleId is missing', async () => {
+  const { result } = renderHook(() => useImportExpensesToVehicle(), { wrapper });
+  await expect(result.current.mutateAsync({ vehicleId: '', rows: [] })).rejects.toThrow(
+    /Vehicle ID is required/
+  );
 });

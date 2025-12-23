@@ -40,7 +40,7 @@ export async function GET(req: NextRequest, context: { params: Promise<{ vehicle
 
     const items = await prisma.expense.findMany({
       where: { vehicleId: vehicle.id },
-      orderBy: { date: 'desc' },
+      orderBy: [{ date: 'desc' }, { odometerKm: 'desc' }],
       take: limit + 1,
       ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
     });
@@ -53,6 +53,8 @@ export async function GET(req: NextRequest, context: { params: Promise<{ vehicle
       amount: decimalToNumber(e.amount),
       vendor: e.vendor ?? undefined,
       odometerKm: e.odometerKm ?? undefined,
+      liters: e.liters != null ? decimalToNumber(e.liters) : undefined,
+      oilConsumption: e.oilConsumption != null ? decimalToNumber(e.oilConsumption) : undefined,
       notes: e.notes ?? undefined,
     }));
 
@@ -74,10 +76,23 @@ export async function GET(req: NextRequest, context: { params: Promise<{ vehicle
 
 const CreateExpenseSchema = z.object({
   date: z.string().min(1),
-  category: z.enum(['FUEL', 'MAINTENANCE', 'INSURANCE', 'TAX', 'PARKING', 'TOLL', 'OTHER']),
+  category: z.enum([
+    'FUEL',
+    'MAINTENANCE',
+    'INSURANCE',
+    'TAX',
+    'PARKING',
+    'TOLL',
+    'OIL_CHANGE',
+    'OIL_TOP_UP',
+    'INSPECTION',
+    'TIRES',
+    'OTHER',
+  ]),
   amount: z.number(),
   vendor: z.string().optional(),
   odometerKm: z.number().int().optional(),
+  liters: z.number().optional(),
   notes: z.string().optional(),
 });
 
@@ -99,7 +114,7 @@ export async function POST(req: NextRequest, context: { params: Promise<{ vehicl
     if (!parsed.success) {
       return badRequest('VALIDATION_ERROR', 'Invalid request body', parsed.error.flatten());
     }
-    const { date, category, amount, vendor, odometerKm, notes } = parsed.data;
+    const { date, category, amount, vendor, odometerKm, liters, notes } = parsed.data;
 
     const { vehicleId } = await context.params;
 
@@ -107,6 +122,51 @@ export async function POST(req: NextRequest, context: { params: Promise<{ vehicl
       where: { id: vehicleId, user: { email: session.user.email } },
     });
     if (!vehicle) return notFound();
+
+    // Calculate oilConsumption for OIL_TOP_UP expenses
+    let oilConsumption: number | undefined;
+    if (category === 'OIL_TOP_UP' && typeof odometerKm === 'number' && typeof liters === 'number') {
+      // Find the last oil change
+      const lastOilChange = await prisma.expense.findFirst({
+        where: { vehicleId: vehicle.id, category: 'OIL_CHANGE' },
+        orderBy: { date: 'desc' },
+      });
+
+      if (lastOilChange?.odometerKm !== null && lastOilChange?.odometerKm !== undefined) {
+        // Get all top-ups since last oil change, up to and including this expense's date
+        // Include same-day entries with lower odometer (earlier in the day)
+        const expenseDate = new Date(date);
+        const topUpsSince = await prisma.expense.findMany({
+          where: {
+            vehicleId: vehicle.id,
+            category: 'OIL_TOP_UP',
+            date: { gt: lastOilChange.date, lte: expenseDate },
+          },
+          select: { date: true, odometerKm: true, liters: true },
+        });
+
+        // Filter to include only entries before this one (by date, then by odometer for same day)
+        const previousTopUps = topUpsSince.filter(e => {
+          if (!e.odometerKm) return true; // Include if no odometer (can't compare)
+          const entryDate = e.date.getTime();
+          const currentDate = expenseDate.getTime();
+          if (entryDate < currentDate) return true; // Earlier day - include
+          if (entryDate === currentDate && e.odometerKm < odometerKm) return true; // Same day, lower odometer
+          return false;
+        });
+
+        const previousTopUpLiters = previousTopUps.reduce(
+          (sum, e) => sum + (e.liters ? decimalToNumber(e.liters) : 0),
+          0
+        );
+        const totalLiters = previousTopUpLiters + liters;
+        const distance = odometerKm - lastOilChange.odometerKm;
+
+        if (distance > 0 && totalLiters > 0) {
+          oilConsumption = (totalLiters / distance) * 10000; // L per 10,000 km
+        }
+      }
+    }
 
     const createdExpense = await prisma.expense.create({
       data: {
@@ -116,6 +176,8 @@ export async function POST(req: NextRequest, context: { params: Promise<{ vehicl
         amount,
         vendor: vendor || undefined,
         odometerKm: typeof odometerKm === 'number' ? odometerKm : undefined,
+        liters: typeof liters === 'number' ? liters : undefined,
+        oilConsumption,
         notes: notes || undefined,
       },
       select: { id: true },

@@ -7,6 +7,7 @@ import {
   useCreateFillUp,
   useUpdateFillUp,
   useDeleteFillUp,
+  useImportFillUpsToVehicle,
 } from '@/hooks/useFillUps';
 
 function wrapper({ children }: { children: React.ReactNode }) {
@@ -83,9 +84,59 @@ it('mutations: create, update, delete resolve without error', async () => {
       pricePerLiter: 1,
       totalCost: 1,
       isFull: true,
-    } as any);
+    });
     await update.current.mutateAsync({ liters: 2 });
     await del.current.mutateAsync();
   });
   mock.mockRestore();
+});
+
+it('useImportFillUpsToVehicle posts to the provided vehicleId', async () => {
+  const mock = vi.spyOn(global, 'fetch').mockResolvedValue(
+    new Response(JSON.stringify({ data: { id: 'f1' } }), {
+      status: 201,
+      headers: { 'Content-Type': 'application/json' },
+    })
+  );
+
+  const { result } = renderHook(() => useImportFillUpsToVehicle(), { wrapper });
+  await act(async () => {
+    await result.current.mutateAsync({
+      vehicleId: 'vehicle-123',
+      rows: [
+        {
+          date: '2024-01-01',
+          odometerKm: 1,
+          liters: 10,
+          pricePerLiter: 1.5,
+          totalCost: 15,
+          isFull: true,
+        },
+      ],
+    });
+  });
+
+  expect(mock).toHaveBeenCalled();
+  const firstCallUrl = mock.mock.calls[0]?.[0];
+  expect(firstCallUrl).toBe('/api/vehicles/vehicle-123/fillups');
+  mock.mockRestore();
+});
+
+it('useImportFillUpsToVehicle errors when vehicleId is missing', async () => {
+  const { result } = renderHook(() => useImportFillUpsToVehicle(), { wrapper });
+  await expect(
+    result.current.mutateAsync({
+      vehicleId: '',
+      rows: [
+        {
+          date: '2024-01-01',
+          odometerKm: 1,
+          liters: 10,
+          pricePerLiter: 1.5,
+          totalCost: 15,
+          isFull: true,
+        },
+      ],
+    })
+  ).rejects.toThrow(/Vehicle ID is required/);
 });

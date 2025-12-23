@@ -6,8 +6,10 @@ import {
   Button,
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
+  DialogTrigger,
   Card,
   CardContent,
 } from '@/components/ui';
@@ -23,7 +25,16 @@ import type { ChartOptions } from '@/components/car/charts/ConsumptionChart';
 import ChartToolbar from '@/components/car/ChartToolbar';
 import LicensePlate from '@/components/car/LicensePlate';
 import InspectionBadge from '@/components/car/InspectionBadge';
-import { useExpenses, useFillUps, useVehicle, useVehicles, useUpdateVehicle } from '@/hooks';
+import TireManager from '@/components/car/TireManager';
+import OilConsumptionChart from '@/components/car/charts/OilConsumptionChart';
+import {
+  useExpenses,
+  useFillUps,
+  useVehicle,
+  useVehicles,
+  useUpdateVehicle,
+  useDeleteVehicle,
+} from '@/hooks';
 import { pickLastInspectionDateFromExpenses, computeInspectionStatus } from '@/utils';
 import { useUiStore } from '@/stores/ui';
 
@@ -66,7 +77,9 @@ export default function VehiclePage() {
   const vehicles = vehiclesData?.vehicles || [];
   const { setFillUpDialogOpen, setExpenseDialogOpen } = useUiStore();
   const updateVehicleMutation = useUpdateVehicle(vehicleId || '');
+  const deleteVehicleMutation = useDeleteVehicle(vehicleId || '');
   const [isEditOpen, setEditOpen] = useState(false);
+  const [isDeleteOpen, setDeleteOpen] = useState(false);
   const [editForm, setEditForm] = useState({
     name: '',
     make: '',
@@ -75,6 +88,7 @@ export default function VehiclePage() {
     licensePlate: '',
     inspectionDueDate: '',
     inspectionIntervalMonths: '',
+    initialOdometer: '',
   });
 
   useEffect(() => {
@@ -90,6 +104,7 @@ export default function VehiclePage() {
         inspectionIntervalMonths: v.inspectionIntervalMonths
           ? String(v.inspectionIntervalMonths)
           : '',
+        initialOdometer: v.initialOdometer ? String(v.initialOdometer) : '',
       });
     }
   }, [vehicleQuery.data]);
@@ -115,7 +130,18 @@ export default function VehiclePage() {
       (expensesQuery.data?.expenses || []) as Array<{
         id: string;
         date: string;
-        category: 'FUEL' | 'MAINTENANCE' | 'INSURANCE' | 'TAX' | 'PARKING' | 'TOLL' | 'OTHER';
+        category:
+          | 'FUEL'
+          | 'MAINTENANCE'
+          | 'INSURANCE'
+          | 'TAX'
+          | 'PARKING'
+          | 'TOLL'
+          | 'OIL_CHANGE'
+          | 'OIL_TOP_UP'
+          | 'INSPECTION'
+          | 'TIRES'
+          | 'OTHER';
         amount: number;
         vendor?: string | null;
         notes?: string | null;
@@ -172,11 +198,54 @@ export default function VehiclePage() {
           {vehicleId ? (
             <ImportMenu
               vehicleId={vehicleId}
-              onExpensesImported={() => expensesQuery.refetch()}
-              onFillUpsImported={() => fillUpsQuery.refetch()}
+              onImported={() => {
+                fillUpsQuery.refetch();
+                expensesQuery.refetch();
+              }}
             />
           ) : null}
           {vehicleId ? <ExportMenu vehicleId={vehicleId} /> : null}
+          {vehicleId ? (
+            <Dialog open={isDeleteOpen} onOpenChange={setDeleteOpen}>
+              <DialogTrigger asChild>
+                <Button size="sm" variant="destructive">
+                  Delete vehicle
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-md">
+                <DialogHeader>
+                  <DialogTitle>Delete vehicle</DialogTitle>
+                  <DialogDescription>
+                    This permanently deletes the vehicle and all related data (fill-ups, expenses,
+                    tires, change logs). This action cannot be undone.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="flex justify-end gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setDeleteOpen(false)}
+                    disabled={deleteVehicleMutation.isPending}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    disabled={deleteVehicleMutation.isPending}
+                    onClick={async () => {
+                      if (!vehicleId) return;
+                      await deleteVehicleMutation.mutateAsync();
+                      setDeleteOpen(false);
+                      router.push('/car');
+                    }}
+                  >
+                    {deleteVehicleMutation.isPending ? 'Deleting…' : 'Delete'}
+                  </Button>
+                </div>
+              </DialogContent>
+            </Dialog>
+          ) : null}
           <label htmlFor="vehicle-switcher" className="sr-only">
             Select vehicle
           </label>
@@ -287,6 +356,15 @@ export default function VehiclePage() {
                 {vehicleId ? <ExpenseList vehicleId={vehicleId} /> : null}
               </CardContent>
             </Card>
+
+            {vehicleId ? <TireManager vehicleId={vehicleId} /> : null}
+
+            <Card>
+              <CardContent className="!p-4 sm:!p-6">
+                <h2 className="text-lg font-semibold mb-4">Oil Consumption</h2>
+                {vehicleId ? <OilConsumptionChart vehicleId={vehicleId} /> : null}
+              </CardContent>
+            </Card>
           </div>
         </div>
       </main>
@@ -308,6 +386,9 @@ export default function VehiclePage() {
                 inspectionDueDate: editForm.inspectionDueDate || null,
                 inspectionIntervalMonths: editForm.inspectionIntervalMonths
                   ? parseInt(editForm.inspectionIntervalMonths, 10)
+                  : null,
+                initialOdometer: editForm.initialOdometer
+                  ? parseInt(editForm.initialOdometer, 10)
                   : null,
               });
               setEditOpen(false);
@@ -382,6 +463,18 @@ export default function VehiclePage() {
                     setEditForm(f => ({ ...f, inspectionIntervalMonths: e.target.value }))
                   }
                   placeholder="12"
+                />
+              </label>
+              <label className="flex flex-col gap-1">
+                <span className="text-sm">Initial Odometer</span>
+                <input
+                  type="number"
+                  inputMode="numeric"
+                  min="0"
+                  className="border rounded-md px-3 py-2"
+                  value={editForm.initialOdometer}
+                  onChange={e => setEditForm(f => ({ ...f, initialOdometer: e.target.value }))}
+                  placeholder="0"
                 />
               </label>
             </div>

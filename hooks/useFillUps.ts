@@ -143,3 +143,51 @@ export function useImportFillUps(vehicleId: string) {
     },
   });
 }
+
+export function useImportFillUpsToVehicle() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: {
+      vehicleId: string;
+      rows: Array<{
+        date: string;
+        odometerKm: number;
+        liters: number;
+        pricePerLiter: number;
+        totalCost: number;
+        isFull?: boolean;
+        notes?: string;
+      }>;
+    }) => {
+      if (!input.vehicleId) {
+        throw new Error('Vehicle ID is required to import fill-ups');
+      }
+
+      const results = await Promise.allSettled(
+        input.rows.map(r =>
+          createFillUp(input.vehicleId, {
+            date: r.date,
+            odometerKm: r.odometerKm,
+            liters: r.liters,
+            pricePerLiter: r.pricePerLiter,
+            totalCost: r.totalCost,
+            isFull: !!r.isFull,
+            notes: r.notes,
+          })
+        )
+      );
+      const failed = results.filter(r => r.status === 'rejected').length;
+      if (failed) {
+        throw new Error(
+          `Imported ${input.rows.length - failed}/${input.rows.length} fill-ups; ${failed} failed`
+        );
+      }
+    },
+    onSettled: (_data, _error, vars) => {
+      const vehicleId = vars?.vehicleId;
+      if (!vehicleId) return;
+      qc.invalidateQueries({ queryKey: fillUpKeys.byVehicle(vehicleId) });
+      qc.invalidateQueries({ queryKey: fillUpKeys.infiniteByVehicle(vehicleId) });
+    },
+  });
+}

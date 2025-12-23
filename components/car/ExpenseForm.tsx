@@ -18,36 +18,76 @@ export type ExpenseFormProps = {
 };
 
 import { useUiStore } from '@/stores/ui';
-import { useCreateExpense, useUpdateVehicle, useVehicle } from '@/hooks';
+import { useCreateExpense, useUpdateVehicle, useVehicle, useLatestOdometer } from '@/hooks';
 
 export default function ExpenseForm({ vehicleId, onCreated }: ExpenseFormProps) {
   const { isExpenseDialogOpen: open, setExpenseDialogOpen: setOpen } = useUiStore();
   const createExpense = useCreateExpense(vehicleId);
   const updateVehicle = useUpdateVehicle(vehicleId);
   const vehicleQuery = useVehicle(vehicleId);
+  const latestOdometer = useLatestOdometer(vehicleId);
+
   const [date, setDate] = useState<string>(new Date().toISOString().slice(0, 10));
   const [category, setCategory] = useState<ExpenseCategory>('MAINTENANCE');
   const [amount, setAmount] = useState<string>('');
   const [vendor, setVendor] = useState<string>('');
   const [odometerKm, setOdometerKm] = useState<string>('');
+  const [odometerEdited, setOdometerEdited] = useState(false);
   const [notes, setNotes] = useState<string>('');
-  const [isInspection, setIsInspection] = useState<boolean>(false);
   const [nextInspectionDue, setNextInspectionDue] = useState<string>('');
+  const [inspectionDueEdited, setInspectionDueEdited] = useState(false);
   const [intervalMonthsInput, setIntervalMonthsInput] = useState<string>('');
+  const [liters, setLiters] = useState<string>('');
   const [submitting, setSubmitting] = useState(false);
+
+  // Reset form when dialog opens
   useEffect(() => {
     if (open) {
       setDate(new Date().toISOString().slice(0, 10));
       setCategory('MAINTENANCE');
       setAmount('');
       setVendor('');
-      setOdometerKm('');
+      setOdometerKm(latestOdometer != null ? String(latestOdometer) : '');
+      setOdometerEdited(false);
       setNotes('');
-      setIsInspection(false);
       setNextInspectionDue('');
+      setInspectionDueEdited(false);
       setIntervalMonthsInput('');
+      setLiters('');
     }
-  }, [open]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]); // Only reset on dialog open/close
+
+  // Pre-fill odometer when data arrives (if dialog is open and user hasn't edited)
+  useEffect(() => {
+    if (open && !odometerEdited && latestOdometer != null && odometerKm === '') {
+      setOdometerKm(String(latestOdometer));
+    }
+  }, [open, odometerEdited, latestOdometer, odometerKm]);
+
+  // Auto-populate inspection fields when category changes to INSPECTION or date changes
+  useEffect(() => {
+    if (category === 'INSPECTION') {
+      const existing = vehicleQuery.data?.vehicle?.inspectionIntervalMonths;
+      if (existing && !intervalMonthsInput) {
+        setIntervalMonthsInput(String(existing));
+      }
+      // Only auto-calculate if user hasn't manually edited the date
+      if (existing && !inspectionDueEdited) {
+        const computed = addMonths(new Date(date), existing);
+        const iso = new Date(computed.getTime() - computed.getTimezoneOffset() * 60000)
+          .toISOString()
+          .slice(0, 10);
+        setNextInspectionDue(iso);
+      }
+    }
+  }, [
+    category,
+    date,
+    vehicleQuery.data?.vehicle?.inspectionIntervalMonths,
+    intervalMonthsInput,
+    inspectionDueEdited,
+  ]);
 
   const parsedAmount = parseFloat((amount ?? '').replace(',', '.'));
   const amountIsOk = amount === '' || (Number.isFinite(parsedAmount) && parsedAmount >= 0);
@@ -64,9 +104,11 @@ export default function ExpenseForm({ vehicleId, onCreated }: ExpenseFormProps) 
         amount: normalizedAmount,
         vendor: vendor || undefined,
         odometerKm: odometerKm ? parseInt(odometerKm, 10) : undefined,
+        liters: liters ? parseFloat(liters.replace(',', '.')) : undefined,
         notes: notes || undefined,
       });
-      if (isInspection) {
+      // Update vehicle inspection dates when category is INSPECTION
+      if (category === 'INSPECTION') {
         const due =
           nextInspectionDue ||
           (() => {
@@ -96,8 +138,9 @@ export default function ExpenseForm({ vehicleId, onCreated }: ExpenseFormProps) 
       setVendor('');
       setNotes('');
       setOdometerKm('');
-      setIsInspection(false);
+      setLiters('');
       setNextInspectionDue('');
+      setInspectionDueEdited(false);
       setIntervalMonthsInput('');
     } finally {
       setSubmitting(false);
@@ -174,8 +217,24 @@ export default function ExpenseForm({ vehicleId, onCreated }: ExpenseFormProps) 
                 inputMode="numeric"
                 min="0"
                 value={odometerKm}
-                onChange={e => setOdometerKm(e.target.value)}
+                onChange={e => {
+                  setOdometerKm(e.target.value);
+                  setOdometerEdited(true);
+                }}
+                className={`border rounded-md px-3 py-2 ${
+                  !odometerEdited && odometerKm ? 'bg-gray-100 text-gray-500' : ''
+                }`}
+              />
+            </label>
+            <label className="flex flex-col gap-1">
+              <span className="text-sm">Liters (optional)</span>
+              <input
+                type="text"
+                inputMode="decimal"
+                value={liters}
+                onChange={e => setLiters(e.target.value)}
                 className="border rounded-md px-3 py-2"
+                placeholder="For oil/fluid"
               />
             </label>
           </div>
@@ -189,35 +248,10 @@ export default function ExpenseForm({ vehicleId, onCreated }: ExpenseFormProps) 
               placeholder="Describe parts/repair details"
             />
           </label>
-          <div className="space-y-2 pt-2">
-            <label className="inline-flex items-center gap-2">
-              <input
-                type="checkbox"
-                className="h-4 w-4"
-                checked={isInspection}
-                onChange={e => {
-                  const checked = e.target.checked;
-                  setIsInspection(checked);
-                  if (checked) {
-                    const existing = vehicleQuery.data?.vehicle?.inspectionIntervalMonths;
-                    if (existing && !intervalMonthsInput) {
-                      setIntervalMonthsInput(String(existing));
-                    }
-                    if (existing && !nextInspectionDue) {
-                      const computed = addMonths(new Date(date), existing);
-                      const iso = new Date(
-                        computed.getTime() - computed.getTimezoneOffset() * 60000
-                      )
-                        .toISOString()
-                        .slice(0, 10);
-                      setNextInspectionDue(iso);
-                    }
-                  }
-                }}
-              />
-              <span className="text-sm">This is an inspection</span>
-            </label>
-            {isInspection ? (
+          {/* Show inspection date fields when category is INSPECTION */}
+          {category === 'INSPECTION' ? (
+            <div className="space-y-2 pt-2">
+              <p className="text-sm text-gray-600">Set next inspection due date:</p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <label className="flex flex-col gap-1">
                   <span className="text-sm">Next inspection due</span>
@@ -225,7 +259,10 @@ export default function ExpenseForm({ vehicleId, onCreated }: ExpenseFormProps) 
                     type="date"
                     className="border rounded-md px-3 py-2"
                     value={nextInspectionDue}
-                    onChange={e => setNextInspectionDue(e.target.value)}
+                    onChange={e => {
+                      setNextInspectionDue(e.target.value);
+                      setInspectionDueEdited(true);
+                    }}
                   />
                 </label>
                 <label className="flex flex-col gap-1">
@@ -246,8 +283,8 @@ export default function ExpenseForm({ vehicleId, onCreated }: ExpenseFormProps) 
                   />
                 </label>
               </div>
-            ) : null}
-          </div>
+            </div>
+          ) : null}
           <div className="flex justify-end gap-2 pt-2">
             <Button type="button" variant="outline" onClick={() => setOpen(false)}>
               Cancel

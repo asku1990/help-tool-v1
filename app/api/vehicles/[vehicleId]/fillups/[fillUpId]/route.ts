@@ -6,7 +6,7 @@ import { ok, unauthorized, notFound, badRequest, serverError } from '@/lib/api/r
 import { logger } from '@/lib/logger';
 
 const UpdateSchema = z.object({
-  date: z.string().optional(),
+  date: z.string().min(1, 'Date cannot be empty').optional(),
   odometerKm: z.number().int().optional(),
   liters: z.number().optional(),
   pricePerLiter: z.number().optional(),

@@ -42,7 +42,7 @@ export async function GET(req: NextRequest, context: { params: Promise<{ vehicle
 
     const items = await prisma.fuelFillUp.findMany({
       where: { vehicleId: vehicle.id },
-      orderBy: { date: 'desc' },
+      orderBy: [{ date: 'desc' }, { odometerKm: 'desc' }],
       take: limit + 1,
       ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
     });
@@ -71,7 +71,7 @@ export async function GET(req: NextRequest, context: { params: Promise<{ vehicle
       if (oldestFullInPage) {
         olderChunk = await prisma.fuelFillUp.findMany({
           where: { vehicleId: vehicle.id, date: { lte: oldestFullInPage.date } },
-          orderBy: { date: 'desc' },
+          orderBy: [{ date: 'desc' }, { odometerKm: 'desc' }],
           take: 200,
         });
       }
@@ -79,7 +79,12 @@ export async function GET(req: NextRequest, context: { params: Promise<{ vehicle
       const combinedMap = new Map<string, (typeof pageItems)[number]>();
       for (const it of [...pageItems, ...olderChunk]) combinedMap.set(it.id, it);
       const combined = Array.from(combinedMap.values());
-      const asc = combined.sort((a, b) => a.date.getTime() - b.date.getTime());
+      // Sort by date ascending, then by odometer for same-day entries
+      const asc = combined.sort((a, b) => {
+        const dateDiff = a.date.getTime() - b.date.getTime();
+        if (dateDiff !== 0) return dateDiff;
+        return a.odometerKm - b.odometerKm;
+      });
 
       type Seg = {
         distanceKm: number;
