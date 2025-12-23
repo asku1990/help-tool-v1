@@ -8,6 +8,7 @@ export function useDeleteTireSet(vehicleId: string) {
     mutationFn: (tireSetId: string) => deleteTireSet(vehicleId, tireSetId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tireSets', vehicleId] });
+      queryClient.invalidateQueries({ queryKey: ['tireChangeHistory', vehicleId] });
     },
   });
 }

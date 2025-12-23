@@ -53,12 +53,25 @@ describe('tire mutation hooks', () => {
   it('useDeleteTireSet calls deleteTireSet and invalidates queries', async () => {
     vi.mocked(tiresQueries.deleteTireSet).mockResolvedValue({ id: 't1' });
 
-    const { result } = renderHook(() => useDeleteTireSet('v1'), { wrapper: createWrapper() });
+    const queryClient = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false },
+        mutations: { retry: false },
+      },
+    });
+    const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries');
+    const wrapper = ({ children }: { children: ReactNode }) => (
+      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+    );
+
+    const { result } = renderHook(() => useDeleteTireSet('v1'), { wrapper });
 
     result.current.mutate('t1');
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(tiresQueries.deleteTireSet).toHaveBeenCalledWith('v1', 't1');
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['tireSets', 'v1'] });
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['tireChangeHistory', 'v1'] });
   });
 
   it('useUpdateTireSet calls updateTireSet and invalidates queries', async () => {
