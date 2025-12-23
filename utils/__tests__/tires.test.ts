@@ -135,6 +135,22 @@ describe('calculateTireUsage', () => {
     expect(stats?.isCurrentlyActive).toBe(true);
   });
 
+  it('derives the active tire set from the latest change log entry', () => {
+    const tireSets = [
+      makeTireSet('tire-1', 'Summer Tires', 'STORED'), // stale status
+      makeTireSet('tire-2', 'Winter Tires', 'ACTIVE'),
+    ];
+    const history = [
+      makeChangeLog('tire-2', '2024-01-01', 10000),
+      makeChangeLog('tire-1', '2024-04-01', 15000),
+    ];
+
+    const result = calculateTireUsage(tireSets, history);
+
+    expect(result.get('tire-1')?.isCurrentlyActive).toBe(true);
+    expect(result.get('tire-2')?.isCurrentlyActive).toBe(false);
+  });
+
   it('ignores tire sets not in the provided list', () => {
     const tireSets = [makeTireSet('tire-1', 'Summer Tires')];
     const history = [

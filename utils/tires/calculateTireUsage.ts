@@ -26,7 +26,8 @@ export function calculateTireUsage(
 ): Map<string, TireUsageStats> {
   const usageMap = new Map<string, TireUsageStats>();
 
-  // Initialize usage stats for all tire sets
+  // Initialize usage stats for all tire sets.
+  // When no history is available, fall back to the stored TireSetDto.status to determine the active set.
   for (const set of tireSets) {
     usageMap.set(set.id, {
       tireSetId: set.id,
@@ -46,6 +47,14 @@ export function calculateTireUsage(
   const sortedHistory = [...history].sort(
     (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
   );
+
+  // Determine the active tire set based on the most recent change log entry.
+  // This avoids mislabeling the active set when TireSetDto.status is stale or out of sync.
+  const lastChangeLog = sortedHistory.at(-1);
+  const activeTireSetId = lastChangeLog?.tireSetId;
+  for (const stats of usageMap.values()) {
+    stats.isCurrentlyActive = stats.tireSetId === activeTireSetId;
+  }
 
   // Process each change log entry
   for (let i = 0; i < sortedHistory.length; i++) {
