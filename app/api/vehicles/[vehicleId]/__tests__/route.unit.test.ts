@@ -1,18 +1,23 @@
 // @vitest-environment node
 import { describe, it, expect, vi, type Mock } from 'vitest';
 import { NextRequest } from 'next/server';
-import { GET, PATCH } from '../route';
+import { GET, PATCH, DELETE } from '../route';
 
 vi.mock('@/lib/db', () => {
   const mock = {
-    vehicle: { findFirst: vi.fn(), update: vi.fn() },
+    vehicle: { findFirst: vi.fn(), update: vi.fn(), delete: vi.fn() },
   };
   return { default: mock };
 });
 vi.mock('@/auth', () => ({ auth: vi.fn(async () => ({ user: { email: 'u@e' } })) }));
+vi.mock('@/lib/api/rate-limit', () => ({
+  rateLimitKey: () => 'key',
+  checkRateLimit: vi.fn(() => ({ allowed: true, retryAfterMs: 0 })),
+  rateLimitHeaders: () => ({}),
+}));
 
 type PrismaMock = {
-  vehicle: { findFirst: Mock; update: Mock };
+  vehicle: { findFirst: Mock; update: Mock; delete: Mock };
 };
 
 describe('api/vehicles/[vehicleId] route (unit)', () => {
@@ -49,5 +54,23 @@ describe('api/vehicles/[vehicleId] route (unit)', () => {
     const req = new NextRequest(base);
     const res = await PATCH(req, { params: Promise.resolve({ vehicleId: 'v1' }) });
     expect(res.status).toBe(200);
+  });
+
+  it('DELETE returns 404 when vehicle not owned', async () => {
+    const prisma = (await import('@/lib/db')).default as unknown as PrismaMock;
+    prisma.vehicle.findFirst.mockResolvedValueOnce(null);
+    const req = new NextRequest('http://localhost/api/vehicles/v1', { method: 'DELETE' });
+    const res = await DELETE(req, { params: Promise.resolve({ vehicleId: 'v1' }) });
+    expect(res.status).toBe(404);
+  });
+
+  it('DELETE deletes vehicle and returns 200', async () => {
+    const prisma = (await import('@/lib/db')).default as unknown as PrismaMock;
+    prisma.vehicle.findFirst.mockResolvedValueOnce({ id: 'v1' });
+    prisma.vehicle.delete.mockResolvedValueOnce({ id: 'v1' });
+    const req = new NextRequest('http://localhost/api/vehicles/v1', { method: 'DELETE' });
+    const res = await DELETE(req, { params: Promise.resolve({ vehicleId: 'v1' }) });
+    expect(res.status).toBe(200);
+    expect(prisma.vehicle.delete).toHaveBeenCalledWith({ where: { id: 'v1' } });
   });
 });

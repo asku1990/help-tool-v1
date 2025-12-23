@@ -20,6 +20,7 @@
 
 - TypeScript everywhere; stick to ES modules, React function components, and hooks.
 - Follow Prettier defaults (2-space indent, single quotes off) and ESLint (Next + TypeScript) rules; do not suppress `@typescript-eslint/no-explicit-any`.
+- Absolutely no `any` usage—reach for specific types, generics, or utility helpers, and refactor tests to keep type safety intact.
 - Name files by feature (`ExpenseForm.tsx`, `useFillUps.ts`) and colocate tests as `*.test.ts(x)` inside `__tests__`.
 - Tailwind classes live inline; prefer utility-first styling over custom CSS.
 

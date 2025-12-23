@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   Button,
   Dialog,
@@ -9,26 +9,47 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui';
+import { useUiStore } from '@/stores/ui';
+import { useCreateFillUp, useLatestOdometer } from '@/hooks';
 
 export type FillUpFormProps = {
   vehicleId: string;
   onCreated?: () => void;
 };
 
-import { useUiStore } from '@/stores/ui';
-import { useCreateFillUp, useFillUps } from '@/hooks';
-
 export default function FillUpForm({ vehicleId, onCreated }: FillUpFormProps) {
   const { isFillUpDialogOpen: open, setFillUpDialogOpen: setOpen } = useUiStore();
   const createFillUp = useCreateFillUp(vehicleId);
-  const lastOdometer = useLastOdometer(vehicleId);
+  const lastOdometer = useLatestOdometer(vehicleId);
   const [date, setDate] = useState<string>(new Date().toISOString().slice(0, 10));
   const [odometerKm, setOdometerKm] = useState<string>('');
+  const [odometerEdited, setOdometerEdited] = useState(false);
   const [liters, setLiters] = useState<string>('');
   const [pricePerLiter, setPricePerLiter] = useState<string>('');
   const [isFull, setIsFull] = useState<boolean>(true);
   const [notes, setNotes] = useState<string>('');
   const [submitting, setSubmitting] = useState(false);
+
+  // Reset form when dialog opens
+  useEffect(() => {
+    if (open) {
+      setOdometerKm(lastOdometer !== null ? String(lastOdometer) : '');
+      setOdometerEdited(false);
+      setDate(new Date().toISOString().slice(0, 10));
+      setLiters('');
+      setPricePerLiter('');
+      setIsFull(true);
+      setNotes('');
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]); // Only reset on dialog open/close
+
+  // Pre-fill odometer when data arrives (if dialog is open and user hasn't edited)
+  useEffect(() => {
+    if (open && !odometerEdited && lastOdometer !== null && odometerKm === '') {
+      setOdometerKm(String(lastOdometer));
+    }
+  }, [open, odometerEdited, lastOdometer, odometerKm]);
 
   const totalCost = useMemo(() => {
     const l = parseFloat((liters || '0').replace(',', '.'));
@@ -103,8 +124,13 @@ export default function FillUpForm({ vehicleId, onCreated }: FillUpFormProps) {
                 inputMode="numeric"
                 min="0"
                 value={odometerKm}
-                onChange={e => setOdometerKm(e.target.value)}
-                className="border rounded-md px-3 py-2"
+                onChange={e => {
+                  setOdometerKm(e.target.value);
+                  setOdometerEdited(true);
+                }}
+                className={`border rounded-md px-3 py-2 ${
+                  !odometerEdited && odometerKm ? 'bg-gray-100 text-gray-500' : ''
+                }`}
                 required
               />
               {lastOdometer !== null && odometerKm && parseInt(odometerKm, 10) < lastOdometer ? (
@@ -174,14 +200,4 @@ export default function FillUpForm({ vehicleId, onCreated }: FillUpFormProps) {
       </DialogContent>
     </Dialog>
   );
-}
-
-function useLastOdometer(vehicleId: string): number | null {
-  const { data } = useFillUps(vehicleId);
-  const items = (data?.fillUps || []) as Array<{ odometerKm: number; date: string }>;
-  if (!items.length) return null;
-  const latest = [...items].sort(
-    (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
-  )[0];
-  return latest?.odometerKm ?? null;
 }

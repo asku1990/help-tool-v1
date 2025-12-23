@@ -35,6 +35,7 @@ export async function GET(req: NextRequest): Promise<Response> {
         licensePlate: true,
         inspectionDueDate: true,
         inspectionIntervalMonths: true,
+        initialOdometer: true,
       },
     });
 
@@ -61,6 +62,7 @@ const CreateVehicleSchema = z.object({
     .refine(v => !v || !Number.isNaN(new Date(v).getTime()), 'Invalid date format')
     .optional(),
   inspectionIntervalMonths: z.number().int().min(1).max(60).optional(),
+  initialOdometer: z.number().int().min(0).optional(),
 });
 
 export async function POST(req: NextRequest) {
@@ -81,8 +83,16 @@ export async function POST(req: NextRequest) {
     if (!parsed.success) {
       return badRequest('VALIDATION_ERROR', 'Invalid request body', parsed.error.flatten());
     }
-    const { name, make, model, year, licensePlate, inspectionDueDate, inspectionIntervalMonths } =
-      parsed.data;
+    const {
+      name,
+      make,
+      model,
+      year,
+      licensePlate,
+      inspectionDueDate,
+      inspectionIntervalMonths,
+      initialOdometer,
+    } = parsed.data;
 
     const user = await prisma.user.findUnique({ where: { email: session.user.email } });
     if (!user) return notFound('User not found');
@@ -98,6 +108,7 @@ export async function POST(req: NextRequest) {
         inspectionDueDate: inspectionDueDate ? new Date(inspectionDueDate) : undefined,
         inspectionIntervalMonths:
           typeof inspectionIntervalMonths === 'number' ? inspectionIntervalMonths : undefined,
+        initialOdometer: typeof initialOdometer === 'number' ? initialOdometer : undefined,
       },
       select: { id: true },
     });

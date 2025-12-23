@@ -1,5 +1,5 @@
 import { hashPassword } from '../hash';
-import bcrypt from 'bcrypt';
+import bcrypt from 'bcryptjs';
 import { describe, it, expect } from 'vitest';
 
 describe('hashPassword', () => {

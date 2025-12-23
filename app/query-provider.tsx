@@ -4,6 +4,14 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 type StorageLike = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>;
 
+export function createFallbackStorage(): StorageLike {
+  return {
+    getItem: () => null,
+    setItem: () => {},
+    removeItem: () => {},
+  };
+}
+
 export default function QueryProvider({ children }: { children: React.ReactNode }) {
   const [client] = useState(
     () =>
@@ -52,11 +60,7 @@ export default function QueryProvider({ children }: { children: React.ReactNode 
         return localStorage;
       }
     }
-    return {
-      getItem: () => null,
-      setItem: () => {},
-      removeItem: () => {},
-    };
+    return createFallbackStorage();
   }, []);
   const showDevtools = process.env.NODE_ENV === 'development';
 

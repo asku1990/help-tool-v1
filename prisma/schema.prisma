@@ -40,6 +40,10 @@ enum ExpenseCategory {
   TAX
   PARKING
   TOLL
+  OIL_CHANGE
+  OIL_TOP_UP
+  INSPECTION
+  TIRES
   OTHER
 }
 
@@ -53,12 +57,15 @@ model Vehicle {
   licensePlate             String?  @db.VarChar(16)
   inspectionDueDate        DateTime?
   inspectionIntervalMonths Int?
+  initialOdometer          Int?      @default(0)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   fillUps   FuelFillUp[]
   expenses  Expense[]
+  tireSets  TireSet[]
+  tireChanges TireChangeLog[]
 
   @@index([userId])
   @@index([userId, licensePlate])
@@ -81,16 +88,64 @@ model FuelFillUp {
 }
 
 model Expense {
-  id         String   @id @default(uuid())
-  vehicleId  String
-  date       DateTime @default(now())
-  category   ExpenseCategory
-  amount     Decimal  @db.Decimal(10, 2)
-  vendor     String?
-  odometerKm Int?
-  notes      String?
+  id              String   @id @default(uuid())
+  vehicleId       String
+  date            DateTime @default(now())
+  category        ExpenseCategory
+  amount          Decimal  @db.Decimal(10, 2)
+  vendor          String?
+  odometerKm      Int?
+  liters          Decimal? @db.Decimal(10, 2)
+  oilConsumption  Decimal? @db.Decimal(10, 2) // L/10,000km at time of top-up
+  notes           String?
 
   vehicle    Vehicle  @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
 
   @@index([vehicleId, date])
+}
+
+enum TireType {
+  SUMMER
+  WINTER
+  ALL_SEASON
+}
+
+enum TireStatus {
+  ACTIVE
+  STORED
+  RETIRED
+}
+
+model TireSet {
+  id           String     @id @default(uuid())
+  vehicleId    String
+  name         String
+  type         TireType
+  status       TireStatus @default(ACTIVE)
+  totalKm      Int        @default(0)
+  purchaseDate DateTime?
+  notes        String?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  vehicle      Vehicle    @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  changeLogs   TireChangeLog[]
+
+  @@index([vehicleId])
+}
+
+model TireChangeLog {
+  id         String   @id @default(uuid())
+  vehicleId  String
+  tireSetId  String
+  date       DateTime @default(now())
+  odometerKm Int
+  notes      String?
+  createdAt  DateTime @default(now())
+
+  vehicle    Vehicle  @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  tireSet    TireSet  @relation(fields: [tireSetId], references: [id], onDelete: Cascade)
+
+  @@index([vehicleId, date])
+  @@index([tireSetId])
 }
