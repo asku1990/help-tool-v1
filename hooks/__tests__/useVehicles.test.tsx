@@ -1,7 +1,12 @@
 import React from 'react';
 import { renderHook, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { useVehicles, useCreateVehicle, useUpdateVehicle } from '@/hooks/useVehicles';
+import {
+  useVehicles,
+  useCreateVehicle,
+  useUpdateVehicle,
+  useDeleteVehicle,
+} from '@/hooks/useVehicles';
 
 function wrapper({ children }: { children: React.ReactNode }) {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -41,5 +46,17 @@ it('useUpdateVehicle triggers PATCH and invalidation', async () => {
   );
   const { result } = renderHook(() => useUpdateVehicle('v1'), { wrapper });
   await result.current.mutateAsync({ name: 'New name' });
+  vi.restoreAllMocks();
+});
+
+it('useDeleteVehicle triggers DELETE and invalidation', async () => {
+  vi.spyOn(global, 'fetch').mockResolvedValue(
+    new Response(JSON.stringify({ data: { id: 'v1' } }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    })
+  );
+  const { result } = renderHook(() => useDeleteVehicle('v1'), { wrapper });
+  await result.current.mutateAsync();
   vi.restoreAllMocks();
 });

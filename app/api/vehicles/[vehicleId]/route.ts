@@ -4,6 +4,7 @@ import prisma from '@/lib/db';
 import { ok, unauthorized, notFound, serverError, badRequest } from '@/lib/api/response';
 import { logger } from '@/lib/logger';
 import { z } from 'zod';
+import { checkRateLimit, rateLimitHeaders, rateLimitKey } from '@/lib/api/rate-limit';
 
 export async function GET(_req: NextRequest, context: { params: Promise<{ vehicleId: string }> }) {
   try {
@@ -108,6 +109,40 @@ export async function PATCH(req: NextRequest, context: { params: Promise<{ vehic
     return ok({ id: updated.id });
   } catch (error) {
     logger.error('PATCH /api/vehicles/[vehicleId] failed', { error });
+    return serverError();
+  }
+}
+
+export async function DELETE(
+  req: NextRequest,
+  context: { params: Promise<{ vehicleId: string }> }
+) {
+  try {
+    const rl = checkRateLimit(rateLimitKey(req));
+    if (!rl.allowed) {
+      return new Response('Rate limit exceeded', {
+        status: 429,
+        headers: rateLimitHeaders(rl.retryAfterMs),
+      });
+    }
+
+    const session = await auth();
+    if (!session?.user?.email) {
+      return unauthorized();
+    }
+
+    const { vehicleId } = await context.params;
+
+    const vehicle = await prisma.vehicle.findFirst({
+      where: { id: vehicleId, user: { email: session.user.email } },
+      select: { id: true },
+    });
+    if (!vehicle) return notFound();
+
+    const deleted = await prisma.vehicle.delete({ where: { id: vehicle.id } });
+    return ok({ id: deleted.id });
+  } catch (error) {
+    logger.error('DELETE /api/vehicles/[vehicleId] failed', { error });
     return serverError();
   }
 }
