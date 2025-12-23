@@ -20,6 +20,7 @@ import { useUiStore } from '@/stores/ui';
 import PageHeader from '@/components/layout/PageHeader';
 import { computeInspectionStatus } from '@/utils';
 import { VehicleListSkeleton } from '@/components/car';
+import { RestoreBackupDialog } from '@/components/car/imports';
 
 export default function CarHomePage() {
   const { status } = useSession();
@@ -102,9 +103,15 @@ export default function CarHomePage() {
                   Add your first vehicle to start tracking fuel and expenses.
                 </p>
               </div>
-              <Button onClick={() => setOpen(true)}>
-                <Plus className="w-4 h-4 mr-2" /> Add vehicle
-              </Button>
+              <div className="flex gap-2">
+                <RestoreBackupDialog
+                  existingVehicles={vehicles.map(v => ({ id: v.id, name: v.name }))}
+                  onRestored={() => refetchVehicles()}
+                />
+                <Button onClick={() => setOpen(true)}>
+                  <Plus className="w-4 h-4 mr-2" /> Add vehicle
+                </Button>
+              </div>
             </div>
             <div className="mt-6 space-y-3" aria-busy={isVehiclesLoading}>
               {isVehiclesLoading && <VehicleListSkeleton rows={3} />}

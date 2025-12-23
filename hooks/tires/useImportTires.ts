@@ -31,9 +31,18 @@ export function useImportTires(vehicleId: string) {
       // Map from tire set name to new ID (filled after creation)
       const nameToNewId = new Map<string, string>();
 
-      // First, create all tire sets and build name -> newId map
-      const tireSetResults = await Promise.allSettled(
-        tireSets.map(async ts => {
+      // Sort tire sets: STORED/RETIRED first, ACTIVE last
+      // This ensures the ACTIVE tire is created last and properly sets others to STORED
+      const sortedTireSets = [...tireSets].sort((a, b) => {
+        if (a.status === 'ACTIVE' && b.status !== 'ACTIVE') return 1;
+        if (a.status !== 'ACTIVE' && b.status === 'ACTIVE') return -1;
+        return 0;
+      });
+
+      // Create tire sets SEQUENTIALLY to avoid race conditions
+      let failedTireSets = 0;
+      for (const ts of sortedTireSets) {
+        try {
           const result = await createTireSet(vehicleId, {
             name: ts.name,
             type: ts.type,
@@ -41,16 +50,9 @@ export function useImportTires(vehicleId: string) {
             purchaseDate: ts.purchaseDate,
             notes: ts.notes,
           });
-          return { name: ts.name, newId: result.id };
-        })
-      );
-
-      const failedTireSets = tireSetResults.filter(r => r.status === 'rejected').length;
-
-      // Build name -> newId map from successful creations
-      for (const result of tireSetResults) {
-        if (result.status === 'fulfilled') {
-          nameToNewId.set(result.value.name, result.value.newId);
+          nameToNewId.set(ts.name, result.id);
+        } catch {
+          failedTireSets++;
         }
       }
 
@@ -63,22 +65,27 @@ export function useImportTires(vehicleId: string) {
         }
       }
 
-      // Then, create all change logs with properly mapped tire set IDs
-      const changeLogResults = await Promise.allSettled(
-        changeLogs.map(async cl => {
-          // First try exportId -> newId, then name -> newId, then use original
+      // Sort change logs by date (oldest first) so the most recent mount ends up ACTIVE
+      const sortedChangeLogs = [...changeLogs].sort(
+        (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
+      );
+
+      // Create change logs SEQUENTIALLY to avoid race conditions
+      let failedChangeLogs = 0;
+      for (const cl of sortedChangeLogs) {
+        try {
           const tireSetId =
             exportIdToNewId.get(cl.tireSetId) ?? nameToNewId.get(cl.tireSetId) ?? cl.tireSetId;
-          return logTireChange(vehicleId, {
+          await logTireChange(vehicleId, {
             tireSetId,
             date: cl.date,
             odometerKm: cl.odometerKm,
             notes: cl.notes,
           });
-        })
-      );
-
-      const failedChangeLogs = changeLogResults.filter(r => r.status === 'rejected').length;
+        } catch {
+          failedChangeLogs++;
+        }
+      }
 
       if (failedTireSets > 0 || failedChangeLogs > 0) {
         throw new Error(

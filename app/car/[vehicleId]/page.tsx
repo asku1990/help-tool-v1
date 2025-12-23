@@ -187,8 +187,10 @@ export default function VehiclePage() {
           {vehicleId ? (
             <ImportMenu
               vehicleId={vehicleId}
-              onExpensesImported={() => expensesQuery.refetch()}
-              onFillUpsImported={() => fillUpsQuery.refetch()}
+              onImported={() => {
+                fillUpsQuery.refetch();
+                expensesQuery.refetch();
+              }}
             />
           ) : null}
           {vehicleId ? <ExportMenu vehicleId={vehicleId} /> : null}
