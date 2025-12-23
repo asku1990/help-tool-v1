@@ -2,8 +2,10 @@
  * Parses a date string in ISO (YYYY-MM-DD) or European (DD.MM.YYYY) format.
  * Returns ISO date string or undefined if invalid.
  */
-export function tryParseDate(token: string): string | undefined {
+export function tryParseDate(token?: string | null): string | undefined {
+  if (token == null) return undefined;
   const t = token.trim();
+  if (!t) return undefined;
   // ISO format: YYYY-MM-DD
   if (/^\d{4}-\d{2}-\d{2}$/.test(t)) return t;
   // European format: DD.MM.YYYY

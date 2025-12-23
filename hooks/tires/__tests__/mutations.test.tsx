@@ -19,7 +19,7 @@ import { useUpdateTireSet } from '../useUpdateTireSet';
 import { useLogTireChange } from '../useLogTireChange';
 import { useUpdateTireChangeLog } from '../useUpdateTireChangeLog';
 import { useDeleteTireChangeLog } from '../useDeleteTireChangeLog';
-import { useImportTires } from '../useImportTires';
+import { useImportTires, useImportTiresToVehicle } from '../useImportTires';
 import * as tiresQueries from '@/queries/tires';
 
 const createWrapper = () => {
@@ -189,6 +189,43 @@ describe('tire mutation hooks', () => {
 
       await waitFor(() => expect(result.current.isError).toBe(true));
       expect(result.current.error?.message).toMatch(/0\/1 change logs/);
+    });
+  });
+
+  describe('useImportTiresToVehicle', () => {
+    it('imports using the provided vehicleId', async () => {
+      vi.mocked(tiresQueries.createTireSet).mockResolvedValue({ id: 'new-ts1' });
+      vi.mocked(tiresQueries.logTireChange).mockResolvedValue({ id: 'new-log1' });
+
+      const { result } = renderHook(() => useImportTiresToVehicle(), { wrapper: createWrapper() });
+
+      result.current.mutate({
+        vehicleId: 'v1',
+        tireSets: [{ name: 'Summer Set', type: 'SUMMER' }],
+        changeLogs: [{ tireSetId: 'Summer Set', date: '2024-06-01', odometerKm: 10000 }],
+      });
+
+      await waitFor(() => expect(result.current.isSuccess).toBe(true));
+      expect(tiresQueries.createTireSet).toHaveBeenCalledWith('v1', {
+        name: 'Summer Set',
+        type: 'SUMMER',
+        status: undefined,
+        purchaseDate: undefined,
+        notes: undefined,
+      });
+    });
+
+    it('errors when vehicleId is missing', async () => {
+      const { result } = renderHook(() => useImportTiresToVehicle(), { wrapper: createWrapper() });
+
+      result.current.mutate({
+        vehicleId: '',
+        tireSets: [],
+        changeLogs: [],
+      });
+
+      await waitFor(() => expect(result.current.isError).toBe(true));
+      expect(result.current.error?.message).toMatch(/Vehicle ID is required/);
     });
   });
 });

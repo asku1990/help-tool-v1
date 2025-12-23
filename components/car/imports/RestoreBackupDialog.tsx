@@ -5,11 +5,16 @@ import {
   Button,
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui';
-import { useImportFillUps, useImportExpenses, useImportTires } from '@/hooks';
+import {
+  useImportFillUpsToVehicle,
+  useImportExpensesToVehicle,
+  useImportTiresToVehicle,
+} from '@/hooks';
 import { parseBackupCsv, type ParsedBackupData } from '@/utils/csv';
 import { FillUpsPreviewTable } from './fillups';
 import { ExpensesPreviewTable } from './expenses';
@@ -63,14 +68,9 @@ export default function RestoreBackupDialog({
     return existingVehicles.find(v => v.name.toLowerCase() === data.vehicle!.name.toLowerCase());
   }, [data.vehicle, existingVehicles, forVehicleId]);
 
-  // The vehicle ID to use for import
-  const [createdVehicleId, setCreatedVehicleId] = useState<string>('');
-  const vehicleId =
-    forVehicleId ?? (restoreMode === 'update' ? selectedVehicleId : createdVehicleId);
-
-  const importFillUps = useImportFillUps(vehicleId);
-  const importExpenses = useImportExpenses(vehicleId);
-  const importTires = useImportTires(vehicleId);
+  const importFillUps = useImportFillUpsToVehicle();
+  const importExpenses = useImportExpensesToVehicle();
+  const importTires = useImportTiresToVehicle();
 
   const counts = useMemo(
     () => ({
@@ -100,7 +100,6 @@ export default function RestoreBackupDialog({
       setRestoreStatus('');
       setRestoreMode(forVehicleId ? 'update' : 'pending');
       setSelectedVehicleId(forVehicleId ?? '');
-      setCreatedVehicleId('');
       setActiveTab(forVehicleId ? 'fillups' : 'vehicle');
     }
   }, [open, forVehicleId]);
@@ -159,8 +158,10 @@ export default function RestoreBackupDialog({
           initialOdometer: data.vehicle.initialOdometer,
         });
         targetVehicleId = result.id;
-        setCreatedVehicleId(result.id);
       } else if (restoreMode === 'update') {
+        if (!selectedVehicleId) {
+          throw new Error('Please select a vehicle to update');
+        }
         targetVehicleId = selectedVehicleId;
         if (clearExisting) {
           setRestoreStatus('Clearing existing data...');
@@ -173,8 +174,9 @@ export default function RestoreBackupDialog({
 
       if (counts.fillUps > 0) {
         setRestoreStatus(`Importing ${counts.fillUps} fill-ups...`);
-        await importFillUps.mutateAsync(
-          data.fillUps
+        await importFillUps.mutateAsync({
+          vehicleId: targetVehicleId,
+          rows: data.fillUps
             .filter(r => r.include && r.valid)
             .map(r => ({
               date: r.date,
@@ -184,14 +186,15 @@ export default function RestoreBackupDialog({
               totalCost: r.totalCost,
               isFull: r.isFull,
               notes: r.notes,
-            }))
-        );
+            })),
+        });
       }
 
       if (counts.expenses > 0) {
         setRestoreStatus(`Importing ${counts.expenses} expenses...`);
-        await importExpenses.mutateAsync(
-          data.expenses
+        await importExpenses.mutateAsync({
+          vehicleId: targetVehicleId,
+          rows: data.expenses
             .filter(r => r.include && r.valid)
             .map(r => ({
               date: r.date,
@@ -202,14 +205,15 @@ export default function RestoreBackupDialog({
               liters: r.liters,
               oilConsumption: r.oilConsumption,
               notes: r.notes,
-            }))
-        );
+            })),
+        });
       }
 
       if (counts.tireSets > 0 || counts.changeLogs > 0) {
         setRestoreStatus(`Importing ${counts.tireSets} tire sets...`);
         const tireSetIdMap = new Map<string, string>();
         await importTires.mutateAsync({
+          vehicleId: targetVehicleId,
           tireSets: data.tireSets
             .filter(r => r.include && r.valid)
             .map(r => {
@@ -257,6 +261,9 @@ export default function RestoreBackupDialog({
   }
 
   const dialogTitle = forVehicleId ? 'Import Backup' : 'Restore from Backup';
+  const dialogDescription = forVehicleId
+    ? 'Import fill-ups, expenses, and tire history from a backup CSV.'
+    : 'Restore a backup CSV into a new or existing vehicle.';
   const buttonLabel = forVehicleId ? 'Import' : 'Restore';
   const triggerLabel = forVehicleId ? 'Import Backup' : 'Restore Backup';
 
@@ -277,6 +284,7 @@ export default function RestoreBackupDialog({
       >
         <DialogHeader>
           <DialogTitle>{dialogTitle}</DialogTitle>
+          <DialogDescription>{dialogDescription}</DialogDescription>
         </DialogHeader>
         <div className="flex-1 flex flex-col gap-3 min-h-0">
           <div className="flex items-center gap-2">

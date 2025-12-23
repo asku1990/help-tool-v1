@@ -16,12 +16,46 @@ import type {
 
 type Section = 'VEHICLE' | 'FILLUPS' | 'EXPENSES' | 'TIRE_SETS' | 'CHANGE_LOGS' | null;
 
+function splitCsvRecords(input: string): string[] {
+  const records: string[] = [];
+  let current = '';
+  let inQuotes = false;
+
+  for (let i = 0; i < input.length; i++) {
+    const ch = input[i];
+
+    if (ch === '"') {
+      if (inQuotes && input[i + 1] === '"') {
+        current += '""';
+        i++;
+        continue;
+      }
+      inQuotes = !inQuotes;
+      current += ch;
+      continue;
+    }
+
+    if (!inQuotes && (ch === '\n' || ch === '\r')) {
+      if (ch === '\r' && input[i + 1] === '\n') {
+        i++;
+      }
+      records.push(current);
+      current = '';
+      continue;
+    }
+
+    current += ch;
+  }
+
+  records.push(current);
+  return records;
+}
+
 /**
  * Parses a unified backup CSV with section markers into structured data.
  */
 export function parseBackupCsv(input: string): ParsedBackupData {
-  const lines = input
-    .split(/\r?\n/)
+  const lines = splitCsvRecords(input)
     .map(l => l.trim())
     .filter(l => l.length > 0);
 
@@ -136,6 +170,11 @@ export function parseBackupCsv(input: string): ParsedBackupData {
   return { vehicle, fillUps, expenses, tireSets, changeLogs };
 }
 
+function getToken(tokens: string[], idx: number): string | undefined {
+  if (idx < 0) return undefined;
+  return idx < tokens.length ? tokens[idx] : undefined;
+}
+
 function parseFillUpRow(
   tokens: string[],
   headerTokens: string[],
@@ -151,16 +190,18 @@ function parseFillUpRow(
     notes: headerTokens.indexOf('notes'),
   };
 
-  const date = idx.date >= 0 ? tryParseDate(tokens[idx.date]) : undefined;
+  const date = idx.date >= 0 ? tryParseDate(getToken(tokens, idx.date)) : undefined;
   if (!date) return null;
 
-  const odometerKm =
-    idx.odometerKm >= 0 ? parseInt(tokens[idx.odometerKm].replace(/[^0-9-]/g, ''), 10) : 0;
-  const liters = toNum(idx.liters >= 0 ? tokens[idx.liters] : undefined);
-  const pricePerLiter = toNum(idx.pricePerLiter >= 0 ? tokens[idx.pricePerLiter] : undefined);
-  const totalCost = toNum(idx.totalCost >= 0 ? tokens[idx.totalCost] : undefined);
-  const isFull = toBool(idx.isFull >= 0 ? tokens[idx.isFull] : undefined);
-  const notes = idx.notes >= 0 ? tokens[idx.notes] : undefined;
+  const odometerToken = getToken(tokens, idx.odometerKm);
+  const odometerKm = odometerToken
+    ? parseInt(odometerToken.replace(/[^0-9-]/g, ''), 10)
+    : Number.NaN;
+  const liters = toNum(getToken(tokens, idx.liters));
+  const pricePerLiter = toNum(getToken(tokens, idx.pricePerLiter));
+  const totalCost = toNum(getToken(tokens, idx.totalCost));
+  const isFull = toBool(getToken(tokens, idx.isFull));
+  const notes = getToken(tokens, idx.notes);
 
   const valid =
     Number.isFinite(odometerKm) &&
@@ -198,16 +239,17 @@ function parseExpenseRow(
     notes: headerTokens.indexOf('notes'),
   };
 
-  const date = idx.date >= 0 ? tryParseDate(tokens[idx.date]) : undefined;
+  const date = idx.date >= 0 ? tryParseDate(getToken(tokens, idx.date)) : undefined;
   if (!date) return null;
 
-  const km = idx.km >= 0 ? parseInt(tokens[idx.km].replace(/[^0-9-]/g, ''), 10) : undefined;
-  const amount = toNum(idx.amount >= 0 ? tokens[idx.amount] : undefined);
-  const category = parseExpenseCategory(idx.category >= 0 ? tokens[idx.category] : '');
-  const vendor = idx.vendor >= 0 ? tokens[idx.vendor] : undefined;
-  const liters = toNum(idx.liters >= 0 ? tokens[idx.liters] : undefined);
-  const oilConsumption = toNum(idx.oilConsumption >= 0 ? tokens[idx.oilConsumption] : undefined);
-  const notes = idx.notes >= 0 ? tokens[idx.notes] : undefined;
+  const kmToken = getToken(tokens, idx.km);
+  const km = kmToken ? parseInt(kmToken.replace(/[^0-9-]/g, ''), 10) : undefined;
+  const amount = toNum(getToken(tokens, idx.amount));
+  const category = parseExpenseCategory(getToken(tokens, idx.category) ?? '');
+  const vendor = getToken(tokens, idx.vendor);
+  const liters = toNum(getToken(tokens, idx.liters));
+  const oilConsumption = toNum(getToken(tokens, idx.oilConsumption));
+  const notes = getToken(tokens, idx.notes);
 
   const valid = amount !== undefined && Number.isFinite(amount);
 
@@ -240,12 +282,12 @@ function parseTireSetRow(
     notes: headerTokens.indexOf('notes'),
   };
 
-  const exportId = idx.id >= 0 ? tokens[idx.id] : undefined;
-  const name = idx.name >= 0 ? tokens[idx.name] : '';
-  const type = parseTireType(idx.type >= 0 ? tokens[idx.type] : '');
-  const status = parseTireStatus(idx.status >= 0 ? tokens[idx.status] : '');
-  const purchaseDate = tryParseDate(idx.purchaseDate >= 0 ? tokens[idx.purchaseDate] : '');
-  const notes = idx.notes >= 0 ? tokens[idx.notes] : undefined;
+  const exportId = getToken(tokens, idx.id);
+  const name = getToken(tokens, idx.name) ?? '';
+  const type = parseTireType(getToken(tokens, idx.type) ?? '');
+  const status = parseTireStatus(getToken(tokens, idx.status) ?? '');
+  const purchaseDate = tryParseDate(getToken(tokens, idx.purchaseDate));
+  const notes = getToken(tokens, idx.notes);
 
   const valid = !!name && !!type;
 
@@ -274,11 +316,13 @@ function parseChangeLogRow(
     notes: headerTokens.indexOf('notes'),
   };
 
-  const tireSetId = idx.tireSetId >= 0 ? tokens[idx.tireSetId] : '';
-  const date = tryParseDate(idx.date >= 0 ? tokens[idx.date] : '');
-  const odometerKmStr = idx.odometerKm >= 0 ? tokens[idx.odometerKm] : '';
-  const odometerKm = odometerKmStr ? parseInt(odometerKmStr.replace(/[^0-9-]/g, ''), 10) : 0;
-  const notes = idx.notes >= 0 ? tokens[idx.notes] : undefined;
+  const tireSetId = getToken(tokens, idx.tireSetId) ?? '';
+  const date = tryParseDate(getToken(tokens, idx.date));
+  const odometerKmStr = getToken(tokens, idx.odometerKm);
+  const odometerKm = odometerKmStr
+    ? parseInt(odometerKmStr.replace(/[^0-9-]/g, ''), 10)
+    : Number.NaN;
+  const notes = getToken(tokens, idx.notes);
 
   const valid = !!tireSetId && !!date && Number.isFinite(odometerKm);
 

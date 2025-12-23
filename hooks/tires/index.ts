@@ -6,4 +6,4 @@ export { useDeleteTireSet } from './useDeleteTireSet';
 export { useLogTireChange } from './useLogTireChange';
 export { useUpdateTireChangeLog } from './useUpdateTireChangeLog';
 export { useDeleteTireChangeLog } from './useDeleteTireChangeLog';
-export { useImportTires } from './useImportTires';
+export { useImportTires, useImportTiresToVehicle } from './useImportTires';

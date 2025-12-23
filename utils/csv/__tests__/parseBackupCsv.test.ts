@@ -136,6 +136,19 @@ f1;2025-01-10;1000;40;1.50;60.00;1;"Note with; semicolon"`;
     expect(result.fillUps[0].notes).toBe('Note with; semicolon');
   });
 
+  it('handles quoted fields with newlines', () => {
+    const csv = `[EXPENSES]
+Id;Date;Km;Amount;Category;Vendor;Liters;OilConsumption;Notes
+e1;2025-10-20;193683;0.00;OTHER;;;;"Line 1
+
+Line 3"`;
+
+    const result = parseBackupCsv(csv);
+    expect(result.expenses).toHaveLength(1);
+    expect(result.expenses[0].notes).toContain('Line 1');
+    expect(result.expenses[0].notes).toContain('Line 3');
+  });
+
   it('skips invalid rows without dates', () => {
     const csv = `[FILLUPS]
 Id;Date;OdometerKm;Liters;PricePerLiter;TotalCost;IsFull;Notes

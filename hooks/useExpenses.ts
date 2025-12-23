@@ -155,3 +155,53 @@ export function useImportExpenses(vehicleId: string) {
     },
   });
 }
+
+export function useImportExpensesToVehicle() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: {
+      vehicleId: string;
+      rows: Array<{
+        date: string;
+        amount: number;
+        notes?: string;
+        odometerKm?: number;
+        category?: ExpenseDto['category'];
+        vendor?: string;
+        liters?: number;
+        oilConsumption?: number;
+      }>;
+    }) => {
+      if (!input.vehicleId) {
+        throw new Error('Vehicle ID is required to import expenses');
+      }
+
+      const results = await Promise.allSettled(
+        input.rows.map(r =>
+          createExpense(input.vehicleId, {
+            date: r.date,
+            category: r.category ?? 'MAINTENANCE',
+            amount: r.amount,
+            vendor: r.vendor,
+            odometerKm: r.odometerKm,
+            liters: r.liters,
+            oilConsumption: r.oilConsumption,
+            notes: r.notes,
+          })
+        )
+      );
+      const failed = results.filter(r => r.status === 'rejected').length;
+      if (failed) {
+        throw new Error(
+          `Imported ${input.rows.length - failed}/${input.rows.length} expenses; ${failed} failed`
+        );
+      }
+    },
+    onSettled: (_data, _error, vars) => {
+      const vehicleId = vars?.vehicleId;
+      if (!vehicleId) return;
+      qc.invalidateQueries({ queryKey: expenseKeys.byVehicle(vehicleId) });
+      qc.invalidateQueries({ queryKey: expenseKeys.infiniteByVehicle(vehicleId) });
+    },
+  });
+}
