@@ -1,8 +1,12 @@
 # Vehicle Sharing & Google Auth Implementation Plan
 
+## Goal
+
+Allow multiple users to sign in via Google and share vehicles with role-based access when needed.
+
 ## Overview
 
-Enable multi-user vehicle sharing with role-based access while adding Google OAuth for non-GitHub users. The owner (you) can share vehicles through the UI with other users (e.g., your wife). Sharing is OWNER-only, and users must exist (signed in at least once) before they can be added.
+Enable multi-user vehicle sharing with role-based access while adding Google OAuth (Google-only). The owner (you) can share vehicles through the UI with other users (e.g., your wife). Sharing is OWNER-only, and users must exist (signed in at least once) before they can be added. `VehicleAccess` is the single source of truth for ownership and access (no duplicate owner fields).
 
 ## Architecture Summary
 
@@ -10,9 +14,7 @@ Enable multi-user vehicle sharing with role-based access while adding Google OAu
 ┌─────────────────────────────────────────────────────────────────┐
 │                        Auth Layer                               │
 ├─────────────────────────────────────────────────────────────────┤
-│  GitHub OAuth  ──┐                                              │
-│                  ├──▶ Email Allowlist ──▶ User created/matched  │
-│  Google OAuth  ──┘                                              │
+│  Google OAuth  ──▶ Email Allowlist ──▶ User created/matched     │
 └─────────────────────────────────────────────────────────────────┘
                               │
                               ▼
@@ -25,29 +27,30 @@ Enable multi-user vehicle sharing with role-based access while adding Google OAu
 
 ---
 
-## Phase 1: Google OAuth Provider
+## Phase 1: Google OAuth Provider (Google-only)
 
 ### Changes to `auth.ts`
 
 1. Add Google provider import and configuration
-2. Switch from GitHub username allowlist to **email-based allowlist**
-3. Handle both GitHub and Google profile structures
-4. Enforce verified email for Google
+2. Use **email-based allowlist** for auth gating
+3. Enforce verified email for Google
+4. Remove GitHub provider configuration
+5. Ensure `user.id` is available in API routes (add `jwt` + `session` callbacks to attach the DB user id)
+6. Replace GitHub-username-based `ALLOWED_USERS` logic with email allowlist checks
+7. Update user creation to handle Google profiles (generate a unique `username` from email local-part or fallback)
 
 ### Environment Variables
 
 ```env
-# Existing
-AUTH_GITHUB_ID=...
-AUTH_GITHUB_SECRET=...
-
 # New
 AUTH_GOOGLE_ID=...
 AUTH_GOOGLE_SECRET=...
 
-# Change from GitHub usernames to emails
+# Email allowlist
 ALLOWED_EMAILS=you@email.com,wife@email.com
 ```
+
+Note: Remove or ignore legacy `AUTH_GITHUB_*` env vars after switching to Google-only. Drop `ALLOWED_USERS` support in favor of `ALLOWED_EMAILS`. Update `example.env` accordingly.
 
 ### Google Cloud Console Setup
 
@@ -55,6 +58,10 @@ ALLOWED_EMAILS=you@email.com,wife@email.com
 2. Create OAuth 2.0 credentials
 3. Add authorized redirect URI: `https://your-domain/api/auth/callback/google`
 4. Copy Client ID and Client Secret to env vars
+
+### Transition Note
+
+If your existing account email differs from your Google email, update `User.email` to the Google email before switching to Google-only so your existing data stays linked. Ensure the Google email is also included in `ALLOWED_EMAILS`.
 
 ### Effort: ~0.5-1 day
 
@@ -103,17 +110,33 @@ model Vehicle {
 
 ### Data Migration Strategy
 
-For existing vehicles, OWNER access entries are created automatically when running `pnpm prisma migrate dev`. The migration file will include:
+For existing vehicles, OWNER access entries should be created after the Prisma migration file is generated. Use a dedicated data migration script (or SQL inside the migration) to backfill `VehicleAccess` rows for current `Vehicle.userId` owners so the access model is complete after deploy.
+
+### Migration File Backfill (Post-Generation)
+
+After running `pnpm prisma migrate dev` to generate the migration, edit the migration file to move owner data into `VehicleAccess`.
+
+Suggested SQL (PostgreSQL):
 
 ```sql
--- Auto-generated migration: create OWNER access for existing vehicles
-INSERT INTO "VehicleAccess" (id, "vehicleId", "userId", role, "createdAt")
-SELECT gen_random_uuid(), v.id, v."userId", 'OWNER', NOW()
+INSERT INTO "VehicleAccess" ("id", "vehicleId", "userId", "role", "createdAt")
+SELECT gen_random_uuid(), v."id", v."userId", 'OWNER', NOW()
 FROM "Vehicle" v
-ON CONFLICT DO NOTHING;
+WHERE v."userId" IS NOT NULL
+ON CONFLICT ("vehicleId", "userId") DO NOTHING;
 ```
 
-This ensures all current vehicles get proper OWNER access for their existing owners.
+Notes:
+
+- If `gen_random_uuid()` is unavailable, enable `pgcrypto` or replace with `uuid_generate_v4()` (requires `uuid-ossp`).
+- Keep this in the same migration that introduces the `VehicleAccess` table.
+- This is a one-time backfill; do not rely on it for future ownership writes.
+
+**Safe Migration Strategy**:
+
+1. Make `Vehicle.userId` optional (or leave as is).
+2. Stop reading/writing to `Vehicle.userId` in the application code (use `VehicleAccess` instead).
+3. **Do not drop** the `Vehicle.userId` column in this phase. Keep it as a backup for potential rollback. We can remove the column in a future cleanup release.
 
 ### Effort: ~0.5 day
 
@@ -128,6 +151,7 @@ import { prisma } from '@/lib/db';
 import { VehicleRole } from '@/generated/prisma';
 
 export type AccessLevel = 'read' | 'write' | 'admin';
+// Prefer session userId from auth() over email lookups for access checks.
 
 const ROLE_PERMISSIONS: Record<VehicleRole, AccessLevel[]> = {
   OWNER: ['read', 'write', 'admin'],
@@ -137,16 +161,10 @@ const ROLE_PERMISSIONS: Record<VehicleRole, AccessLevel[]> = {
 
 export async function getVehicleAccess(
   vehicleId: string,
-  userEmail: string
+  userId: string
 ): Promise<{ vehicle: Vehicle; role: VehicleRole } | null> {
-  const user = await prisma.user.findUnique({
-    where: { email: userEmail },
-    select: { id: true },
-  });
-  if (!user) return null;
-
   const access = await prisma.vehicleAccess.findFirst({
-    where: { vehicleId, userId: user.id },
+    where: { vehicleId, userId },
     include: { vehicle: true },
   });
 
@@ -159,30 +177,38 @@ export function hasPermission(role: VehicleRole, level: AccessLevel): boolean {
 
 export async function canAccessVehicle(
   vehicleId: string,
-  userEmail: string,
+  userId: string,
   requiredLevel: AccessLevel = 'read'
 ): Promise<boolean> {
-  const access = await getVehicleAccess(vehicleId, userEmail);
+  const access = await getVehicleAccess(vehicleId, userId);
   return access ? hasPermission(access.role, requiredLevel) : false;
 }
 ```
 
+### New Vehicle Creation
+
+When creating a new vehicle, also create an OWNER `VehicleAccess` record in the same flow so the creator always has access.
+
+### Session User ID Requirement
+
+All access checks should use the authenticated user's database id (from `auth()`), not email. If `auth()` only provides email, add NextAuth callbacks to attach `user.id` to the JWT/session or perform a lookup once per request (less ideal).
+
 ### API Routes to Update
 
-| Route                              | Current Check  | New Check                              |
-| ---------------------------------- | -------------- | -------------------------------------- |
-| `GET /api/vehicles`                | `userId` match | VehicleAccess membership               |
-| `GET /api/vehicles/[vehicleId]`    | owner email    | `canAccessVehicle(id, email, 'read')`  |
-| `PATCH /api/vehicles/[vehicleId]`  | owner email    | `canAccessVehicle(id, email, 'admin')` |
-| `DELETE /api/vehicles/[vehicleId]` | owner email    | `canAccessVehicle(id, email, 'admin')` |
-| `GET .../fillups`                  | owner email    | `canAccessVehicle(id, email, 'read')`  |
-| `POST .../fillups`                 | owner email    | `canAccessVehicle(id, email, 'write')` |
-| `GET .../expenses`                 | owner email    | `canAccessVehicle(id, email, 'read')`  |
-| `POST .../expenses`                | owner email    | `canAccessVehicle(id, email, 'write')` |
-| `GET .../tires`                    | owner email    | `canAccessVehicle(id, email, 'read')`  |
-| `POST .../tires`                   | owner email    | `canAccessVehicle(id, email, 'write')` |
-| `DELETE .../clear`                 | owner email    | `canAccessVehicle(id, email, 'admin')` |
-| `GET .../export`                   | owner email    | `canAccessVehicle(id, email, 'read')`  |
+| Route                              | Current Check  | New Check                               |
+| ---------------------------------- | -------------- | --------------------------------------- |
+| `GET /api/vehicles`                | `userId` match | VehicleAccess membership                |
+| `GET /api/vehicles/[vehicleId]`    | owner email    | `canAccessVehicle(id, userId, 'read')`  |
+| `PATCH /api/vehicles/[vehicleId]`  | owner email    | `canAccessVehicle(id, userId, 'admin')` |
+| `DELETE /api/vehicles/[vehicleId]` | owner email    | `canAccessVehicle(id, userId, 'admin')` |
+| `GET .../fillups`                  | owner email    | `canAccessVehicle(id, userId, 'read')`  |
+| `POST .../fillups`                 | owner email    | `canAccessVehicle(id, userId, 'write')` |
+| `GET .../expenses`                 | owner email    | `canAccessVehicle(id, userId, 'read')`  |
+| `POST .../expenses`                | owner email    | `canAccessVehicle(id, userId, 'write')` |
+| `GET .../tires`                    | owner email    | `canAccessVehicle(id, userId, 'read')`  |
+| `POST .../tires`                   | owner email    | `canAccessVehicle(id, userId, 'write')` |
+| `DELETE .../clear`                 | owner email    | `canAccessVehicle(id, userId, 'admin')` |
+| `GET .../export`                   | owner email    | `canAccessVehicle(id, userId, 'read')`  |
 
 ### Route Files to Modify (~12 files)
 
@@ -363,6 +389,7 @@ Add a "Sharing" section to the vehicle detail page:
 - Update vehicle API route tests to use VehicleAccess
 - Add tests for access helper functions
 - Add tests for sharing endpoints
+- Update `auth()` mocks to include `user.id` if using session id
 
 ### Integration Tests
 
@@ -370,16 +397,18 @@ Add a "Sharing" section to the vehicle detail page:
 - Test EDITOR can add data but not delete vehicle
 - Test VIEWER can only read data
 - Test access revocation
+- Update fixtures to create `VehicleAccess` rows instead of relying on `Vehicle.userId`
 
 ---
 
 ## Notes
 
 - **UserType** (ADMIN/REGULAR/GUEST) remains unused for now; could be used for app-level admin features later
-- **Vehicle.userId** kept for backward compatibility and as "original owner" reference
-- **Explicit email allowlist** remains the auth gate — users must be in `ALLOWED_EMAILS` to sign in at all
+- **Vehicle.userId** kept for backward compatibility and as "original owner" reference; do not use it for auth or access checks
+- **Explicit email allowlist** remains the auth gate — users must be in `ALLOWED_EMAILS` to sign in at all (Google-only)
 - No invite flow yet: sharing only works for users who already exist in the database (i.e., have signed in before)
-- Consider temporarily supporting `ALLOWED_USERS` for backward compatibility if production already uses it
+- `VehicleAccess` is the only ownership/access source; do not keep `Vehicle.userId` as a parallel owner field
+- `example.env` must be updated to reflect Google-only auth and `ALLOWED_EMAILS`
 
 ---
 
