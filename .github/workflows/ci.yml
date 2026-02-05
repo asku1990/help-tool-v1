@@ -5,9 +5,9 @@ on:
 
 env:
   AUTH_SECRET: dummy
-  AUTH_GITHUB_ID: dummy
-  AUTH_GITHUB_SECRET: dummy
-  ALLOWED_USERS: dummy
+  AUTH_GOOGLE_ID: dummy
+  AUTH_GOOGLE_SECRET: dummy
+  ALLOWED_EMAILS: dummy@example.com
   TEST_BYPASS_AUTH: '1'
 
 jobs:

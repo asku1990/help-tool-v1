@@ -15,7 +15,7 @@ vi.mock('next/navigation', () => ({
 
 // Mock SignInButton
 vi.mock('@/components/buttons/SignInButton', () => ({
-  SignInButton: () => <button>Sign in with GitHub</button>,
+  SignInButton: () => <button>Sign in with Google</button>,
 }));
 
 describe('AuthErrorPage', () => {
@@ -24,7 +24,7 @@ describe('AuthErrorPage', () => {
     render(<AuthErrorPage />);
     expect(screen.getByText('Authentication Error')).toBeInTheDocument();
     expect(screen.getByText('User not authorized')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /sign in with github/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /sign in with google/i })).toBeInTheDocument();
     expect(logger.error).toHaveBeenCalled();
   });
 });
