@@ -8,10 +8,10 @@ vi.mock('next-auth/react', () => ({
 }));
 
 describe('SignInButton', () => {
-  it('calls signIn with github provider on click', async () => {
+  it('calls signIn with google provider on click', async () => {
     const { signIn } = await import('next-auth/react');
     render(<SignInButton />);
-    fireEvent.click(screen.getByRole('button', { name: /sign in with github/i }));
-    expect(signIn).toHaveBeenCalledWith('github');
+    fireEvent.click(screen.getByRole('button', { name: /sign in with google/i }));
+    expect(signIn).toHaveBeenCalledWith('google');
   });
 });
