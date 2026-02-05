@@ -1,3 +1,14 @@
+# Status (2026-02-05)
+
+This document is the long-form future plan. For the current lightweight rollout
+with checkpoints, use:
+
+- `docs/plan/multi-user-access-lite.md`
+- `docs/logs/multi-user-access.md`
+
+Keep this file as the future RBAC/admin plan and do not execute all phases at
+once.
+
 # Vehicle Sharing & Google Auth Implementation Plan
 
 ## Goal
