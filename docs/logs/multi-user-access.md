@@ -25,7 +25,7 @@
   `docs/multi_user_support/multi_user_plan.md`
 - Tests: `pnpm test` (warnings about DialogContent descriptions and localstorage
   file flag).
-- Commit: (pending)
+- Commit: 9e554f7
 - Notes: N/A
 
 ### Template
