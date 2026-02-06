@@ -6,56 +6,47 @@ import { useSession } from 'next-auth/react';
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { Button, Card, CardContent } from '@/components/ui';
 import PageHeader from '@/components/layout/PageHeader';
-import { apiGet, apiPut } from '@/lib/api/client';
-
-type AdminUser = {
-  id: string;
-  email: string;
-  username: string;
-  userType: 'ADMIN' | 'REGULAR' | 'GUEST';
-  createdAt: string;
-};
-
-type AdminVehicle = {
-  id: string;
-  name: string;
-  make: string | null;
-  model: string | null;
-  year: number | null;
-  userId: string;
-  ownerEmail: string;
-  createdAt: string;
-  accessCount: number;
-};
-
-type VehicleAccessItem = {
-  id: string;
-  userId: string;
-  userEmail: string;
-  username: string;
-  role: 'VIEWER' | 'EDITOR' | 'OWNER';
-  createdAt: string;
-};
-
-type VehicleAccessResponse = {
-  vehicle: { id: string; name: string };
-  access: VehicleAccessItem[];
-};
+import {
+  useAdminUsers,
+  useAdminVehicleAccess,
+  useAdminVehicles,
+  useRevokeAdminVehicleAccess,
+  useUpsertAdminVehicleAccess,
+} from '@/hooks';
 
 export default function AdminPage() {
   const { status } = useSession();
   const router = useRouter();
 
-  const [users, setUsers] = useState<AdminUser[]>([]);
-  const [vehicles, setVehicles] = useState<AdminVehicle[]>([]);
   const [selectedVehicleId, setSelectedVehicleId] = useState('');
   const [selectedUserId, setSelectedUserId] = useState('');
-  const [accessData, setAccessData] = useState<VehicleAccessResponse | null>(null);
   const [role, setRole] = useState<'VIEWER' | 'EDITOR' | 'OWNER'>('VIEWER');
-  const [loading, setLoading] = useState(true);
-  const [submitting, setSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+
+  const queryEnabled = status === 'authenticated';
+  const usersQuery = useAdminUsers(queryEnabled);
+  const vehiclesQuery = useAdminVehicles(queryEnabled);
+  const accessQuery = useAdminVehicleAccess(selectedVehicleId, queryEnabled && !!selectedVehicleId);
+  const upsertAccessMutation = useUpsertAdminVehicleAccess();
+  const revokeAccessMutation = useRevokeAdminVehicleAccess();
+
+  const users = useMemo(() => usersQuery.data?.users ?? [], [usersQuery.data?.users]);
+  const vehicles = useMemo(
+    () => vehiclesQuery.data?.vehicles ?? [],
+    [vehiclesQuery.data?.vehicles]
+  );
+  const accessData = accessQuery.data;
+  const submitting = upsertAccessMutation.isPending || revokeAccessMutation.isPending;
+
+  const queryError = usersQuery.error ?? vehiclesQuery.error ?? accessQuery.error;
+  const queryErrorMessage =
+    queryError instanceof Error
+      ? queryError.message
+      : queryError
+        ? 'Failed to load admin data'
+        : null;
+  const displayErrorMessage = errorMessage ?? queryErrorMessage;
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -64,130 +55,66 @@ export default function AdminPage() {
   }, [status, router]);
 
   useEffect(() => {
-    if (status !== 'authenticated') return;
-
-    let canceled = false;
-    async function loadInitialData() {
-      setLoading(true);
-      setErrorMessage(null);
-      try {
-        const [usersResponse, vehiclesResponse] = await Promise.all([
-          apiGet<{ users: AdminUser[] }>('/api/admin/users'),
-          apiGet<{ vehicles: AdminVehicle[] }>('/api/admin/vehicles'),
-        ]);
-        if (canceled) return;
-
-        setUsers(usersResponse.users);
-        setVehicles(vehiclesResponse.vehicles);
-        setSelectedVehicleId(vehiclesResponse.vehicles[0]?.id ?? '');
-        setSelectedUserId(usersResponse.users[0]?.id ?? '');
-      } catch (error) {
-        if (canceled) return;
-        if (error instanceof Error && error.message === 'Forbidden') {
-          router.replace('/car');
-          return;
-        }
-        setErrorMessage(error instanceof Error ? error.message : 'Failed to load admin data');
-      } finally {
-        if (!canceled) setLoading(false);
-      }
+    if (queryError instanceof Error && queryError.message === 'Forbidden') {
+      router.replace('/car');
     }
-
-    void loadInitialData();
-    return () => {
-      canceled = true;
-    };
-  }, [status, router]);
+  }, [queryError, router]);
 
   useEffect(() => {
-    if (!selectedVehicleId) {
-      setAccessData(null);
+    if (selectedVehicleId || vehicles.length === 0) {
       return;
     }
+    setSelectedVehicleId(vehicles[0].id);
+  }, [selectedVehicleId, vehicles]);
 
-    let canceled = false;
-    async function loadVehicleAccess() {
-      setErrorMessage(null);
-      try {
-        const response = await apiGet<VehicleAccessResponse>(
-          `/api/admin/vehicles/${selectedVehicleId}/access`
-        );
-        if (!canceled) setAccessData(response);
-      } catch (error) {
-        if (!canceled) {
-          setAccessData(null);
-          setErrorMessage(error instanceof Error ? error.message : 'Failed to load vehicle access');
-        }
-      }
+  useEffect(() => {
+    if (selectedUserId || users.length === 0) {
+      return;
     }
-
-    void loadVehicleAccess();
-    return () => {
-      canceled = true;
-    };
-  }, [selectedVehicleId]);
+    setSelectedUserId(users[0].id);
+  }, [selectedUserId, users]);
 
   const selectedVehicleName = useMemo(
     () => vehicles.find(vehicle => vehicle.id === selectedVehicleId)?.name ?? '',
     [selectedVehicleId, vehicles]
   );
 
-  async function refreshAccess() {
-    if (!selectedVehicleId) return;
-    const response = await apiGet<VehicleAccessResponse>(
-      `/api/admin/vehicles/${selectedVehicleId}/access`
-    );
-    setAccessData(response);
-  }
-
   async function onGrantOrUpdate(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (!selectedVehicleId || !selectedUserId) return;
 
-    setSubmitting(true);
     setErrorMessage(null);
     setSuccessMessage(null);
     try {
-      await apiPut<{ access: { id: string } }>(`/api/admin/vehicles/${selectedVehicleId}/access`, {
+      await upsertAccessMutation.mutateAsync({
+        vehicleId: selectedVehicleId,
         userId: selectedUserId,
         role,
       });
-      await refreshAccess();
       const selectedUser = users.find(user => user.id === selectedUserId);
       setSuccessMessage(`Access updated for ${selectedUser?.email ?? selectedUserId}`);
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : 'Failed to update access');
-    } finally {
-      setSubmitting(false);
     }
   }
 
   async function onRevoke(userId: string) {
     if (!selectedVehicleId) return;
 
-    setSubmitting(true);
     setErrorMessage(null);
     setSuccessMessage(null);
     try {
-      const response = await fetch(`/api/admin/vehicles/${selectedVehicleId}/access`, {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId }),
+      await revokeAccessMutation.mutateAsync({
+        vehicleId: selectedVehicleId,
+        userId,
       });
-      const body = (await response.json()) as { error?: { message?: string } };
-      if (!response.ok || body.error) {
-        throw new Error(body.error?.message || `Request failed: ${response.status}`);
-      }
-      await refreshAccess();
       setSuccessMessage('Access revoked');
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : 'Failed to revoke access');
-    } finally {
-      setSubmitting(false);
     }
   }
 
-  if (status === 'loading' || loading) {
+  if (status === 'loading' || usersQuery.isLoading || vehiclesQuery.isLoading) {
     return <div className="p-6">Loading...</div>;
   }
 
@@ -205,9 +132,9 @@ export default function AdminPage() {
       />
 
       <main className="container mx-auto px-4 py-8 space-y-6">
-        {errorMessage ? (
+        {displayErrorMessage ? (
           <div className="rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
-            {errorMessage}
+            {displayErrorMessage}
           </div>
         ) : null}
         {successMessage ? (
