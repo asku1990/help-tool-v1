@@ -10,6 +10,8 @@ import {
   DialogTrigger,
 } from '@/components/ui';
 import { useImportExpenses } from '@/hooks';
+import { toast } from 'sonner';
+import { getUiErrorMessage } from '@/lib/api/client-errors';
 import { splitSemicolonCsv, tryParseDate } from '@/utils/csv';
 import { normalizeExpenseCategory, expenseCategories } from '@/utils';
 import type { ExpenseDto } from '@/queries/expenses';
@@ -200,10 +202,13 @@ export default function ImportExpensesDialog({
           notes: r.notes || undefined,
         }));
       await importMutation.mutateAsync(payload);
+      toast.success('Expenses imported');
       onImported?.();
       setOpen(false);
       setText('');
       setRows([]);
+    } catch (error) {
+      toast.error(getUiErrorMessage(error, 'Failed to import expenses'));
     } finally {
       setIsImporting(false);
     }

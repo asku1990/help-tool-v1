@@ -8,7 +8,7 @@ import { FillUpListSkeleton } from '@/components/car';
 import { useUiStore } from '@/stores/ui';
 import { formatDateFi } from '@/utils';
 import { toast } from 'sonner';
-import { getMutationErrorMessage } from '@/lib/api/client-errors';
+import { getUiErrorMessage } from '@/lib/api/client-errors';
 
 export default function FillUpList({ vehicleId }: { vehicleId: string }) {
   const { data, isLoading, isError, error, hasNextPage, fetchNextPage, isFetchingNextPage } =
@@ -193,9 +193,10 @@ function EditFillUpButton({
                   isFull: state.isFull,
                   notes: state.notes || undefined,
                 });
+                toast.success('Fill-up updated');
                 setOpen(false);
               } catch (error) {
-                toast.error(getMutationErrorMessage(error, 'Failed to update fill-up'));
+                toast.error(getUiErrorMessage(error, 'Failed to update fill-up'));
               }
             }}
           >
@@ -295,8 +296,9 @@ function DeleteFillUpButton({ vehicleId, fillUpId }: { vehicleId: string; fillUp
         if (!confirm('Delete this fill-up?')) return;
         try {
           await del.mutateAsync();
+          toast.success('Fill-up deleted');
         } catch (error) {
-          toast.error(getMutationErrorMessage(error, 'Failed to delete fill-up'));
+          toast.error(getUiErrorMessage(error, 'Failed to delete fill-up'));
         }
       }}
       disabled={del.isPending}

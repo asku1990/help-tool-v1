@@ -1,5 +1,5 @@
 import { apiGet, apiPost, ApiClientError } from '@/lib/api/client';
-import { getMutationErrorMessage } from '@/lib/api/client-errors';
+import { getMutationErrorMessage, getUiErrorMessage } from '@/lib/api/client-errors';
 
 it('throws on non-ok status with JSON body', async () => {
   vi.spyOn(global, 'fetch').mockResolvedValue(
@@ -34,4 +34,25 @@ it('maps not-found/forbidden errors to view-only message', () => {
     'fallback'
   );
   expect(message).toBe('You have view-only access for this vehicle.');
+});
+
+it('maps forbidden to permission message in non-vehicle context', () => {
+  const message = getUiErrorMessage(
+    new ApiClientError('Forbidden', 403, 'FORBIDDEN'),
+    'Failed to update access'
+  );
+  expect(message).toBe("You don't have permission to perform this action.");
+});
+
+it('maps unauthorized to sign-in message', () => {
+  const message = getUiErrorMessage(
+    new ApiClientError('Unauthorized', 401, 'UNAUTHORIZED'),
+    'Failed to load admin data'
+  );
+  expect(message).toBe('Please sign in to continue.');
+});
+
+it('uses fallback for unknown error payload', () => {
+  const message = getUiErrorMessage({ oops: true }, 'fallback');
+  expect(message).toBe('fallback');
 });

@@ -39,7 +39,7 @@ import {
 import { pickLastInspectionDateFromExpenses, computeInspectionStatus } from '@/utils';
 import { useUiStore } from '@/stores/ui';
 import { toast } from 'sonner';
-import { getMutationErrorMessage } from '@/lib/api/client-errors';
+import { getUiErrorMessage } from '@/lib/api/client-errors';
 
 import PageHeader from '@/components/layout/PageHeader';
 
@@ -240,10 +240,11 @@ export default function VehiclePage() {
                       if (!vehicleId) return;
                       try {
                         await deleteVehicleMutation.mutateAsync();
+                        toast.success('Vehicle deleted');
                         setDeleteOpen(false);
                         router.push('/car');
                       } catch (error) {
-                        toast.error(getMutationErrorMessage(error, 'Failed to delete vehicle'));
+                        toast.error(getUiErrorMessage(error, 'Failed to delete vehicle'));
                       }
                     }}
                   >
@@ -399,9 +400,10 @@ export default function VehiclePage() {
                     ? parseInt(editForm.initialOdometer, 10)
                     : null,
                 });
+                toast.success('Vehicle updated');
                 setEditOpen(false);
               } catch (error) {
-                toast.error(getMutationErrorMessage(error, 'Failed to update vehicle'));
+                toast.error(getUiErrorMessage(error, 'Failed to update vehicle'));
               }
             }}
           >

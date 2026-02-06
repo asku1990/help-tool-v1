@@ -11,6 +11,7 @@ import {
   DialogTitle,
   Card,
   CardContent,
+  Toaster,
 } from '@/components/ui';
 import { Car, Plus } from 'lucide-react';
 import { useEffect, useState } from 'react';
@@ -21,6 +22,8 @@ import PageHeader from '@/components/layout/PageHeader';
 import { computeInspectionStatus } from '@/utils';
 import { VehicleListSkeleton } from '@/components/car';
 import { RestoreBackupDialog } from '@/components/car/imports';
+import { toast } from 'sonner';
+import { getUiErrorMessage } from '@/lib/api/client-errors';
 
 export default function CarHomePage() {
   const { status } = useSession();
@@ -213,6 +216,7 @@ export default function CarHomePage() {
                       ? parseInt(form.initialOdometer, 10)
                       : undefined,
                   });
+                  toast.success('Vehicle created');
                   setOpen(false);
                   setForm({
                     name: '',
@@ -225,6 +229,8 @@ export default function CarHomePage() {
                     initialOdometer: '',
                   });
                   await refetchVehicles();
+                } catch (error) {
+                  toast.error(getUiErrorMessage(error, 'Failed to create vehicle'));
                 } finally {
                   setLoading(false);
                 }
@@ -326,6 +332,7 @@ export default function CarHomePage() {
           </DialogContent>
         </Dialog>
       </main>
+      <Toaster />
     </div>
   );
 }

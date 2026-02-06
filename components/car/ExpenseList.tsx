@@ -7,7 +7,7 @@ import { ExpenseListSkeleton } from '@/components/car';
 import { useUiStore } from '@/stores/ui';
 import { formatDateFi } from '@/utils';
 import { toast } from 'sonner';
-import { getMutationErrorMessage } from '@/lib/api/client-errors';
+import { getUiErrorMessage } from '@/lib/api/client-errors';
 
 export default function ExpenseList({ vehicleId }: { vehicleId: string }) {
   const { data, isLoading, isError, error, hasNextPage, fetchNextPage, isFetchingNextPage } =
@@ -175,9 +175,10 @@ function EditExpenseButton({
                   liters: state.liters ? parseFloat(state.liters.replace(',', '.')) : null,
                   notes: state.notes || null,
                 });
+                toast.success('Expense updated');
                 setOpen(false);
               } catch (error) {
-                toast.error(getMutationErrorMessage(error, 'Failed to update expense'));
+                toast.error(getUiErrorMessage(error, 'Failed to update expense'));
               }
             }}
           >
@@ -294,8 +295,9 @@ function DeleteExpenseButton({ vehicleId, expenseId }: { vehicleId: string; expe
         if (!confirm('Delete this expense?')) return;
         try {
           await del.mutateAsync();
+          toast.success('Expense deleted');
         } catch (error) {
-          toast.error(getMutationErrorMessage(error, 'Failed to delete expense'));
+          toast.error(getUiErrorMessage(error, 'Failed to delete expense'));
         }
       }}
       disabled={del.isPending}

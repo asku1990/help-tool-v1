@@ -3,9 +3,11 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
-import { useEffect, useMemo, useState, type FormEvent } from 'react';
-import { Button, Card, CardContent } from '@/components/ui';
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
+import { Button, Card, CardContent, Toaster } from '@/components/ui';
+import { toast } from 'sonner';
 import PageHeader from '@/components/layout/PageHeader';
+import { getUiErrorMessage } from '@/lib/api/client-errors';
 import {
   useAdminUsers,
   useAdminVehicleAccess,
@@ -21,8 +23,7 @@ export default function AdminPage() {
   const [selectedVehicleId, setSelectedVehicleId] = useState('');
   const [selectedUserId, setSelectedUserId] = useState('');
   const [role, setRole] = useState<'VIEWER' | 'EDITOR' | 'OWNER'>('VIEWER');
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const lastQueryErrorSignatureRef = useRef<string | null>(null);
 
   const queryEnabled = status === 'authenticated';
   const usersQuery = useAdminUsers(queryEnabled);
@@ -40,19 +41,29 @@ export default function AdminPage() {
   const submitting = upsertAccessMutation.isPending || revokeAccessMutation.isPending;
 
   const queryError = usersQuery.error ?? vehiclesQuery.error ?? accessQuery.error;
-  const queryErrorMessage =
-    queryError instanceof Error
-      ? queryError.message
-      : queryError
-        ? 'Failed to load admin data'
-        : null;
-  const displayErrorMessage = errorMessage ?? queryErrorMessage;
+  const queryErrorMessage = queryError
+    ? getUiErrorMessage(queryError, 'Failed to load admin data')
+    : null;
 
   useEffect(() => {
     if (status === 'unauthenticated') {
       router.replace('/');
     }
   }, [status, router]);
+
+  useEffect(() => {
+    if (!queryErrorMessage) {
+      lastQueryErrorSignatureRef.current = null;
+      return;
+    }
+    const signature =
+      queryError instanceof Error
+        ? `${queryError.name}:${queryError.message}`
+        : `unknown:${queryErrorMessage}`;
+    if (lastQueryErrorSignatureRef.current === signature) return;
+    lastQueryErrorSignatureRef.current = signature;
+    toast.error(queryErrorMessage);
+  }, [queryError, queryErrorMessage]);
 
   useEffect(() => {
     if (queryError instanceof Error && queryError.message === 'Forbidden') {
@@ -83,8 +94,6 @@ export default function AdminPage() {
     e.preventDefault();
     if (!selectedVehicleId || !selectedUserId) return;
 
-    setErrorMessage(null);
-    setSuccessMessage(null);
     try {
       await upsertAccessMutation.mutateAsync({
         vehicleId: selectedVehicleId,
@@ -92,25 +101,23 @@ export default function AdminPage() {
         role,
       });
       const selectedUser = users.find(user => user.id === selectedUserId);
-      setSuccessMessage(`Access updated for ${selectedUser?.email ?? selectedUserId}`);
+      toast.success(`Access updated for ${selectedUser?.email ?? selectedUserId}`);
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : 'Failed to update access');
+      toast.error(getUiErrorMessage(error, 'Failed to update access'));
     }
   }
 
   async function onRevoke(userId: string) {
     if (!selectedVehicleId) return;
 
-    setErrorMessage(null);
-    setSuccessMessage(null);
     try {
       await revokeAccessMutation.mutateAsync({
         vehicleId: selectedVehicleId,
         userId,
       });
-      setSuccessMessage('Access revoked');
+      toast.success('Access revoked');
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : 'Failed to revoke access');
+      toast.error(getUiErrorMessage(error, 'Failed to revoke access'));
     }
   }
 
@@ -132,17 +139,6 @@ export default function AdminPage() {
       />
 
       <main className="container mx-auto px-4 py-8 space-y-6">
-        {displayErrorMessage ? (
-          <div className="rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
-            {displayErrorMessage}
-          </div>
-        ) : null}
-        {successMessage ? (
-          <div className="rounded border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-800">
-            {successMessage}
-          </div>
-        ) : null}
-
         <Card>
           <CardContent className="!p-4 sm:!p-6">
             <h2 className="text-lg font-semibold">Users</h2>
@@ -308,6 +304,7 @@ export default function AdminPage() {
           </CardContent>
         </Card>
       </main>
+      <Toaster />
     </div>
   );
 }
