@@ -7,6 +7,8 @@ import { Button, Dialog, DialogContent, DialogHeader, DialogTitle } from '@/comp
 import { FillUpListSkeleton } from '@/components/car';
 import { useUiStore } from '@/stores/ui';
 import { formatDateFi } from '@/utils';
+import { toast } from 'sonner';
+import { getMutationErrorMessage } from '@/lib/api/client-errors';
 
 export default function FillUpList({ vehicleId }: { vehicleId: string }) {
   const { data, isLoading, isError, error, hasNextPage, fetchNextPage, isFetchingNextPage } =
@@ -181,16 +183,20 @@ function EditFillUpButton({
             className="space-y-4"
             onSubmit={async e => {
               e.preventDefault();
-              await update.mutateAsync({
-                date: state.date,
-                odometerKm: parseInt(state.odometerKm, 10),
-                liters: parseFloat(state.liters.replace(',', '.')),
-                pricePerLiter: parseFloat(state.pricePerLiter.replace(',', '.')),
-                totalCost: parseFloat(total),
-                isFull: state.isFull,
-                notes: state.notes || undefined,
-              });
-              setOpen(false);
+              try {
+                await update.mutateAsync({
+                  date: state.date,
+                  odometerKm: parseInt(state.odometerKm, 10),
+                  liters: parseFloat(state.liters.replace(',', '.')),
+                  pricePerLiter: parseFloat(state.pricePerLiter.replace(',', '.')),
+                  totalCost: parseFloat(total),
+                  isFull: state.isFull,
+                  notes: state.notes || undefined,
+                });
+                setOpen(false);
+              } catch (error) {
+                toast.error(getMutationErrorMessage(error, 'Failed to update fill-up'));
+              }
             }}
           >
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -289,8 +295,8 @@ function DeleteFillUpButton({ vehicleId, fillUpId }: { vehicleId: string; fillUp
         if (!confirm('Delete this fill-up?')) return;
         try {
           await del.mutateAsync();
-        } catch {
-          // If already deleted (404), ignore
+        } catch (error) {
+          toast.error(getMutationErrorMessage(error, 'Failed to delete fill-up'));
         }
       }}
       disabled={del.isPending}

@@ -1,5 +1,5 @@
 // @vitest-environment node
-import { describe, it, expect, vi, type Mock } from 'vitest';
+import { beforeEach, describe, it, expect, vi, type Mock } from 'vitest';
 import { NextRequest } from 'next/server';
 import { DELETE, GET, PUT } from '../route';
 
@@ -27,6 +27,17 @@ type PrismaMock = {
 };
 
 describe('/api/admin/vehicles/[vehicleId]/access', () => {
+  beforeEach(async () => {
+    const prisma = (await import('@/lib/db')).default as unknown as PrismaMock;
+    prisma.user.findUnique.mockReset();
+    prisma.vehicle.findUnique.mockReset();
+    prisma.vehicleAccess.findMany.mockReset();
+    prisma.vehicleAccess.findUnique.mockReset();
+    prisma.vehicleAccess.count.mockReset();
+    prisma.vehicleAccess.upsert.mockReset();
+    prisma.vehicleAccess.deleteMany.mockReset();
+  });
+
   it('GET returns 404 when vehicle does not exist', async () => {
     const prisma = (await import('@/lib/db')).default as unknown as PrismaMock;
     prisma.user.findUnique.mockResolvedValueOnce({ id: 'u1', userType: 'ADMIN' });
@@ -115,6 +126,27 @@ describe('/api/admin/vehicles/[vehicleId]/access', () => {
       where: { id: 'u3' },
       select: { id: true },
     });
+  });
+
+  it('PUT returns 400 when demoting the final owner', async () => {
+    const prisma = (await import('@/lib/db')).default as unknown as PrismaMock;
+    prisma.user.findUnique
+      .mockResolvedValueOnce({ id: 'u1', userType: 'ADMIN' })
+      .mockResolvedValueOnce({ id: 'u2' });
+    prisma.vehicle.findUnique.mockResolvedValueOnce({ id: 'v1' });
+    prisma.vehicleAccess.findUnique.mockResolvedValueOnce({ role: 'OWNER' });
+    prisma.vehicleAccess.count.mockResolvedValueOnce(1);
+
+    const req = new NextRequest('http://localhost/api/admin/vehicles/v1/access', {
+      method: 'PUT',
+      body: JSON.stringify({ userId: 'u2', role: 'EDITOR' }),
+    });
+    const res = await PUT(req, { params: Promise.resolve({ vehicleId: 'v1' }) });
+    const body = await res.json();
+
+    expect(res.status).toBe(400);
+    expect(body.error.code).toBe('LAST_OWNER');
+    expect(prisma.vehicleAccess.upsert).not.toHaveBeenCalled();
   });
 
   it('DELETE returns 400 when revoking the final owner', async () => {

@@ -11,6 +11,8 @@ import {
 } from '@/components/ui';
 import { useUiStore } from '@/stores/ui';
 import { useCreateFillUp, useLatestOdometer } from '@/hooks';
+import { toast } from 'sonner';
+import { getMutationErrorMessage } from '@/lib/api/client-errors';
 
 export type FillUpFormProps = {
   vehicleId: string;
@@ -85,6 +87,8 @@ export default function FillUpForm({ vehicleId, onCreated }: FillUpFormProps) {
       setLiters('');
       setPricePerLiter('');
       setNotes('');
+    } catch (error) {
+      toast.error(getMutationErrorMessage(error, 'Failed to save fill-up'));
     } finally {
       setSubmitting(false);
     }

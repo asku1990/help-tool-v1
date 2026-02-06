@@ -122,6 +122,31 @@ export async function PUT(req: NextRequest, context: RouteContext): Promise<Resp
         });
     if (!user) return notFound('User not found');
 
+    const existingAccess = await prisma.vehicleAccess.findUnique({
+      where: {
+        vehicleId_userId: {
+          vehicleId,
+          userId: user.id,
+        },
+      },
+      select: { role: true },
+    });
+
+    if (existingAccess?.role === 'OWNER' && parsed.data.role !== 'OWNER') {
+      const ownerCount = await prisma.vehicleAccess.count({
+        where: {
+          vehicleId,
+          role: 'OWNER',
+        },
+      });
+      if (ownerCount <= 1) {
+        return badRequest(
+          'LAST_OWNER',
+          'Cannot demote the final owner. Add another owner before changing this role.'
+        );
+      }
+    }
+
     const access = await prisma.vehicleAccess.upsert({
       where: {
         vehicleId_userId: {
