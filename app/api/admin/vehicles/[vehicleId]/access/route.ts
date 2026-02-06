@@ -1,5 +1,6 @@
 import { NextRequest } from 'next/server';
 import { z } from 'zod';
+import { Prisma } from '@/generated/prisma';
 import { auth } from '@/auth';
 import prisma from '@/lib/db';
 import { checkRateLimit, rateLimitHeaders, rateLimitKey } from '@/lib/api/rate-limit';
@@ -122,49 +123,57 @@ export async function PUT(req: NextRequest, context: RouteContext): Promise<Resp
         });
     if (!user) return notFound('User not found');
 
-    const existingAccess = await prisma.vehicleAccess.findUnique({
-      where: {
-        vehicleId_userId: {
-          vehicleId,
-          userId: user.id,
-        },
-      },
-      select: { role: true },
-    });
+    const access = await prisma.$transaction(
+      async tx => {
+        const existingAccess = await tx.vehicleAccess.findUnique({
+          where: {
+            vehicleId_userId: {
+              vehicleId,
+              userId: user.id,
+            },
+          },
+          select: { role: true },
+        });
 
-    if (existingAccess?.role === 'OWNER' && parsed.data.role !== 'OWNER') {
-      const ownerCount = await prisma.vehicleAccess.count({
-        where: {
-          vehicleId,
-          role: 'OWNER',
-        },
-      });
-      if (ownerCount <= 1) {
-        return badRequest(
-          'LAST_OWNER',
-          'Cannot demote the final owner. Add another owner before changing this role.'
-        );
-      }
-    }
+        if (existingAccess?.role === 'OWNER' && parsed.data.role !== 'OWNER') {
+          const ownerCount = await tx.vehicleAccess.count({
+            where: {
+              vehicleId,
+              role: 'OWNER',
+            },
+          });
+          if (ownerCount <= 1) {
+            throw new Error('LAST_OWNER_DEMOTION');
+          }
+        }
 
-    const access = await prisma.vehicleAccess.upsert({
-      where: {
-        vehicleId_userId: {
-          vehicleId,
-          userId: user.id,
-        },
+        return tx.vehicleAccess.upsert({
+          where: {
+            vehicleId_userId: {
+              vehicleId,
+              userId: user.id,
+            },
+          },
+          update: { role: parsed.data.role },
+          create: {
+            vehicleId,
+            userId: user.id,
+            role: parsed.data.role,
+          },
+          select: { id: true, vehicleId: true, userId: true, role: true },
+        });
       },
-      update: { role: parsed.data.role },
-      create: {
-        vehicleId,
-        userId: user.id,
-        role: parsed.data.role,
-      },
-      select: { id: true, vehicleId: true, userId: true, role: true },
-    });
+      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }
+    );
 
     return ok({ access });
   } catch (error) {
+    if (error instanceof Error && error.message === 'LAST_OWNER_DEMOTION') {
+      return badRequest(
+        'LAST_OWNER',
+        'Cannot demote the final owner. Add another owner before changing this role.'
+      );
+    }
     logger.error('PUT /api/admin/vehicles/[vehicleId]/access failed', { error });
     return serverError();
   }
@@ -192,41 +201,49 @@ export async function DELETE(req: NextRequest, context: RouteContext): Promise<R
     }
 
     const { vehicleId } = await context.params;
-    const targetAccess = await prisma.vehicleAccess.findUnique({
-      where: {
-        vehicleId_userId: {
-          vehicleId,
-          userId: parsed.data.userId,
-        },
-      },
-      select: { role: true },
-    });
-    if (!targetAccess) return ok({ ok: true });
+    await prisma.$transaction(
+      async tx => {
+        const targetAccess = await tx.vehicleAccess.findUnique({
+          where: {
+            vehicleId_userId: {
+              vehicleId,
+              userId: parsed.data.userId,
+            },
+          },
+          select: { role: true },
+        });
+        if (!targetAccess) return;
 
-    if (targetAccess.role === 'OWNER') {
-      const ownerCount = await prisma.vehicleAccess.count({
-        where: {
-          vehicleId,
-          role: 'OWNER',
-        },
-      });
-      if (ownerCount <= 1) {
-        return badRequest(
-          'LAST_OWNER',
-          'Cannot remove the final owner. Add another owner before revoking this access.'
-        );
-      }
-    }
+        if (targetAccess.role === 'OWNER') {
+          const ownerCount = await tx.vehicleAccess.count({
+            where: {
+              vehicleId,
+              role: 'OWNER',
+            },
+          });
+          if (ownerCount <= 1) {
+            throw new Error('LAST_OWNER_REVOKE');
+          }
+        }
 
-    await prisma.vehicleAccess.deleteMany({
-      where: {
-        vehicleId,
-        userId: parsed.data.userId,
+        await tx.vehicleAccess.deleteMany({
+          where: {
+            vehicleId,
+            userId: parsed.data.userId,
+          },
+        });
       },
-    });
+      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }
+    );
 
     return ok({ ok: true });
   } catch (error) {
+    if (error instanceof Error && error.message === 'LAST_OWNER_REVOKE') {
+      return badRequest(
+        'LAST_OWNER',
+        'Cannot remove the final owner. Add another owner before revoking this access.'
+      );
+    }
     logger.error('DELETE /api/admin/vehicles/[vehicleId]/access failed', { error });
     return serverError();
   }

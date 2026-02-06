@@ -14,6 +14,7 @@ vi.mock('@/lib/db', () => {
       upsert: vi.fn(),
       deleteMany: vi.fn(),
     },
+    $transaction: vi.fn(),
   };
   return { default: mock };
 });
@@ -24,6 +25,7 @@ type PrismaMock = {
   user: { findUnique: Mock };
   vehicle: { findUnique: Mock };
   vehicleAccess: { findMany: Mock; findUnique: Mock; count: Mock; upsert: Mock; deleteMany: Mock };
+  $transaction: Mock;
 };
 
 describe('/api/admin/vehicles/[vehicleId]/access', () => {
@@ -36,6 +38,10 @@ describe('/api/admin/vehicles/[vehicleId]/access', () => {
     prisma.vehicleAccess.count.mockReset();
     prisma.vehicleAccess.upsert.mockReset();
     prisma.vehicleAccess.deleteMany.mockReset();
+    prisma.$transaction.mockReset();
+    prisma.$transaction.mockImplementation(async (callback: (_tx: PrismaMock) => unknown) =>
+      callback(prisma)
+    );
   });
 
   it('GET returns 404 when vehicle does not exist', async () => {
