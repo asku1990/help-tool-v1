@@ -6,7 +6,7 @@ import { logger } from '@/lib/logger';
 
 interface GoogleProfile {
   email: string;
-  email_verified?: boolean;
+  email_verified: boolean;
   name?: string;
 }
 
