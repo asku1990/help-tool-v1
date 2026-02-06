@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { ok, created, unauthorized, notFound, badRequest, serverError } from '@/lib/api/response';
 import { checkRateLimit, rateLimitHeaders, rateLimitKey } from '@/lib/api/rate-limit';
 import { logger } from '@/lib/logger';
+import { getSessionUserId, getVehicleAccess, hasPermission } from '@/lib/api/vehicle-access';
 
 export async function GET(req: NextRequest, context: { params: Promise<{ vehicleId: string }> }) {
   try {
@@ -15,16 +16,16 @@ export async function GET(req: NextRequest, context: { params: Promise<{ vehicle
         headers: rateLimitHeaders(rl.retryAfterMs),
       });
     const session = await auth();
-    if (!session?.user?.email) {
+    const userId = await getSessionUserId(session);
+    if (!userId) {
       return unauthorized();
     }
 
     const { vehicleId } = await context.params;
 
-    const vehicle = await prisma.vehicle.findFirst({
-      where: { id: vehicleId, user: { email: session.user.email } },
-    });
-    if (!vehicle) return notFound();
+    const access = await getVehicleAccess(vehicleId, userId);
+    if (!access || !hasPermission(access.role, 'read')) return notFound();
+    const vehicle = access.vehicle;
 
     const tireSets = await prisma.tireSet.findMany({
       where: { vehicleId: vehicle.id },
@@ -61,7 +62,8 @@ export async function POST(req: NextRequest, context: { params: Promise<{ vehicl
         headers: rateLimitHeaders(rl.retryAfterMs),
       });
     const session = await auth();
-    if (!session?.user?.email) {
+    const userId = await getSessionUserId(session);
+    if (!userId) {
       return unauthorized();
     }
 
@@ -73,10 +75,9 @@ export async function POST(req: NextRequest, context: { params: Promise<{ vehicl
 
     const { vehicleId } = await context.params;
 
-    const vehicle = await prisma.vehicle.findFirst({
-      where: { id: vehicleId, user: { email: session.user.email } },
-    });
-    if (!vehicle) return notFound();
+    const access = await getVehicleAccess(vehicleId, userId);
+    if (!access || !hasPermission(access.role, 'write')) return notFound();
+    const vehicle = access.vehicle;
 
     // If creating this tire as ACTIVE, set all other non-RETIRED tires to STORED
     if (status === 'ACTIVE') {

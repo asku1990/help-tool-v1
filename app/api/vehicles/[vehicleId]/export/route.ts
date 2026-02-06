@@ -5,6 +5,7 @@ import { checkRateLimit, rateLimitHeaders, rateLimitKey } from '@/lib/api/rate-l
 import { logger } from '@/lib/logger';
 import { decimalToNumber } from '@/lib/prisma/decimal';
 import { escapeCsvField, sanitizeForFilename } from './csv';
+import { getSessionUserId, getVehicleAccess, hasPermission } from '@/lib/api/vehicle-access';
 
 export async function GET(req: NextRequest, context: { params: Promise<{ vehicleId: string }> }) {
   try {
@@ -17,29 +18,18 @@ export async function GET(req: NextRequest, context: { params: Promise<{ vehicle
     }
 
     const session = await auth();
-    if (!session?.user?.email) {
+    const userId = await getSessionUserId(session);
+    if (!userId) {
       return new Response('Unauthorized', { status: 401 });
     }
 
     const { vehicleId } = await context.params;
 
-    const vehicle = await prisma.vehicle.findFirst({
-      where: { id: vehicleId, user: { email: session.user.email } },
-      select: {
-        id: true,
-        name: true,
-        make: true,
-        model: true,
-        year: true,
-        licensePlate: true,
-        inspectionDueDate: true,
-        inspectionIntervalMonths: true,
-        initialOdometer: true,
-      },
-    });
-    if (!vehicle) {
+    const access = await getVehicleAccess(vehicleId, userId);
+    if (!access || !hasPermission(access.role, 'read')) {
       return new Response('Not found', { status: 404 });
     }
+    const vehicle = access.vehicle;
 
     // Fetch all data in parallel
     const [fillUps, expenses, tireSets, changeLogs] = await Promise.all([
