@@ -38,6 +38,21 @@ export async function apiPatch<T>(url: string, payload: unknown, init?: RequestI
   return body.data as T;
 }
 
+export async function apiPut<T>(url: string, payload: unknown, init?: RequestInit): Promise<T> {
+  const res = await fetch(url, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...(init?.headers || {}) },
+    body: JSON.stringify(payload),
+    ...init,
+  });
+  const body = await res.json();
+  if (!res.ok || body?.error) {
+    const msg = body?.error?.message || `Request failed: ${res.status}`;
+    throw new Error(msg);
+  }
+  return body.data as T;
+}
+
 export async function apiDelete<T>(url: string, init?: RequestInit): Promise<T> {
   const res = await fetch(url, { method: 'DELETE', ...(init || {}) });
   const body = await res.json();

@@ -23,6 +23,7 @@ function renderWithProviders(ui: React.ReactElement) {
 
 it('renders vehicles list and opens add vehicle dialog', async () => {
   server.use(
+    http.get('/api/admin/me', () => HttpResponse.json({ data: { isAdmin: false } })),
     http.get('/api/vehicles', () =>
       HttpResponse.json({ data: { vehicles: [{ id: 'v1', name: 'Car A' }] } })
     )
@@ -32,4 +33,23 @@ it('renders vehicles list and opens add vehicle dialog', async () => {
   expect(await screen.findByText(/Car A/i)).toBeInTheDocument();
   fireEvent.click(screen.getByRole('button', { name: /add vehicle/i }));
   expect(await screen.findByLabelText(/Add vehicle dialog/i)).toBeInTheDocument();
+});
+
+it('shows admin link for admin user', async () => {
+  server.use(
+    http.get('/api/admin/me', () => HttpResponse.json({ data: { isAdmin: true } })),
+    http.get('/api/vehicles', () => HttpResponse.json({ data: { vehicles: [] } }))
+  );
+  renderWithProviders(<CarHomePage />);
+  expect(await screen.findByText('Admin', { selector: 'a' })).toBeInTheDocument();
+});
+
+it('hides admin link for non-admin user', async () => {
+  server.use(
+    http.get('/api/admin/me', () => HttpResponse.json({ data: { isAdmin: false } })),
+    http.get('/api/vehicles', () => HttpResponse.json({ data: { vehicles: [] } }))
+  );
+  renderWithProviders(<CarHomePage />);
+  await waitFor(() => expect(screen.getByText(/vehicles/i)).toBeInTheDocument());
+  expect(screen.queryByRole('link', { name: /admin/i })).not.toBeInTheDocument();
 });
