@@ -36,6 +36,7 @@ it('should contain all required User fields with correct types and attributes', 
     userType: { type: 'UserType', attributes: ['@default(REGULAR)'] },
     // Note: simple regex parser strips [] from list types
     vehicles: { type: 'Vehicle', attributes: [] },
+    vehicleAccess: { type: 'VehicleAccess', attributes: [] },
   };
 
   expect(Object.keys(fields).sort()).toEqual(Object.keys(expectedFields).sort());

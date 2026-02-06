@@ -7,14 +7,18 @@ vi.mock('@/lib/db', () => {
   const mock = {
     user: { findUnique: vi.fn() },
     vehicle: { findMany: vi.fn(), create: vi.fn() },
+    vehicleAccess: { create: vi.fn() },
+    $transaction: vi.fn(),
   };
   return { default: mock };
 });
-vi.mock('@/auth', () => ({ auth: vi.fn(async () => ({ user: { email: 'u@e' } })) }));
+vi.mock('@/auth', () => ({ auth: vi.fn(async () => ({ user: { id: 'u1', email: 'u@e' } })) }));
 
 type PrismaMock = {
   user: { findUnique: Mock };
   vehicle: { findMany: Mock; create: Mock };
+  vehicleAccess: { create: Mock };
+  $transaction: Mock;
 };
 
 describe('api/vehicles route (unit)', () => {
@@ -38,6 +42,8 @@ describe('api/vehicles route (unit)', () => {
   });
 
   it('POST validates payload and returns 400 on invalid body', async () => {
+    const prisma = (await import('@/lib/db')).default as unknown as PrismaMock;
+    prisma.user.findUnique.mockResolvedValueOnce({ id: 'u1' });
     const base = new Request('http://localhost/api/vehicles', {
       method: 'POST',
       body: JSON.stringify({}),
@@ -50,7 +56,20 @@ describe('api/vehicles route (unit)', () => {
   it('POST creates vehicle and returns 201', async () => {
     const prisma = (await import('@/lib/db')).default as unknown as PrismaMock;
     prisma.user.findUnique.mockResolvedValueOnce({ id: 'u1' });
-    prisma.vehicle.create.mockResolvedValueOnce({ id: 'v1' });
+    prisma.$transaction.mockImplementationOnce(
+      async (
+        callback: (_tx: {
+          vehicle: { create: Mock };
+          vehicleAccess: { create: Mock };
+        }) => Promise<{ id: string }>
+      ) => {
+        const tx = {
+          vehicle: { create: vi.fn().mockResolvedValueOnce({ id: 'v1' }) },
+          vehicleAccess: { create: vi.fn().mockResolvedValueOnce({}) },
+        };
+        return callback(tx);
+      }
+    );
     const base = new Request('http://localhost/api/vehicles', {
       method: 'POST',
       body: JSON.stringify({ name: 'Car' }),

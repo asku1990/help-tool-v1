@@ -4,6 +4,7 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { TireChangeLogDto, TireSetDto } from '@/queries/tires';
+import { toast } from 'sonner';
 
 // Mock the tire queries
 vi.mock('@/queries/tires', () => ({
@@ -29,6 +30,11 @@ vi.mock('@/hooks', async importOriginal => {
     useDeleteTireChangeLog: vi.fn(),
   };
 });
+
+vi.mock('sonner', () => ({
+  toast: { error: vi.fn(), success: vi.fn(), info: vi.fn() },
+  Toaster: vi.fn(() => null),
+}));
 
 const createWrapper = () => {
   const queryClient = new QueryClient({
@@ -69,17 +75,14 @@ const buildTireSet = (overrides: Partial<TireSetDto> = {}): TireSetDto => ({
 
 describe('TireManager', () => {
   const mockMutateAsync = vi.fn();
-  const mockMutate = vi.fn();
   const mockMutation = {
     mutateAsync: mockMutateAsync,
-    mutate: mockMutate,
     isPending: false,
   };
 
   beforeEach(async () => {
     vi.clearAllMocks();
     mockMutateAsync.mockResolvedValue({});
-    mockMutate.mockResolvedValue({});
 
     const hooks = await import('@/hooks');
     vi.mocked(hooks.useLatestOdometer).mockReturnValue(null);
@@ -248,7 +251,7 @@ describe('TireManager', () => {
     await user.click(deleteButtons[0]);
 
     await waitFor(() => {
-      expect(mockMutate).toHaveBeenCalledWith('stored');
+      expect(mockMutateAsync).toHaveBeenCalledWith('stored');
     });
   });
 
@@ -273,8 +276,6 @@ describe('TireManager', () => {
       },
       isLoading: false,
     } as unknown as ReturnType<typeof hooks.useTireSets>);
-    vi.spyOn(window, 'alert').mockImplementation(() => undefined);
-
     const user = userEvent.setup();
     const TireManager = (await import('../TireManager')).default;
     render(<TireManager vehicleId="v1" />, { wrapper: createWrapper() });
@@ -298,6 +299,35 @@ describe('TireManager', () => {
         })
       );
     });
+  });
+
+  it('shows toast when trying to swap without stored sets', async () => {
+    const hooks = await import('@/hooks');
+    vi.mocked(hooks.useTireSets).mockReturnValue({
+      data: {
+        tireSets: [
+          buildTireSet({
+            id: 'active',
+            name: 'Mounted',
+            status: 'ACTIVE',
+            changeLogs: [buildChangeLog({ tireSetId: 'active' })],
+          }),
+        ],
+      },
+      isLoading: false,
+    } as unknown as ReturnType<typeof hooks.useTireSets>);
+
+    const user = userEvent.setup();
+    const TireManager = (await import('../TireManager')).default;
+    render(<TireManager vehicleId="v1" />, { wrapper: createWrapper() });
+
+    await waitFor(() => {
+      expect(screen.queryByText('Loading tires...')).not.toBeInTheDocument();
+    });
+
+    await user.click(screen.getByRole('button', { name: /Swap/i }));
+
+    expect(toast.info).toHaveBeenCalledWith('Add another tire set first to swap.');
   });
 
   it('shows computed km when totalKm is 0 but history exists', async () => {

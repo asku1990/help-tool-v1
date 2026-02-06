@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Button,
   Card,
@@ -26,14 +26,16 @@ import {
   useDeleteTireChangeLog,
 } from '@/hooks';
 import { calculateTireUsage, formatDuration } from '@/utils';
+import { toast } from 'sonner';
+import { getUiErrorMessage } from '@/lib/api/client-errors';
 
 type TireManagerProps = {
   vehicleId: string;
 };
 
 export default function TireManager({ vehicleId }: TireManagerProps) {
-  const { data, isLoading } = useTireSets(vehicleId);
-  const { data: historyData } = useTireChangeHistory(vehicleId);
+  const { data, isLoading, error: tireSetsError } = useTireSets(vehicleId);
+  const { data: historyData, error: historyError } = useTireChangeHistory(vehicleId);
 
   const hasHistory = (historyData?.history.length ?? 0) > 0;
 
@@ -70,6 +72,7 @@ export default function TireManager({ vehicleId }: TireManagerProps) {
 
   // Collapsible swap history
   const [historyExpanded, setHistoryExpanded] = useState(false);
+  const lastQueryErrorSignatureRef = useRef<string | null>(null);
 
   // Mutations
   const createMutation = useCreateTireSet(vehicleId);
@@ -79,28 +82,56 @@ export default function TireManager({ vehicleId }: TireManagerProps) {
   const updateLogMutation = useUpdateTireChangeLog(vehicleId);
   const deleteLogMutation = useDeleteTireChangeLog(vehicleId);
 
+  useEffect(() => {
+    const queryError = tireSetsError ?? historyError;
+    if (!queryError) {
+      lastQueryErrorSignatureRef.current = null;
+      return;
+    }
+
+    const message = getUiErrorMessage(queryError, 'Failed to load tire data');
+    const signature =
+      queryError instanceof Error
+        ? `${queryError.name}:${queryError.message}`
+        : `unknown:${message}`;
+
+    if (lastQueryErrorSignatureRef.current === signature) return;
+    lastQueryErrorSignatureRef.current = signature;
+    toast.error(message);
+  }, [tireSetsError, historyError]);
+
   const handleCreate = async () => {
-    await createMutation.mutateAsync({
-      name: newName,
-      type: newType,
-      purchaseDate: newPurchaseDate || undefined,
-    });
-    setIsAddOpen(false);
-    setNewName('');
-    setNewType('SUMMER');
-    setNewPurchaseDate('');
+    try {
+      await createMutation.mutateAsync({
+        name: newName,
+        type: newType,
+        purchaseDate: newPurchaseDate || undefined,
+      });
+      setIsAddOpen(false);
+      setNewName('');
+      setNewType('SUMMER');
+      setNewPurchaseDate('');
+      toast.success('Tire set added');
+    } catch (error) {
+      toast.error(getUiErrorMessage(error, 'Failed to add tire set'));
+    }
   };
 
   const handleSwap = async () => {
-    await logChangeMutation.mutateAsync({
-      tireSetId: selectedTireSetId,
-      date: swapDate,
-      odometerKm: parseInt(swapOdometer, 10),
-    });
-    setIsSwapOpen(false);
-    setSwapOdometer('');
-    setSelectedTireSetId('');
-    setSwapDate(new Date().toISOString().slice(0, 10));
+    try {
+      await logChangeMutation.mutateAsync({
+        tireSetId: selectedTireSetId,
+        date: swapDate,
+        odometerKm: parseInt(swapOdometer, 10),
+      });
+      setIsSwapOpen(false);
+      setSwapOdometer('');
+      setSelectedTireSetId('');
+      setSwapDate(new Date().toISOString().slice(0, 10));
+      toast.success('Tire swap logged');
+    } catch (error) {
+      toast.error(getUiErrorMessage(error, 'Failed to swap tires'));
+    }
   };
 
   const activeTireSet = data?.tireSets.find(t => t.status === 'ACTIVE');
@@ -215,7 +246,17 @@ export default function TireManager({ vehicleId }: TireManagerProps) {
                   onChange={e => {
                     const newStatus = e.target.value as TireStatus;
                     if (newStatus !== 'ACTIVE' && activeTireSet) {
-                      updateMutation.mutate({ tireSetId: activeTireSet.id, status: newStatus });
+                      void (async () => {
+                        try {
+                          await updateMutation.mutateAsync({
+                            tireSetId: activeTireSet.id,
+                            status: newStatus,
+                          });
+                          toast.success('Tire status updated');
+                        } catch (error) {
+                          toast.error(getUiErrorMessage(error, 'Failed to update tire status'));
+                        }
+                      })();
                     }
                   }}
                 >
@@ -228,7 +269,7 @@ export default function TireManager({ vehicleId }: TireManagerProps) {
                   size="sm"
                   onClick={() => {
                     if (storedTireSets.length === 0) {
-                      alert('Add another tire set first to swap.');
+                      toast.info('Add another tire set first to swap.');
                       return;
                     }
                     if (latestOdometer != null) {
@@ -304,7 +345,17 @@ export default function TireManager({ vehicleId }: TireManagerProps) {
                           }
                           setIsSwapOpen(true);
                         } else {
-                          updateMutation.mutate({ tireSetId: set.id, status: newStatus });
+                          void (async () => {
+                            try {
+                              await updateMutation.mutateAsync({
+                                tireSetId: set.id,
+                                status: newStatus,
+                              });
+                              toast.success('Tire status updated');
+                            } catch (error) {
+                              toast.error(getUiErrorMessage(error, 'Failed to update tire status'));
+                            }
+                          })();
                         }
                       }}
                     >
@@ -316,9 +367,14 @@ export default function TireManager({ vehicleId }: TireManagerProps) {
                       variant="ghost"
                       size="sm"
                       className="text-red-500 hover:text-red-700"
-                      onClick={() => {
+                      onClick={async () => {
                         if (confirm('Delete this tire set permanently?')) {
-                          deleteMutation.mutate(set.id);
+                          try {
+                            await deleteMutation.mutateAsync(set.id);
+                            toast.success('Tire set deleted');
+                          } catch (error) {
+                            toast.error(getUiErrorMessage(error, 'Failed to delete tire set'));
+                          }
                         }
                       }}
                     >
@@ -376,7 +432,17 @@ export default function TireManager({ vehicleId }: TireManagerProps) {
                           }
                           setIsSwapOpen(true);
                         } else {
-                          updateMutation.mutate({ tireSetId: set.id, status: newStatus });
+                          void (async () => {
+                            try {
+                              await updateMutation.mutateAsync({
+                                tireSetId: set.id,
+                                status: newStatus,
+                              });
+                              toast.success('Tire status updated');
+                            } catch (error) {
+                              toast.error(getUiErrorMessage(error, 'Failed to update tire status'));
+                            }
+                          })();
                         }
                       }}
                     >
@@ -388,9 +454,14 @@ export default function TireManager({ vehicleId }: TireManagerProps) {
                       variant="ghost"
                       size="sm"
                       className="text-red-500 hover:text-red-700"
-                      onClick={() => {
+                      onClick={async () => {
                         if (confirm('Delete this tire set permanently?')) {
-                          deleteMutation.mutate(set.id);
+                          try {
+                            await deleteMutation.mutateAsync(set.id);
+                            toast.success('Tire set deleted');
+                          } catch (error) {
+                            toast.error(getUiErrorMessage(error, 'Failed to delete tire set'));
+                          }
                         }
                       }}
                     >
@@ -454,7 +525,14 @@ export default function TireManager({ vehicleId }: TireManagerProps) {
                           className="text-xs text-red-600 hover:underline"
                           onClick={async () => {
                             if (confirm('Delete this swap entry?')) {
-                              await deleteLogMutation.mutateAsync(log.id);
+                              try {
+                                await deleteLogMutation.mutateAsync(log.id);
+                                toast.success('Swap entry deleted');
+                              } catch (error) {
+                                toast.error(
+                                  getUiErrorMessage(error, 'Failed to delete swap entry')
+                                );
+                              }
                             }
                           }}
                         >
@@ -501,13 +579,18 @@ export default function TireManager({ vehicleId }: TireManagerProps) {
                     !editingLog.date || !editingLog.odometerKm || updateLogMutation.isPending
                   }
                   onClick={async () => {
-                    await updateLogMutation.mutateAsync({
-                      logId: editingLog.id,
-                      date: editingLog.date,
-                      odometerKm: parseInt(editingLog.odometerKm, 10),
-                    });
-                    setIsEditLogOpen(false);
-                    setEditingLog(null);
+                    try {
+                      await updateLogMutation.mutateAsync({
+                        logId: editingLog.id,
+                        date: editingLog.date,
+                        odometerKm: parseInt(editingLog.odometerKm, 10),
+                      });
+                      setIsEditLogOpen(false);
+                      setEditingLog(null);
+                      toast.success('Swap entry updated');
+                    } catch (error) {
+                      toast.error(getUiErrorMessage(error, 'Failed to update swap entry'));
+                    }
                   }}
                 >
                   {updateLogMutation.isPending ? 'Saving...' : 'Save Changes'}

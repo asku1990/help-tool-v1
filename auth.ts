@@ -6,7 +6,7 @@ import { logger } from '@/lib/logger';
 
 interface GoogleProfile {
   email: string;
-  email_verified?: boolean;
+  email_verified: boolean;
   name?: string;
 }
 
@@ -98,7 +98,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           throw new Error('No email found from Google');
         }
 
-        if (googleProfile.email_verified === false) {
+        if (googleProfile.email_verified !== true) {
           throw new Error('Email address is not verified');
         }
 

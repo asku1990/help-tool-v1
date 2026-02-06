@@ -5,31 +5,32 @@ import { ok, unauthorized, notFound, serverError, badRequest } from '@/lib/api/r
 import { logger } from '@/lib/logger';
 import { z } from 'zod';
 import { checkRateLimit, rateLimitHeaders, rateLimitKey } from '@/lib/api/rate-limit';
+import { getSessionUserId, getVehicleAccess, hasPermission } from '@/lib/api/vehicle-access';
 
 export async function GET(_req: NextRequest, context: { params: Promise<{ vehicleId: string }> }) {
   try {
     const session = await auth();
-    if (!session?.user?.email) {
+    const userId = await getSessionUserId(session);
+    if (!userId) {
       return unauthorized();
     }
 
     const { vehicleId } = await context.params;
 
-    const vehicle = await prisma.vehicle.findFirst({
-      where: { id: vehicleId, user: { email: session.user.email } },
-      select: {
-        id: true,
-        name: true,
-        make: true,
-        model: true,
-        year: true,
-        licensePlate: true,
-        inspectionDueDate: true,
-        inspectionIntervalMonths: true,
-        initialOdometer: true,
-      },
-    });
-    if (!vehicle) return notFound();
+    const access = await getVehicleAccess(vehicleId, userId);
+    if (!access || !hasPermission(access.role, 'read')) return notFound();
+
+    const vehicle = {
+      id: access.vehicle.id,
+      name: access.vehicle.name,
+      make: access.vehicle.make,
+      model: access.vehicle.model,
+      year: access.vehicle.year,
+      licensePlate: access.vehicle.licensePlate,
+      inspectionDueDate: access.vehicle.inspectionDueDate,
+      inspectionIntervalMonths: access.vehicle.inspectionIntervalMonths,
+      initialOdometer: access.vehicle.initialOdometer,
+    };
 
     return ok({ vehicle }, { headers: { 'Cache-Control': 'no-store' } });
   } catch (error) {
@@ -62,7 +63,8 @@ const UpdateVehicleSchema = z.object({
 export async function PATCH(req: NextRequest, context: { params: Promise<{ vehicleId: string }> }) {
   try {
     const session = await auth();
-    if (!session?.user?.email) {
+    const userId = await getSessionUserId(session);
+    if (!userId) {
       return unauthorized();
     }
     const { vehicleId } = await context.params;
@@ -72,11 +74,8 @@ export async function PATCH(req: NextRequest, context: { params: Promise<{ vehic
       return badRequest('VALIDATION_ERROR', 'Invalid request body', parsed.error.flatten());
     }
     const data = parsed.data;
-    const owner = await prisma.vehicle.findFirst({
-      where: { id: vehicleId, user: { email: session.user.email } },
-      select: { id: true },
-    });
-    if (!owner) return notFound();
+    const access = await getVehicleAccess(vehicleId, userId);
+    if (!access || !hasPermission(access.role, 'admin')) return notFound();
 
     const updated = await prisma.vehicle.update({
       where: { id: vehicleId },
@@ -127,19 +126,17 @@ export async function DELETE(
     }
 
     const session = await auth();
-    if (!session?.user?.email) {
+    const userId = await getSessionUserId(session);
+    if (!userId) {
       return unauthorized();
     }
 
     const { vehicleId } = await context.params;
 
-    const vehicle = await prisma.vehicle.findFirst({
-      where: { id: vehicleId, user: { email: session.user.email } },
-      select: { id: true },
-    });
-    if (!vehicle) return notFound();
+    const access = await getVehicleAccess(vehicleId, userId);
+    if (!access || !hasPermission(access.role, 'admin')) return notFound();
 
-    const deleted = await prisma.vehicle.delete({ where: { id: vehicle.id } });
+    const deleted = await prisma.vehicle.delete({ where: { id: access.vehicle.id } });
     return ok({ id: deleted.id });
   } catch (error) {
     logger.error('DELETE /api/vehicles/[vehicleId] failed', { error });

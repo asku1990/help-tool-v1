@@ -11,16 +11,19 @@ import {
   DialogTitle,
   Card,
   CardContent,
+  Toaster,
 } from '@/components/ui';
 import { Car, Plus } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { useVehicles } from '@/hooks';
+import { useVehicles, useIsAdmin } from '@/hooks';
 import { apiPost } from '@/lib/api/client';
 import { useUiStore } from '@/stores/ui';
 import PageHeader from '@/components/layout/PageHeader';
 import { computeInspectionStatus } from '@/utils';
 import { VehicleListSkeleton } from '@/components/car';
 import { RestoreBackupDialog } from '@/components/car/imports';
+import { toast } from 'sonner';
+import { getUiErrorMessage } from '@/lib/api/client-errors';
 
 export default function CarHomePage() {
   const { status } = useSession();
@@ -71,6 +74,8 @@ export default function CarHomePage() {
     isLoading: isVehiclesLoading,
     refetch: refetchVehicles,
   } = useVehicles(status === 'authenticated' || isDemo);
+  const { data: adminData } = useIsAdmin(status === 'authenticated' || isDemo);
+  const isAdmin = adminData?.isAdmin === true;
 
   useEffect(() => {
     if (vehiclesData?.vehicles) setVehicles(vehiclesData.vehicles);
@@ -89,8 +94,18 @@ export default function CarHomePage() {
       <PageHeader
         title="Car Expenses"
         icon={<Car className="w-6 h-6" />}
-        backHref="/dashboard"
-        backLabel="Back to dashboard"
+        right={
+          <div className="flex items-center gap-3">
+            <Link href="/dashboard" className="text-sm text-blue-600 hover:underline">
+              Back to dashboard
+            </Link>
+            {isAdmin ? (
+              <Link href="/car/admin" className="text-sm text-blue-600 hover:underline">
+                Admin
+              </Link>
+            ) : null}
+          </div>
+        }
       />
 
       <main className="container mx-auto px-4 py-8">
@@ -201,6 +216,7 @@ export default function CarHomePage() {
                       ? parseInt(form.initialOdometer, 10)
                       : undefined,
                   });
+                  toast.success('Vehicle created');
                   setOpen(false);
                   setForm({
                     name: '',
@@ -213,6 +229,8 @@ export default function CarHomePage() {
                     initialOdometer: '',
                   });
                   await refetchVehicles();
+                } catch (error) {
+                  toast.error(getUiErrorMessage(error, 'Failed to create vehicle'));
                 } finally {
                   setLoading(false);
                 }
@@ -314,6 +332,7 @@ export default function CarHomePage() {
           </DialogContent>
         </Dialog>
       </main>
+      <Toaster />
     </div>
   );
 }

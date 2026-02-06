@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { ok, created, unauthorized, badRequest, notFound, serverError } from '@/lib/api/response';
 import { checkRateLimit, rateLimitHeaders, rateLimitKey } from '@/lib/api/rate-limit';
 import { logger } from '@/lib/logger';
+import { getSessionUserId } from '@/lib/api/vehicle-access';
 
 export async function GET(req: NextRequest): Promise<Response> {
   try {
@@ -16,15 +17,13 @@ export async function GET(req: NextRequest): Promise<Response> {
         headers: rateLimitHeaders(rl.retryAfterMs),
       });
     const session = await auth();
-    if (!session?.user?.email) {
+    const userId = await getSessionUserId(session);
+    if (!userId) {
       return unauthorized();
     }
 
-    const user = await prisma.user.findUnique({ where: { email: session.user.email } });
-    if (!user) return ok({ vehicles: [] }, { headers: { 'Cache-Control': 'no-store' } });
-
     const vehicles = await prisma.vehicle.findMany({
-      where: { userId: user.id },
+      where: { access: { some: { userId } } },
       orderBy: { createdAt: 'desc' },
       select: {
         id: true,
@@ -75,7 +74,8 @@ export async function POST(req: NextRequest) {
         headers: rateLimitHeaders(rl.retryAfterMs),
       });
     const session = await auth();
-    if (!session?.user?.email) {
+    const userId = await getSessionUserId(session);
+    if (!userId) {
       return unauthorized();
     }
 
@@ -94,23 +94,35 @@ export async function POST(req: NextRequest) {
       initialOdometer,
     } = parsed.data;
 
-    const user = await prisma.user.findUnique({ where: { email: session.user.email } });
+    const user = await prisma.user.findUnique({ where: { id: userId }, select: { id: true } });
     if (!user) return notFound('User not found');
 
-    const createdVehicle = await prisma.vehicle.create({
-      data: {
-        userId: user.id,
-        name: name.trim(),
-        make: make?.trim() || undefined,
-        model: model?.trim() || undefined,
-        year: typeof year === 'number' ? year : undefined,
-        licensePlate: licensePlate?.trim() || undefined,
-        inspectionDueDate: inspectionDueDate ? new Date(inspectionDueDate) : undefined,
-        inspectionIntervalMonths:
-          typeof inspectionIntervalMonths === 'number' ? inspectionIntervalMonths : undefined,
-        initialOdometer: typeof initialOdometer === 'number' ? initialOdometer : undefined,
-      },
-      select: { id: true },
+    const createdVehicle = await prisma.$transaction(async tx => {
+      const vehicle = await tx.vehicle.create({
+        data: {
+          userId: user.id,
+          name: name.trim(),
+          make: make?.trim() || undefined,
+          model: model?.trim() || undefined,
+          year: typeof year === 'number' ? year : undefined,
+          licensePlate: licensePlate?.trim() || undefined,
+          inspectionDueDate: inspectionDueDate ? new Date(inspectionDueDate) : undefined,
+          inspectionIntervalMonths:
+            typeof inspectionIntervalMonths === 'number' ? inspectionIntervalMonths : undefined,
+          initialOdometer: typeof initialOdometer === 'number' ? initialOdometer : undefined,
+        },
+        select: { id: true },
+      });
+
+      await tx.vehicleAccess.create({
+        data: {
+          vehicleId: vehicle.id,
+          userId: user.id,
+          role: 'OWNER',
+        },
+      });
+
+      return vehicle;
     });
 
     return created({ id: createdVehicle.id });

@@ -12,6 +12,7 @@ import {
   DialogTrigger,
   Card,
   CardContent,
+  Toaster,
 } from '@/components/ui';
 import { useEffect, useMemo, useState } from 'react';
 import FillUpForm from '@/components/car/FillUpForm';
@@ -37,6 +38,8 @@ import {
 } from '@/hooks';
 import { pickLastInspectionDateFromExpenses, computeInspectionStatus } from '@/utils';
 import { useUiStore } from '@/stores/ui';
+import { toast } from 'sonner';
+import { getUiErrorMessage } from '@/lib/api/client-errors';
 
 import PageHeader from '@/components/layout/PageHeader';
 
@@ -235,9 +238,14 @@ export default function VehiclePage() {
                     disabled={deleteVehicleMutation.isPending}
                     onClick={async () => {
                       if (!vehicleId) return;
-                      await deleteVehicleMutation.mutateAsync();
-                      setDeleteOpen(false);
-                      router.push('/car');
+                      try {
+                        await deleteVehicleMutation.mutateAsync();
+                        toast.success('Vehicle deleted');
+                        setDeleteOpen(false);
+                        router.push('/car');
+                      } catch (error) {
+                        toast.error(getUiErrorMessage(error, 'Failed to delete vehicle'));
+                      }
                     }}
                   >
                     {deleteVehicleMutation.isPending ? 'Deleting…' : 'Delete'}
@@ -377,21 +385,26 @@ export default function VehiclePage() {
             className="space-y-4"
             onSubmit={async e => {
               e.preventDefault();
-              await updateVehicleMutation.mutateAsync({
-                name: editForm.name || undefined,
-                make: editForm.make || undefined,
-                model: editForm.model || undefined,
-                year: editForm.year ? parseInt(editForm.year, 10) : undefined,
-                licensePlate: editForm.licensePlate || null,
-                inspectionDueDate: editForm.inspectionDueDate || null,
-                inspectionIntervalMonths: editForm.inspectionIntervalMonths
-                  ? parseInt(editForm.inspectionIntervalMonths, 10)
-                  : null,
-                initialOdometer: editForm.initialOdometer
-                  ? parseInt(editForm.initialOdometer, 10)
-                  : null,
-              });
-              setEditOpen(false);
+              try {
+                await updateVehicleMutation.mutateAsync({
+                  name: editForm.name || undefined,
+                  make: editForm.make || undefined,
+                  model: editForm.model || undefined,
+                  year: editForm.year ? parseInt(editForm.year, 10) : undefined,
+                  licensePlate: editForm.licensePlate || null,
+                  inspectionDueDate: editForm.inspectionDueDate || null,
+                  inspectionIntervalMonths: editForm.inspectionIntervalMonths
+                    ? parseInt(editForm.inspectionIntervalMonths, 10)
+                    : null,
+                  initialOdometer: editForm.initialOdometer
+                    ? parseInt(editForm.initialOdometer, 10)
+                    : null,
+                });
+                toast.success('Vehicle updated');
+                setEditOpen(false);
+              } catch (error) {
+                toast.error(getUiErrorMessage(error, 'Failed to update vehicle'));
+              }
             }}
           >
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -497,6 +510,7 @@ export default function VehiclePage() {
           </form>
         </DialogContent>
       </Dialog>
+      <Toaster />
     </div>
   );
 }

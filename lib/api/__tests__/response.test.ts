@@ -1,4 +1,12 @@
-import { ok, created, badRequest, unauthorized, notFound, serverError } from '@/lib/api/response';
+import {
+  ok,
+  created,
+  badRequest,
+  unauthorized,
+  forbidden,
+  notFound,
+  serverError,
+} from '@/lib/api/response';
 
 it('ok returns 200 with data', async () => {
   const res = ok({ x: 1 }, { headers: { 'Cache-Control': 'no-store' } });
@@ -21,6 +29,7 @@ it('badRequest carries code and message', async () => {
 
 it('unauthorized and notFound and serverError have expected status', async () => {
   expect(unauthorized().status).toBe(401);
+  expect(forbidden().status).toBe(403);
   expect(notFound().status).toBe(404);
   expect(serverError().status).toBe(500);
 });
