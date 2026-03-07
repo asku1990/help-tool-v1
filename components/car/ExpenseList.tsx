@@ -6,6 +6,8 @@ import { Button, Dialog, DialogContent, DialogHeader, DialogTitle } from '@/comp
 import { ExpenseListSkeleton } from '@/components/car';
 import { useUiStore } from '@/stores/ui';
 import { formatDateFi } from '@/utils';
+import { toast } from 'sonner';
+import { getUiErrorMessage } from '@/lib/api/client-errors';
 
 export default function ExpenseList({ vehicleId }: { vehicleId: string }) {
   const { data, isLoading, isError, error, hasNextPage, fetchNextPage, isFetchingNextPage } =
@@ -152,27 +154,32 @@ function EditExpenseButton({
             className="space-y-4"
             onSubmit={async e => {
               e.preventDefault();
-              await update.mutateAsync({
-                date: state.date,
-                category: state.category as
-                  | 'FUEL'
-                  | 'MAINTENANCE'
-                  | 'INSURANCE'
-                  | 'TAX'
-                  | 'PARKING'
-                  | 'TOLL'
-                  | 'OIL_CHANGE'
-                  | 'OIL_TOP_UP'
-                  | 'INSPECTION'
-                  | 'TIRES'
-                  | 'OTHER',
-                amount: parseFloat(state.amount.replace(',', '.')),
-                vendor: state.vendor || null,
-                odometerKm: state.odometerKm ? parseInt(state.odometerKm, 10) : null,
-                liters: state.liters ? parseFloat(state.liters.replace(',', '.')) : null,
-                notes: state.notes || null,
-              });
-              setOpen(false);
+              try {
+                await update.mutateAsync({
+                  date: state.date,
+                  category: state.category as
+                    | 'FUEL'
+                    | 'MAINTENANCE'
+                    | 'INSURANCE'
+                    | 'TAX'
+                    | 'PARKING'
+                    | 'TOLL'
+                    | 'OIL_CHANGE'
+                    | 'OIL_TOP_UP'
+                    | 'INSPECTION'
+                    | 'TIRES'
+                    | 'OTHER',
+                  amount: parseFloat(state.amount.replace(',', '.')),
+                  vendor: state.vendor || null,
+                  odometerKm: state.odometerKm ? parseInt(state.odometerKm, 10) : null,
+                  liters: state.liters ? parseFloat(state.liters.replace(',', '.')) : null,
+                  notes: state.notes || null,
+                });
+                toast.success('Expense updated');
+                setOpen(false);
+              } catch (error) {
+                toast.error(getUiErrorMessage(error, 'Failed to update expense'));
+              }
             }}
           >
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -286,7 +293,12 @@ function DeleteExpenseButton({ vehicleId, expenseId }: { vehicleId: string; expe
       className="text-xs px-2 py-1 rounded border"
       onClick={async () => {
         if (!confirm('Delete this expense?')) return;
-        await del.mutateAsync();
+        try {
+          await del.mutateAsync();
+          toast.success('Expense deleted');
+        } catch (error) {
+          toast.error(getUiErrorMessage(error, 'Failed to delete expense'));
+        }
       }}
       disabled={del.isPending}
     >

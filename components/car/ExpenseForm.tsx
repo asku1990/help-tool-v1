@@ -9,6 +9,8 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui';
+import { toast } from 'sonner';
+import { getUiErrorMessage } from '@/lib/api/client-errors';
 
 import { expenseCategories, type ExpenseCategory, addMonths } from '@/utils';
 
@@ -132,6 +134,7 @@ export default function ExpenseForm({ vehicleId, onCreated }: ExpenseFormProps) 
               : null,
         });
       }
+      toast.success('Expense saved');
       onCreated?.();
       setOpen(false);
       setAmount('');
@@ -142,6 +145,8 @@ export default function ExpenseForm({ vehicleId, onCreated }: ExpenseFormProps) 
       setNextInspectionDue('');
       setInspectionDueEdited(false);
       setIntervalMonthsInput('');
+    } catch (error) {
+      toast.error(getUiErrorMessage(error, 'Failed to save expense'));
     } finally {
       setSubmitting(false);
     }

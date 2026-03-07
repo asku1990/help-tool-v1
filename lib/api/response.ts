@@ -50,6 +50,11 @@ export function unauthorized(
   return Response.json(body, withDefaults(init, { status: 401 }));
 }
 
+export function forbidden(message = 'Forbidden', details?: unknown, init?: ResponseInit): Response {
+  const body: ApiEnvelope<null> = { data: null, error: { code: 'FORBIDDEN', message, details } };
+  return Response.json(body, withDefaults(init, { status: 403 }));
+}
+
 export function notFound(message = 'Not found', details?: unknown, init?: ResponseInit): Response {
   const body: ApiEnvelope<null> = { data: null, error: { code: 'NOT_FOUND', message, details } };
   return Response.json(body, withDefaults(init, { status: 404 }));

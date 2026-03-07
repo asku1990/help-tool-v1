@@ -4,6 +4,7 @@ import prisma from '@/lib/db';
 import { checkRateLimit, rateLimitHeaders, rateLimitKey } from '@/lib/api/rate-limit';
 import { logger } from '@/lib/logger';
 import { ok, unauthorized, notFound, serverError } from '@/lib/api/response';
+import { getSessionUserId, getVehicleAccess, hasPermission } from '@/lib/api/vehicle-access';
 
 export async function DELETE(
   req: NextRequest,
@@ -19,19 +20,15 @@ export async function DELETE(
     }
 
     const session = await auth();
-    if (!session?.user?.email) {
+    const userId = await getSessionUserId(session);
+    if (!userId) {
       return unauthorized();
     }
 
     const { vehicleId } = await context.params;
 
-    // Verify vehicle ownership
-    const vehicle = await prisma.vehicle.findFirst({
-      where: { id: vehicleId, user: { email: session.user.email } },
-      select: { id: true },
-    });
-
-    if (!vehicle) {
+    const access = await getVehicleAccess(vehicleId, userId);
+    if (!access || !hasPermission(access.role, 'admin')) {
       return notFound('Vehicle not found');
     }
 
@@ -40,22 +37,22 @@ export async function DELETE(
     const result = await prisma.$transaction(async tx => {
       // Delete tire change logs first (references tire sets)
       const deletedChangeLogs = await tx.tireChangeLog.deleteMany({
-        where: { vehicleId: vehicle.id },
+        where: { vehicleId: access.vehicle.id },
       });
 
       // Delete tire sets
       const deletedTireSets = await tx.tireSet.deleteMany({
-        where: { vehicleId: vehicle.id },
+        where: { vehicleId: access.vehicle.id },
       });
 
       // Delete expenses
       const deletedExpenses = await tx.expense.deleteMany({
-        where: { vehicleId: vehicle.id },
+        where: { vehicleId: access.vehicle.id },
       });
 
       // Delete fill-ups
       const deletedFillUps = await tx.fuelFillUp.deleteMany({
-        where: { vehicleId: vehicle.id },
+        where: { vehicleId: access.vehicle.id },
       });
 
       return {

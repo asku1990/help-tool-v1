@@ -4,6 +4,7 @@ import prisma from '@/lib/db';
 import { z } from 'zod';
 import { ok, unauthorized, notFound, badRequest, serverError } from '@/lib/api/response';
 import { logger } from '@/lib/logger';
+import { getSessionUserId, canAccessVehicle } from '@/lib/api/vehicle-access';
 
 const UpdateSchema = z.object({
   date: z.string().min(1, 'Date cannot be empty').optional(),
@@ -21,17 +22,15 @@ export async function PATCH(
 ) {
   try {
     const session = await auth();
-    if (!session?.user?.email) return unauthorized();
+    const userId = await getSessionUserId(session);
+    if (!userId) return unauthorized();
     const { vehicleId, fillUpId } = await context.params;
     const parsed = UpdateSchema.safeParse(await req.json());
     if (!parsed.success)
       return badRequest('VALIDATION_ERROR', 'Invalid request body', parsed.error.flatten());
 
-    const vehicle = await prisma.vehicle.findFirst({
-      where: { id: vehicleId, user: { email: session.user.email } },
-      select: { id: true },
-    });
-    if (!vehicle) return notFound();
+    const canWrite = await canAccessVehicle(vehicleId, userId, 'write');
+    if (!canWrite) return notFound();
 
     const updated = await prisma.fuelFillUp.update({
       where: { id: fillUpId },
@@ -66,13 +65,11 @@ export async function DELETE(
 ) {
   try {
     const session = await auth();
-    if (!session?.user?.email) return unauthorized();
+    const userId = await getSessionUserId(session);
+    if (!userId) return unauthorized();
     const { vehicleId, fillUpId } = await context.params;
-    const vehicle = await prisma.vehicle.findFirst({
-      where: { id: vehicleId, user: { email: session.user.email } },
-      select: { id: true },
-    });
-    if (!vehicle) return notFound();
+    const canWrite = await canAccessVehicle(vehicleId, userId, 'write');
+    if (!canWrite) return notFound();
     await prisma.fuelFillUp.delete({ where: { id: fillUpId } });
     return ok({ id: fillUpId });
   } catch (error) {

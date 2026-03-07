@@ -10,6 +10,8 @@ import {
   DialogTrigger,
 } from '@/components/ui';
 import { useImportTires } from '@/hooks/tires';
+import { toast } from 'sonner';
+import { getUiErrorMessage } from '@/lib/api/client-errors';
 import { splitSemicolonCsv, tryParseDate, parseTireType, parseTireStatus } from '@/utils/csv';
 import type { TireType, TireStatus } from '@/queries/tires';
 
@@ -210,8 +212,7 @@ export default function ImportTiresDialog({
 
       const activeTireSets = tireSets.filter(r => r.include && r.valid && r.status === 'ACTIVE');
       if (activeTireSets.length > 1) {
-        alert('Only one tire set can be ACTIVE. Please set others to STORED or RETIRED.');
-        setIsImporting(false);
+        toast.error('Only one tire set can be ACTIVE. Please set others to STORED or RETIRED.');
         return;
       }
 
@@ -242,11 +243,14 @@ export default function ImportTiresDialog({
         changeLogs: changeLogPayload,
         tireSetIdMap,
       });
+      toast.success('Tire data imported');
       onImported?.();
       setOpen(false);
       setText('');
       setTireSets([]);
       setChangeLogs([]);
+    } catch (error) {
+      toast.error(getUiErrorMessage(error, 'Failed to import tire data'));
     } finally {
       setIsImporting(false);
     }

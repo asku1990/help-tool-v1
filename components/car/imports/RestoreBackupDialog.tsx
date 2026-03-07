@@ -15,12 +15,14 @@ import {
   useImportExpensesToVehicle,
   useImportTiresToVehicle,
 } from '@/hooks';
+import { toast } from 'sonner';
 import { parseBackupCsv, type ParsedBackupData } from '@/utils/csv';
 import { FillUpsPreviewTable } from './fillups';
 import { ExpensesPreviewTable } from './expenses';
 import { TiresPreviewTable } from './tires';
 import { VehiclePreview, type RestoreMode } from './vehicle';
 import { apiPost } from '@/lib/api/client';
+import { getUiErrorMessage } from '@/lib/api/client-errors';
 
 type Props = {
   /** When provided, imports directly into this vehicle (skips vehicle selection) */
@@ -125,6 +127,11 @@ export default function RestoreBackupDialog({
         setActiveTab('vehicle');
         setRestoreMode('pending');
       }
+      setRestoreStatus('');
+    } catch (error) {
+      const message = getUiErrorMessage(error, 'Failed to parse backup CSV');
+      setRestoreStatus(`Error: ${message}`);
+      toast.error(message);
     } finally {
       setIsParsing(false);
     }
@@ -239,6 +246,7 @@ export default function RestoreBackupDialog({
       }
 
       setRestoreStatus('Import complete!');
+      toast.success('Backup restored successfully');
       onRestored?.();
       setTimeout(() => {
         setOpen(false);
@@ -246,7 +254,9 @@ export default function RestoreBackupDialog({
         setData({ fillUps: [], expenses: [], tireSets: [], changeLogs: [] });
       }, 1000);
     } catch (error) {
-      setRestoreStatus(`Error: ${error instanceof Error ? error.message : 'Import failed'}`);
+      const message = getUiErrorMessage(error, 'Import failed');
+      setRestoreStatus(`Error: ${message}`);
+      toast.error(message);
     } finally {
       setIsRestoring(false);
     }

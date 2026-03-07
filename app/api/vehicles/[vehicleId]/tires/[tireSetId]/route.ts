@@ -4,35 +4,30 @@ import { auth } from '@/auth';
 import prisma from '@/lib/db';
 import { badRequest, notFound, ok, serverError, unauthorized } from '@/lib/api/response';
 import { logger } from '@/lib/logger';
+import { getSessionUserId, getVehicleAccess, hasPermission } from '@/lib/api/vehicle-access';
 
 type RouteContext = { params: Promise<{ vehicleId: string; tireSetId: string }> };
 
-async function getVehicleAndTireSet(vehicleId: string, tireSetId: string, userEmail: string) {
-  const vehicle = await prisma.vehicle.findFirst({
-    where: { id: vehicleId, user: { email: userEmail } },
-    select: { id: true },
-  });
-  if (!vehicle) return { vehicle: null, tireSet: null };
+async function getVehicleAndTireSet(vehicleId: string, tireSetId: string, userId: string) {
+  const access = await getVehicleAccess(vehicleId, userId);
+  if (!access) return { vehicle: null, tireSet: null, role: null };
 
   const tireSet = await prisma.tireSet.findFirst({
-    where: { id: tireSetId, vehicleId: vehicle.id },
+    where: { id: tireSetId, vehicleId: access.vehicle.id },
   });
-  return { vehicle, tireSet };
+  return { vehicle: access.vehicle, tireSet, role: access.role };
 }
 
 export async function GET(_req: NextRequest, context: RouteContext) {
   try {
     const session = await auth();
-    if (!session?.user?.email) return unauthorized();
+    const userId = await getSessionUserId(session);
+    if (!userId) return unauthorized();
 
     const { vehicleId, tireSetId } = await context.params;
-    const { vehicle, tireSet } = await getVehicleAndTireSet(
-      vehicleId,
-      tireSetId,
-      session.user.email
-    );
+    const { vehicle, tireSet, role } = await getVehicleAndTireSet(vehicleId, tireSetId, userId);
 
-    if (!vehicle) return notFound('Vehicle not found');
+    if (!vehicle || !role || !hasPermission(role, 'read')) return notFound('Vehicle not found');
     if (!tireSet) return notFound('Tire set not found');
 
     return ok({
@@ -64,16 +59,13 @@ const UpdateTireSetSchema = z.object({
 export async function PATCH(req: NextRequest, context: RouteContext) {
   try {
     const session = await auth();
-    if (!session?.user?.email) return unauthorized();
+    const userId = await getSessionUserId(session);
+    if (!userId) return unauthorized();
 
     const { vehicleId, tireSetId } = await context.params;
-    const { vehicle, tireSet } = await getVehicleAndTireSet(
-      vehicleId,
-      tireSetId,
-      session.user.email
-    );
+    const { vehicle, tireSet, role } = await getVehicleAndTireSet(vehicleId, tireSetId, userId);
 
-    if (!vehicle) return notFound('Vehicle not found');
+    if (!vehicle || !role || !hasPermission(role, 'write')) return notFound('Vehicle not found');
     if (!tireSet) return notFound('Tire set not found');
 
     const body = await req.json();
@@ -122,16 +114,13 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
 export async function DELETE(_req: NextRequest, context: RouteContext) {
   try {
     const session = await auth();
-    if (!session?.user?.email) return unauthorized();
+    const userId = await getSessionUserId(session);
+    if (!userId) return unauthorized();
 
     const { vehicleId, tireSetId } = await context.params;
-    const { vehicle, tireSet } = await getVehicleAndTireSet(
-      vehicleId,
-      tireSetId,
-      session.user.email
-    );
+    const { vehicle, tireSet, role } = await getVehicleAndTireSet(vehicleId, tireSetId, userId);
 
-    if (!vehicle) return notFound('Vehicle not found');
+    if (!vehicle || !role || !hasPermission(role, 'write')) return notFound('Vehicle not found');
     if (!tireSet) return notFound('Tire set not found');
 
     await prisma.tireSet.delete({

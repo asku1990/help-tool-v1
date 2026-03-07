@@ -82,7 +82,7 @@ export default function Page() {
                 <DialogDescription>
                   {session
                     ? 'Manage your account settings'
-                    : 'Sign in with your GitHub account to access your tools.'}
+                    : 'Sign in with your Google account to access your tools.'}
                 </DialogDescription>
               </DialogHeader>
               <div className="mt-4">{session ? <SignOutButton /> : <SignInButton />}</div>

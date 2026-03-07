@@ -4,32 +4,31 @@ import { auth } from '@/auth';
 import prisma from '@/lib/db';
 import { badRequest, notFound, ok, serverError, unauthorized } from '@/lib/api/response';
 import { logger } from '@/lib/logger';
+import { getSessionUserId, getVehicleAccess, hasPermission } from '@/lib/api/vehicle-access';
 
 type RouteContext = { params: Promise<{ vehicleId: string; logId: string }> };
 
-async function getVehicleAndLog(vehicleId: string, logId: string, userEmail: string) {
-  const vehicle = await prisma.vehicle.findFirst({
-    where: { id: vehicleId, user: { email: userEmail } },
-    select: { id: true },
-  });
-  if (!vehicle) return { vehicle: null, log: null };
+async function getVehicleAndLog(vehicleId: string, logId: string, userId: string) {
+  const access = await getVehicleAccess(vehicleId, userId);
+  if (!access) return { vehicle: null, log: null, role: null };
 
   const log = await prisma.tireChangeLog.findFirst({
-    where: { id: logId, vehicleId: vehicle.id },
+    where: { id: logId, vehicleId: access.vehicle.id },
     include: { tireSet: true },
   });
-  return { vehicle, log };
+  return { vehicle: access.vehicle, log, role: access.role };
 }
 
 export async function GET(_req: NextRequest, context: RouteContext) {
   try {
     const session = await auth();
-    if (!session?.user?.email) return unauthorized();
+    const userId = await getSessionUserId(session);
+    if (!userId) return unauthorized();
 
     const { vehicleId, logId } = await context.params;
-    const { vehicle, log } = await getVehicleAndLog(vehicleId, logId, session.user.email);
+    const { vehicle, log, role } = await getVehicleAndLog(vehicleId, logId, userId);
 
-    if (!vehicle) return notFound('Vehicle not found');
+    if (!vehicle || !role || !hasPermission(role, 'read')) return notFound('Vehicle not found');
     if (!log) return notFound('Change log not found');
 
     return ok({ log });
@@ -51,12 +50,13 @@ const UpdateLogSchema = z.object({
 export async function PATCH(req: NextRequest, context: RouteContext) {
   try {
     const session = await auth();
-    if (!session?.user?.email) return unauthorized();
+    const userId = await getSessionUserId(session);
+    if (!userId) return unauthorized();
 
     const { vehicleId, logId } = await context.params;
-    const { vehicle, log } = await getVehicleAndLog(vehicleId, logId, session.user.email);
+    const { vehicle, log, role } = await getVehicleAndLog(vehicleId, logId, userId);
 
-    if (!vehicle) return notFound('Vehicle not found');
+    if (!vehicle || !role || !hasPermission(role, 'write')) return notFound('Vehicle not found');
     if (!log) return notFound('Change log not found');
 
     const body = await req.json();
@@ -87,12 +87,13 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
 export async function DELETE(_req: NextRequest, context: RouteContext) {
   try {
     const session = await auth();
-    if (!session?.user?.email) return unauthorized();
+    const userId = await getSessionUserId(session);
+    if (!userId) return unauthorized();
 
     const { vehicleId, logId } = await context.params;
-    const { vehicle, log } = await getVehicleAndLog(vehicleId, logId, session.user.email);
+    const { vehicle, log, role } = await getVehicleAndLog(vehicleId, logId, userId);
 
-    if (!vehicle) return notFound('Vehicle not found');
+    if (!vehicle || !role || !hasPermission(role, 'write')) return notFound('Vehicle not found');
     if (!log) return notFound('Change log not found');
 
     await prisma.tireChangeLog.delete({

@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { ok, unauthorized, notFound, badRequest, serverError } from '@/lib/api/response';
 import { logger } from '@/lib/logger';
 import { decimalToNumber } from '@/lib/prisma/decimal';
+import { getSessionUserId, getVehicleAccess, hasPermission } from '@/lib/api/vehicle-access';
 
 const UpdateSchema = z.object({
   date: z.string().min(1, 'Date cannot be empty').optional(),
@@ -36,17 +37,16 @@ export async function PATCH(
 ) {
   try {
     const session = await auth();
-    if (!session?.user?.email) return unauthorized();
+    const userId = await getSessionUserId(session);
+    if (!userId) return unauthorized();
     const { vehicleId, expenseId } = await context.params;
     const parsed = UpdateSchema.safeParse(await req.json());
     if (!parsed.success)
       return badRequest('VALIDATION_ERROR', 'Invalid request body', parsed.error.flatten());
 
-    const vehicle = await prisma.vehicle.findFirst({
-      where: { id: vehicleId, user: { email: session.user.email } },
-      select: { id: true },
-    });
-    if (!vehicle) return notFound();
+    const access = await getVehicleAccess(vehicleId, userId);
+    if (!access || !hasPermission(access.role, 'write')) return notFound();
+    const vehicle = access.vehicle;
 
     const existingExpense = await prisma.expense.findFirst({
       where: { id: expenseId, vehicleId: vehicle.id },
@@ -155,13 +155,11 @@ export async function DELETE(
 ) {
   try {
     const session = await auth();
-    if (!session?.user?.email) return unauthorized();
+    const userId = await getSessionUserId(session);
+    if (!userId) return unauthorized();
     const { vehicleId, expenseId } = await context.params;
-    const vehicle = await prisma.vehicle.findFirst({
-      where: { id: vehicleId, user: { email: session.user.email } },
-      select: { id: true },
-    });
-    if (!vehicle) return notFound();
+    const access = await getVehicleAccess(vehicleId, userId);
+    if (!access || !hasPermission(access.role, 'write')) return notFound();
     await prisma.expense.delete({ where: { id: expenseId } });
     return ok({ id: expenseId });
   } catch (error) {

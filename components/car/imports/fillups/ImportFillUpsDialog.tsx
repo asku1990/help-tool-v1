@@ -10,6 +10,8 @@ import {
   DialogTrigger,
 } from '@/components/ui';
 import { useImportFillUps } from '@/hooks';
+import { toast } from 'sonner';
+import { getUiErrorMessage } from '@/lib/api/client-errors';
 import { splitSemicolonCsv, tryParseDate, toNum } from '@/utils/csv';
 
 type ParsedRow = {
@@ -189,10 +191,13 @@ export default function ImportFillUpsDialog({
           notes: r.notes || undefined,
         }));
       await importMutation.mutateAsync(payload);
+      toast.success('Fill-ups imported');
       onImported?.();
       setOpen(false);
       setText('');
       setRows([]);
+    } catch (error) {
+      toast.error(getUiErrorMessage(error, 'Failed to import fill-ups'));
     } finally {
       setIsImporting(false);
     }

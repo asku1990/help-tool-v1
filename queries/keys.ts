@@ -15,3 +15,11 @@ export const fillUpKeys = {
   byVehicle: (vehicleId: string) => [...fillUpKeys.all, vehicleId] as const,
   infiniteByVehicle: (vehicleId: string) => [...fillUpKeys.all, 'infinite', vehicleId] as const,
 };
+
+export const adminKeys = {
+  all: ['admin'] as const,
+  me: () => [...adminKeys.all, 'me'] as const,
+  users: () => [...adminKeys.all, 'users'] as const,
+  vehicles: () => [...adminKeys.all, 'vehicles'] as const,
+  vehicleAccess: (vehicleId: string) => [...adminKeys.all, 'vehicle-access', vehicleId] as const,
+};
