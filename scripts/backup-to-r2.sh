@@ -81,9 +81,44 @@ cleanup() {
 trap cleanup EXIT
 
 echo "Creating PostgreSQL dump: ${local_path}"
-pg_dump_url="${DATABASE_URL%%\?*}"
+sanitize_pg_dump_url() {
+  local url="$1"
+  local base query sanitized_query param
+
+  if [[ "${url}" != *"?"* ]]; then
+    printf '%s\n' "${url}"
+    return
+  fi
+
+  base="${url%%\?*}"
+  query="${url#*\?}"
+  sanitized_query=""
+
+  IFS='&' read -r -a params <<< "${query}"
+  for param in "${params[@]}"; do
+    case "${param}" in
+      schema=*|schema|connection_limit=*|connection_limit|pool_timeout=*|pool_timeout|pgbouncer=*|pgbouncer|statement_cache_size=*|statement_cache_size)
+        continue
+        ;;
+    esac
+
+    if [[ -z "${sanitized_query}" ]]; then
+      sanitized_query="${param}"
+    else
+      sanitized_query="${sanitized_query}&${param}"
+    fi
+  done
+
+  if [[ -n "${sanitized_query}" ]]; then
+    printf '%s?%s\n' "${base}" "${sanitized_query}"
+  else
+    printf '%s\n' "${base}"
+  fi
+}
+
+pg_dump_url="$(sanitize_pg_dump_url "${DATABASE_URL}")"
 if [[ "${pg_dump_url}" != "${DATABASE_URL}" ]]; then
-  echo "Stripped Prisma query parameters from DATABASE_URL for pg_dump." >&2
+  echo "Removed Prisma-only query parameters from DATABASE_URL for pg_dump." >&2
 fi
 
 pg_dump --no-owner --no-privileges "${pg_dump_url}" | gzip -c > "${local_path}"
