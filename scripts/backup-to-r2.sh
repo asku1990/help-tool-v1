@@ -122,8 +122,9 @@ if [[ "${pg_dump_url}" != "${DATABASE_URL}" ]]; then
   echo "Removed Prisma-only query parameters from DATABASE_URL for pg_dump." >&2
 fi
 
-echo "Dumping public schema only." >&2
+echo "Dumping public schema only and omitting schema creation statements." >&2
 "${pg_dump_bin}" --no-owner --no-privileges --schema=public "${pg_dump_url}" \
+  | sed '/^CREATE SCHEMA public;$/d' \
   | gzip -c > "${local_path}"
 
 echo "Uploading to R2: s3://${R2_BUCKET}/${key}"
