@@ -15,7 +15,8 @@
     "test": "vitest run --coverage",
     "test:ui": "vitest --ui --coverage",
     "test:watch": "vitest --watch",
-    "test:changed": "vitest run --changed HEAD~1 --coverage"
+    "test:changed": "vitest run --changed HEAD~1 --coverage",
+    "backup:r2": "./scripts/backup-to-r2.sh"
   },
   "dependencies": {
     "@prisma/client": "6.6.0",
