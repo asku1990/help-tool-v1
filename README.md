@@ -1,49 +1,70 @@
 # Help Tool v1
 
-A Next.js based help tool application.
+Help Tool v1 is a Next.js + PostgreSQL application.
 
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+The long-term goal is a broader personal help tool with multiple feature areas.
+Current implemented scope is car management.
 
-## Getting Started
+## Current Scope
 
-First, run the development server:
+- Vehicle and car-related data management
+- Car maintenance and expense tracking flows
+- User access/auth support used by the car domain
+
+## Tech Stack
+
+- Next.js (App Router)
+- TypeScript
+- Prisma + PostgreSQL
+- Vitest + Testing Library
+- Tailwind CSS
+
+## Local Setup
+
+1. Install dependencies:
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+pnpm install
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+2. Create local env file from template:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+cp example.env .env.local
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+3. Add your local values to `.env.local`.
 
-## Learn More
+4. Run database migrations (if needed):
 
-To learn more about Next.js, take a look at the following resources:
+```bash
+pnpm prisma migrate dev
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+5. Start development server:
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```bash
+pnpm dev
+```
 
-## Deploy on Vercel
+App runs at `http://localhost:3000`.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Useful Commands
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- `pnpm dev` starts local development server
+- `pnpm build` creates production build
+- `pnpm start` runs production build
+- `pnpm lint` runs linting
+- `pnpm type-check` runs TypeScript checks
+- `pnpm format` runs Prettier
+- `pnpm test` runs test suite with coverage
+- `pnpm check` runs format, lint, and type-check
 
 ## Database Backup to Cloudflare R2
 
-This project includes a PostgreSQL backup script at `scripts/backup-to-r2.sh`.
+Script: `scripts/backup-to-r2.sh`
 
-Manual run:
+Run manually:
 
 ```bash
 pnpm backup:r2
@@ -61,16 +82,16 @@ Optional environment variables:
 
 - `R2_REGION` (default: `auto`)
 - `R2_PREFIX` (default: `db-backups`)
-- `R2_ENDPOINT` (optional endpoint override; default: `https://<ACCOUNT_ID>.r2.cloudflarestorage.com`)
+- `R2_ENDPOINT` (default: `https://<ACCOUNT_ID>.r2.cloudflarestorage.com`)
 - `BACKUP_LOCAL_DIR` (default: `.tmp/backups`)
-- `BACKUP_KEEP_LOCAL` (`1` keeps local dump, default removes local file after upload)
+- `BACKUP_KEEP_LOCAL` (`1` keeps local dump; default removes local file after upload)
 
-Automated backups are configured in `.github/workflows/db-backup-r2.yml` and run:
+GitHub Action workflow: `.github/workflows/db-backup-r2.yml`
 
-- On demand via GitHub Actions `workflow_dispatch`
-- Weekly on Sundays at `02:00 UTC`
+- Manual trigger: `workflow_dispatch`
+- Scheduled trigger: Sundays at `02:00 UTC`
 
-GitHub repository secrets needed by the workflow:
+GitHub Actions secrets needed by the workflow:
 
 - `DATABASE_URL`
 - `R2_BUCKET`
@@ -79,36 +100,13 @@ GitHub repository secrets needed by the workflow:
 - `R2_SECRET_ACCESS_KEY`
 - Optional: `R2_REGION`, `R2_PREFIX`, `R2_ENDPOINT`
 
-## Proton Pass Local Env
+## Proton Pass Local Env (Optional)
 
-If you use Proton Pass CLI (`pass-cli`) like in Beagle, use `pass://` references in `.env.local` and run commands through `pass-cli`.
+If you use Proton Pass CLI (`pass-cli`), use `pass://` references in `.env.local` and run commands through `pass-cli`.
 
-Example `.env.local` values:
+Use [`example.env`](/Users/akikuivas/personal-projects/help-tool-v1/example.env) as the source of truth for env keys and Proton Pass `pass://` examples.
 
-```env
-DATABASE_URL=pass://help-tool-v1/env.local/DATABASE_URL
-AUTH_GOOGLE_ID=pass://help-tool-v1/env.local/AUTH_GOOGLE_ID
-AUTH_GOOGLE_SECRET=pass://help-tool-v1/env.local/AUTH_GOOGLE_SECRET
-AUTH_SECRET=pass://help-tool-v1/env.local/AUTH_SECRET
-ALLOWED_EMAILS=pass://help-tool-v1/env.local/ALLOWED_EMAILS
+Helper commands:
 
-# R2 required:
-R2_BUCKET=pass://help-tool-v1/env.local/R2_BUCKET
-R2_ACCOUNT_ID=pass://help-tool-v1/env.local/R2_ACCOUNT_ID
-R2_ACCESS_KEY_ID=pass://help-tool-v1/env.local/R2_ACCESS_KEY_ID
-R2_SECRET_ACCESS_KEY=pass://help-tool-v1/env.local/R2_SECRET_ACCESS_KEY
-
-# R2 optional (skip unless you need custom behavior):
-# R2_REGION=pass://help-tool-v1/env.local/R2_REGION
-# R2_PREFIX=pass://help-tool-v1/env.local/R2_PREFIX
-# R2_ENDPOINT=pass://help-tool-v1/env.local/R2_ENDPOINT
-# BACKUP_LOCAL_DIR=pass://help-tool-v1/env.local/BACKUP_LOCAL_DIR
-# BACKUP_KEEP_LOCAL=pass://help-tool-v1/env.local/BACKUP_KEEP_LOCAL
-```
-
-Safe local commands:
-
-- `pnpm dev:local` (runs `pnpm dev` via `pass-cli`)
-- `pnpm backup:r2:local` (runs DB dump + R2 upload via `pass-cli`)
-
-These scripts use `scripts/pass-env-run.sh` and `.env.local` by default.
+- `pnpm dev:local`
+- `pnpm backup:r2:local`
