@@ -70,6 +70,8 @@ Run manually:
 pnpm backup:r2
 ```
 
+The backup script dumps the app's `public` schema only. It intentionally excludes Neon-managed schemas such as `neon_auth` so restores remain portable across local and Neon environments.
+
 Required environment variables:
 
 - `DATABASE_URL`
