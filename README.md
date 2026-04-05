@@ -104,7 +104,7 @@ GitHub Actions secrets needed by the workflow:
 
 If you use Proton Pass CLI (`pass-cli`), use `pass://` references in `.env.local` and run commands through `pass-cli`.
 
-Use [`example.env`](/Users/akikuivas/personal-projects/help-tool-v1/example.env) as the source of truth for env keys and Proton Pass `pass://` examples.
+Use [`example.env`](./example.env) as the source of truth for env keys and Proton Pass `pass://` examples.
 
 Direct commands:
 
