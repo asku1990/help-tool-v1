@@ -10,12 +10,29 @@ required_vars=(
   R2_SECRET_ACCESS_KEY
 )
 
+optional_vars=(
+  R2_REGION
+  R2_PREFIX
+  R2_ENDPOINT
+  BACKUP_LOCAL_DIR
+  BACKUP_KEEP_LOCAL
+)
+
 for var_name in "${required_vars[@]}"; do
   if [[ -z "${!var_name:-}" ]]; then
     echo "Missing required env var: ${var_name}" >&2
     exit 1
   fi
   if [[ "${!var_name}" == pass://* ]]; then
+    echo "Unresolved pass:// secret in ${var_name}." >&2
+    echo "Run via Proton Pass, e.g.:" >&2
+    echo "  pass-cli run --env-file .env.local -- pnpm backup:r2" >&2
+    exit 1
+  fi
+done
+
+for var_name in "${optional_vars[@]}"; do
+  if [[ "${!var_name:-}" == pass://* ]]; then
     echo "Unresolved pass:// secret in ${var_name}." >&2
     echo "Run via Proton Pass, e.g.:" >&2
     echo "  pass-cli run --env-file .env.local -- pnpm backup:r2" >&2
