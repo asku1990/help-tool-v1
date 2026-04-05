@@ -81,7 +81,12 @@ cleanup() {
 trap cleanup EXIT
 
 echo "Creating PostgreSQL dump: ${local_path}"
-pg_dump --no-owner --no-privileges "${DATABASE_URL}" | gzip -c > "${local_path}"
+pg_dump_url="${DATABASE_URL%%\?*}"
+if [[ "${pg_dump_url}" != "${DATABASE_URL}" ]]; then
+  echo "Stripped Prisma query parameters from DATABASE_URL for pg_dump." >&2
+fi
+
+pg_dump --no-owner --no-privileges "${pg_dump_url}" | gzip -c > "${local_path}"
 
 echo "Uploading to R2: s3://${R2_BUCKET}/${key}"
 max_upload_attempts=3
