@@ -106,7 +106,11 @@ If you use Proton Pass CLI (`pass-cli`), use `pass://` references in `.env.local
 
 Use [`example.env`](/Users/akikuivas/personal-projects/help-tool-v1/example.env) as the source of truth for env keys and Proton Pass `pass://` examples.
 
-Helper commands:
+Direct commands:
 
-- `pnpm dev:local`
-- `pnpm backup:r2:local`
+- Local: `pass-cli run --env-file .env.local -- pnpm dev`
+- Local: `pass-cli run --env-file .env.local -- pnpm backup:r2`
+- Staging: `pass-cli run --env-file .env.staging -- pnpm dev`
+- Staging: `pass-cli run --env-file .env.staging -- pnpm backup:r2`
+- Production: `pass-cli run --env-file .env.prod -- pnpm dev`
+- Production: `pass-cli run --env-file .env.prod -- pnpm backup:r2`
