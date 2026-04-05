@@ -40,8 +40,9 @@ for var_name in "${optional_vars[@]}"; do
   fi
 done
 
-if ! command -v pg_dump >/dev/null 2>&1; then
-  echo "pg_dump is required but was not found in PATH." >&2
+pg_dump_bin="${PG_DUMP_BIN:-pg_dump}"
+if ! command -v "${pg_dump_bin}" >/dev/null 2>&1; then
+  echo "pg_dump is required but was not found: ${pg_dump_bin}" >&2
   exit 1
 fi
 
@@ -121,7 +122,7 @@ if [[ "${pg_dump_url}" != "${DATABASE_URL}" ]]; then
   echo "Removed Prisma-only query parameters from DATABASE_URL for pg_dump." >&2
 fi
 
-pg_dump --no-owner --no-privileges "${pg_dump_url}" | gzip -c > "${local_path}"
+"${pg_dump_bin}" --no-owner --no-privileges "${pg_dump_url}" | gzip -c > "${local_path}"
 
 echo "Uploading to R2: s3://${R2_BUCKET}/${key}"
 max_upload_attempts=3
