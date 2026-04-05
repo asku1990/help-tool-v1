@@ -91,12 +91,19 @@ AUTH_GOOGLE_ID=pass://help-tool-v1/env.local/AUTH_GOOGLE_ID
 AUTH_GOOGLE_SECRET=pass://help-tool-v1/env.local/AUTH_GOOGLE_SECRET
 AUTH_SECRET=pass://help-tool-v1/env.local/AUTH_SECRET
 ALLOWED_EMAILS=pass://help-tool-v1/env.local/ALLOWED_EMAILS
+
+# R2 required:
 R2_BUCKET=pass://help-tool-v1/env.local/R2_BUCKET
 R2_ACCOUNT_ID=pass://help-tool-v1/env.local/R2_ACCOUNT_ID
 R2_ACCESS_KEY_ID=pass://help-tool-v1/env.local/R2_ACCESS_KEY_ID
 R2_SECRET_ACCESS_KEY=pass://help-tool-v1/env.local/R2_SECRET_ACCESS_KEY
-R2_REGION=auto
-R2_PREFIX=db-backups
+
+# R2 optional (skip unless you need custom behavior):
+# R2_REGION=pass://help-tool-v1/env.local/R2_REGION
+# R2_PREFIX=pass://help-tool-v1/env.local/R2_PREFIX
+# R2_ENDPOINT=pass://help-tool-v1/env.local/R2_ENDPOINT
+# BACKUP_LOCAL_DIR=pass://help-tool-v1/env.local/BACKUP_LOCAL_DIR
+# BACKUP_KEEP_LOCAL=pass://help-tool-v1/env.local/BACKUP_KEEP_LOCAL
 ```
 
 Safe local commands:
