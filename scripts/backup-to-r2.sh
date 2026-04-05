@@ -73,7 +73,8 @@ export AWS_DEFAULT_REGION="${R2_REGION:-auto}"
 endpoint_url="${R2_ENDPOINT:-https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com}"
 
 cleanup() {
-  if [[ "${BACKUP_KEEP_LOCAL:-0}" != "1" ]]; then
+  exit_code="$?"
+  if [[ "${exit_code}" -eq 0 && "${BACKUP_KEEP_LOCAL:-0}" != "1" ]]; then
     rm -f "${local_path}"
   fi
 }
@@ -83,9 +84,24 @@ echo "Creating PostgreSQL dump: ${local_path}"
 pg_dump --no-owner --no-privileges "${DATABASE_URL}" | gzip -c > "${local_path}"
 
 echo "Uploading to R2: s3://${R2_BUCKET}/${key}"
-aws s3 cp "${local_path}" "s3://${R2_BUCKET}/${key}" \
-  --endpoint-url "${endpoint_url}" \
-  --region "${AWS_DEFAULT_REGION}" \
-  --only-show-errors
+max_upload_attempts=3
+upload_attempt=1
+while true; do
+  if aws s3 cp "${local_path}" "s3://${R2_BUCKET}/${key}" \
+    --endpoint-url "${endpoint_url}" \
+    --region "${AWS_DEFAULT_REGION}" \
+    --only-show-errors; then
+    break
+  fi
+
+  if [[ "${upload_attempt}" -ge "${max_upload_attempts}" ]]; then
+    echo "Upload failed after ${max_upload_attempts} attempts; local dump preserved at ${local_path}" >&2
+    exit 1
+  fi
+
+  echo "Upload attempt ${upload_attempt}/${max_upload_attempts} failed; retrying..." >&2
+  sleep $((upload_attempt * 2))
+  upload_attempt=$((upload_attempt + 1))
+done
 
 echo "Backup completed successfully."
