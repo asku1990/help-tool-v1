@@ -44,4 +44,32 @@ describe('FillUpList behavior', () => {
     expect(await screen.findByText(/Error/i)).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /retry/i }));
   });
+
+  it('opens the edit fill-up dialog', async () => {
+    server.use(
+      http.get('/api/vehicles/:vehicleId/fillups', () =>
+        HttpResponse.json({
+          data: {
+            fillUps: [
+              {
+                id: 'f1',
+                date: new Date().toISOString(),
+                odometerKm: 1000,
+                liters: 20,
+                pricePerLiter: 1.5,
+                totalCost: 30,
+                isFull: true,
+              },
+            ],
+            nextCursor: null,
+          },
+        })
+      )
+    );
+
+    renderWithProviders(<FillUpList vehicleId="vid" />);
+    const editBtn = await screen.findByRole('button', { name: /edit/i });
+    fireEvent.click(editBtn);
+    expect(await screen.findByLabelText(/edit fill-up/i)).toBeInTheDocument();
+  });
 });

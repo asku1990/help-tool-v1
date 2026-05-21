@@ -33,6 +33,7 @@ type Props = {
   open?: boolean;
   onOpenChange?: (_open: boolean) => void;
   hideTrigger?: boolean;
+  triggerClassName?: string;
 };
 
 export default function RestoreBackupDialog({
@@ -42,6 +43,7 @@ export default function RestoreBackupDialog({
   open,
   onOpenChange,
   hideTrigger,
+  triggerClassName,
 }: Props) {
   const [uncontrolledOpen, setUncontrolledOpen] = useState(false);
   const isOpen = open ?? uncontrolledOpen;
@@ -285,7 +287,9 @@ export default function RestoreBackupDialog({
     <Dialog open={isOpen} onOpenChange={setOpen}>
       {hideTrigger ? null : (
         <DialogTrigger asChild>
-          <Button variant="outline">{triggerLabel}</Button>
+          <Button variant="outline" className={triggerClassName}>
+            {triggerLabel}
+          </Button>
         </DialogTrigger>
       )}
       <DialogContent
