@@ -50,6 +50,23 @@ it('renders vehicles list and opens add vehicle dialog', async () => {
   expect(await screen.findByLabelText(/Add vehicle dialog/i)).toBeInTheDocument();
 });
 
+it('keeps car home actions mobile-friendly', async () => {
+  server.use(
+    http.get('/api/admin/me', () => HttpResponse.json({ data: { isAdmin: false } })),
+    http.get('/api/vehicles', () => HttpResponse.json({ data: { vehicles: [] } }))
+  );
+
+  renderWithProviders(<CarHomePage />);
+
+  const restoreButton = await screen.findByRole('button', { name: /restore backup/i });
+  const addVehicleButton = screen.getByRole('button', { name: /add vehicle/i });
+
+  expect(restoreButton).toHaveClass('w-full');
+  expect(restoreButton).toHaveClass('sm:w-auto');
+  expect(addVehicleButton).toHaveClass('w-full');
+  expect(addVehicleButton).toHaveClass('sm:w-auto');
+});
+
 it('shows admin link for admin user', async () => {
   server.use(
     http.get('/api/admin/me', () => HttpResponse.json({ data: { isAdmin: true } })),
