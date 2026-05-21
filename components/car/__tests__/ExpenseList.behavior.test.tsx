@@ -65,4 +65,25 @@ describe('ExpenseList behavior', () => {
     await waitFor(() => expect(confirmSpy).toHaveBeenCalled());
     confirmSpy.mockRestore();
   });
+
+  it('opens the edit expense dialog', async () => {
+    server.use(
+      http.get('/api/vehicles/:vehicleId/expenses', () =>
+        HttpResponse.json({
+          data: {
+            expenses: [
+              { id: 'e1', date: new Date().toISOString(), category: 'MAINTENANCE', amount: 10 },
+            ],
+            expensesTotal: 10,
+            nextCursor: null,
+          },
+        })
+      )
+    );
+
+    renderWithProviders(<ExpenseList vehicleId="vid" />);
+    const editBtn = await screen.findByRole('button', { name: /edit/i });
+    fireEvent.click(editBtn);
+    expect(await screen.findByLabelText(/edit expense/i)).toBeInTheDocument();
+  });
 });
