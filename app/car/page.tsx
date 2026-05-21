@@ -111,19 +111,20 @@ export default function CarHomePage() {
       <main className="container mx-auto px-4 py-8">
         <Card>
           <CardContent className="!p-4 sm:!p-6">
-            <div className="flex items-center justify-between">
-              <div>
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+              <div className="min-w-0">
                 <h2 className="text-lg font-semibold">Vehicles</h2>
                 <p className="text-sm text-gray-500">
                   Add your first vehicle to start tracking fuel and expenses.
                 </p>
               </div>
-              <div className="flex gap-2">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end">
                 <RestoreBackupDialog
                   existingVehicles={vehicles.map(v => ({ id: v.id, name: v.name }))}
                   onRestored={() => refetchVehicles()}
+                  triggerClassName="w-full sm:w-auto"
                 />
-                <Button onClick={() => setOpen(true)}>
+                <Button className="w-full sm:w-auto" onClick={() => setOpen(true)}>
                   <Plus className="w-4 h-4 mr-2" /> Add vehicle
                 </Button>
               </div>

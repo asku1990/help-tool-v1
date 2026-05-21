@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import VehiclePage from '@/app/car/[vehicleId]/page';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { http, HttpResponse } from 'msw';
@@ -41,4 +41,27 @@ it('renders vehicle header and lists', async () => {
   await waitFor(() => expect(screen.getAllByText(/Car A/).length).toBeGreaterThan(0));
   expect(screen.getByRole('heading', { name: /Fill-ups/i })).toBeInTheDocument();
   expect(screen.getByRole('heading', { name: /Expenses/i })).toBeInTheDocument();
+});
+
+it('opens the edit vehicle dialog', async () => {
+  server.use(
+    http.get('/api/vehicles', () =>
+      HttpResponse.json({ data: { vehicles: [{ id: 'v1', name: 'Car A' }] } })
+    ),
+    http.get('/api/vehicles/:vehicleId', () =>
+      HttpResponse.json({ data: { vehicle: { id: 'v1', name: 'Car A' } } })
+    ),
+    http.get('/api/vehicles/:vehicleId/fillups', () =>
+      HttpResponse.json({ data: { fillUps: [], nextCursor: null } })
+    ),
+    http.get('/api/vehicles/:vehicleId/expenses', () =>
+      HttpResponse.json({ data: { expenses: [], expensesTotal: 0, nextCursor: null } })
+    )
+  );
+
+  renderWithProviders(<VehiclePage />);
+  await waitFor(() => expect(screen.getByRole('heading', { name: /^Car A$/i })).toBeInTheDocument());
+
+  fireEvent.click(screen.getByRole('button', { name: /^edit$/i }));
+  expect(await screen.findByLabelText(/Edit vehicle dialog/i)).toBeInTheDocument();
 });
