@@ -1,8 +1,8 @@
 # Attachment storage setup
 
-For local/staging testing with **disposable files only**. This version uploads and
-lists filenames; viewing, downloading, removal, and automatic object cleanup are not
-implemented. Database backups do not include attachment bytes.
+For local/staging testing with **disposable files only**. This version uploads files,
+lists filenames, and opens PDFs/images in a new browser tab. Removal and automatic
+object cleanup are not implemented. Database backups do not include attachment bytes.
 
 ## 1. Create a private R2 bucket
 
@@ -70,6 +70,18 @@ remaining capacity persist. In the R2 dashboard, a new object should appear unde
 Viewers can list filenames but cannot upload. There are five slots per record.
 See the [manual checks in the feature plan](../plan/file-upload.md#slice-3-ui-and-manual-staging-check).
 
+## Open an attachment
+
+Select a saved filename to open it in a new tab. Owners, editors, and viewers with access to
+the vehicle can open its attachments. The app checks the vehicle, parent record, and
+attachment before redirecting to a signed R2 link that expires after **2 minutes**.
+The bucket stays private, and existing Object Read & Write credentials are sufficient.
+
+Anyone holding that signed link can use it until expiry, even if their app access is
+revoked meanwhile. Do not share it. Each click on Open checks current app access again.
+The browser receives file bytes for viewing, but is not instructed to download them.
+PDF behavior depends on browser settings; no embedded viewer is provided.
+
 ## Troubleshooting
 
 - **No error until Upload:** expected; startup and listing do not access R2.
@@ -77,7 +89,10 @@ See the [manual checks in the feature plan](../plan/file-upload.md#slice-3-ui-an
   server terminal, the Proton Pass reference, and whether you restarted through `pass-cli`.
 - **Access denied / signature error:** check the account, bucket name, matching access
   key/secret pair, and Object Read & Write permission on that specific bucket.
-- **Upload succeeded but files cannot be opened:** viewing/downloading is outside v1.
+- **An Open link expired:** return to the record and press Open again for a fresh link.
+- **Open reports a missing object:** metadata may remain after manual bucket cleanup;
+  the current staging lifecycle does not guarantee object recovery.
+- **PDF downloads instead of opening:** check your browser's built-in PDF viewer setting.
 - **Tests pass without credentials:** R2 is mocked in automated tests; a real upload
   is still needed to validate the configuration.
 

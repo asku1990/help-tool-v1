@@ -11,7 +11,8 @@ import {
 } from '@/queries/attachments';
 import { ApiClientError } from '@/lib/api/client';
 
-vi.mock('@/queries/attachments', () => ({
+vi.mock('@/queries/attachments', async importOriginal => ({
+  ...(await importOriginal<typeof import('@/queries/attachments')>()),
   listAttachments: vi.fn(),
   uploadAttachment: vi.fn(),
 }));
@@ -58,13 +59,20 @@ describe('Record attachments', () => {
   });
   afterEach(cleanup);
 
-  it('shows saved filenames and capacity without offering viewing or removal', async () => {
+  it('shows filenames, capacity, and a safe Open link without offering removal', async () => {
     vi.mocked(listAttachments).mockResolvedValue(metadata([receipt]));
     renderPanel();
     expect(await screen.findByText('receipt.pdf')).toBeInTheDocument();
     expect(screen.getByText('4 of 5 attachment slots remaining')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Upload' })).toBeDisabled();
-    expect(screen.queryByRole('link')).not.toBeInTheDocument();
+    const open = screen.getByRole('link', { name: 'Open receipt.pdf in a new tab' });
+    expect(open).toHaveAttribute('href', '/api/vehicles/car/expenses/e1/attachments/a1/open');
+    expect(open).toHaveAttribute('target', '_blank');
+    expect(open).toHaveAttribute('rel', 'noopener noreferrer');
+    expect(open).toHaveAttribute('referrerpolicy', 'no-referrer');
+    expect(open).not.toHaveAttribute('download');
+    expect(open).toHaveTextContent('receipt.pdf');
+    expect(screen.queryByRole('button', { name: 'Open' })).not.toBeInTheDocument();
     expect(
       screen.queryByRole('button', { name: /remove|download|preview/i })
     ).not.toBeInTheDocument();
@@ -173,6 +181,7 @@ describe('Record attachments', () => {
     renderPanel();
     expect(await screen.findByText('receipt.pdf')).toBeInTheDocument();
     expect(screen.getByText(/View-only access/)).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Open receipt.pdf in a new tab' })).toBeInTheDocument();
     expect(screen.queryByLabelText('Attachment file')).not.toBeInTheDocument();
     expect(uploadAttachment).not.toHaveBeenCalled();
   });

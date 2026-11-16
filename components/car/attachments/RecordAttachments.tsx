@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { useAttachments, useUploadAttachment } from '@/hooks/attachments';
 import { MAX_ATTACHMENT_BYTES } from '@/lib/attachments/limits';
 import { getUiErrorMessage } from '@/lib/api/client-errors';
-import type { AttachmentRecord } from '@/queries/attachments';
+import { attachmentOpenUrl, type AttachmentRecord } from '@/queries/attachments';
 
 type Props = {
   vehicleId: string;
@@ -83,10 +83,7 @@ export default function RecordAttachments({
   return (
     <section className="space-y-3 border-t pt-4" aria-label="Attachments">
       <h3 className="text-sm font-medium">Attachments</h3>
-      <p className="text-xs text-gray-500">
-        Disposable staging files only. PDF, JPEG, PNG, WebP · 4,000,000 bytes per file. Uploads are
-        separate from saving record edits. Viewing and removal are not available yet.
-      </p>
+      <p className="text-xs text-gray-500">PDF, JPG, PNG, WebP · Max 4 MB</p>
       {list.isPending ? (
         <p role="status" className="text-sm">
           Loading attachments…
@@ -120,7 +117,16 @@ export default function RecordAttachments({
             <ul className="space-y-1 text-sm" aria-label="Saved attachments">
               {list.data.attachments.map(item => (
                 <li key={item.id} className="break-all">
-                  {item.filename}
+                  <a
+                    href={attachmentOpenUrl(vehicleId, record, item.id)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    referrerPolicy="no-referrer"
+                    aria-label={`Open ${item.filename} in a new tab`}
+                    className="underline underline-offset-2 hover:text-blue-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
+                  >
+                    {item.filename}
+                  </a>
                 </li>
               ))}
             </ul>

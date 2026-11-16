@@ -1,8 +1,15 @@
-import { DeleteObjectCommand, PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
+import {
+  DeleteObjectCommand,
+  GetObjectCommand,
+  PutObjectCommand,
+  S3Client,
+} from '@aws-sdk/client-s3';
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 
 export type AttachmentStorage = {
   put(_key: string, _bytes: Uint8Array, _contentType: string): Promise<void>;
   delete(_key: string): Promise<void>;
+  getOpenUrl(_key: string, _filename: string, _contentType: string): Promise<string>;
 };
 
 function required(name: string): string {
@@ -46,6 +53,24 @@ export function createAttachmentStorage(): AttachmentStorage {
       await client.send(new DeleteObjectCommand({ Bucket: bucket, Key: key }), {
         abortSignal: AbortSignal.timeout(5_000),
       });
+    },
+    async getOpenUrl(key, filename, contentType) {
+      const fallback = filename.replace(/[^a-zA-Z0-9._ -]/g, '_') || 'attachment';
+      const encoded = encodeURIComponent(filename).replace(
+        /[!'()*]/g,
+        character => `%${character.charCodeAt(0).toString(16).toUpperCase()}`
+      );
+      return getSignedUrl(
+        client,
+        new GetObjectCommand({
+          Bucket: bucket,
+          Key: key,
+          ResponseContentType: contentType,
+          ResponseContentDisposition: `inline; filename="${fallback}"; filename*=UTF-8''${encoded}`,
+          ResponseCacheControl: 'private, no-store',
+        }),
+        { expiresIn: 120 }
+      );
     },
   };
 }

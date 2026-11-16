@@ -57,7 +57,7 @@ export async function listAttachments(db: PrismaClient, parent: AttachmentParent
 
 export async function uploadAttachment(
   db: PrismaClient,
-  storage: AttachmentStorage,
+  storage: Pick<AttachmentStorage, 'put' | 'delete'>,
   vehicleId: string,
   parent: AttachmentParent,
   file: ValidatedAttachment

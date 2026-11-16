@@ -1,6 +1,12 @@
 // @vitest-environment node
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { DeleteObjectCommand, PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
+import {
+  DeleteObjectCommand,
+  GetObjectCommand,
+  PutObjectCommand,
+  S3Client,
+} from '@aws-sdk/client-s3';
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { createAttachmentStorage } from '../storage';
 
 const { send } = vi.hoisted(() => ({ send: vi.fn().mockResolvedValue({}) }));
@@ -10,11 +16,15 @@ vi.mock('@aws-sdk/client-s3', async importOriginal => ({
     return { send };
   }),
 }));
+vi.mock('@aws-sdk/s3-request-presigner', () => ({ getSignedUrl: vi.fn() }));
 
 describe('Private R2 attachment storage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     send.mockResolvedValue({});
+    vi.mocked(getSignedUrl).mockResolvedValue(
+      'https://staging-account.r2.cloudflarestorage.com/signed'
+    );
     vi.stubEnv('ATTACHMENTS_R2_ACCOUNT_ID', 'staging-account');
     vi.stubEnv('ATTACHMENTS_R2_BUCKET', 'staging-attachments');
     vi.stubEnv('ATTACHMENTS_R2_ACCESS_KEY_ID', 'attachment-key');
@@ -68,6 +78,31 @@ describe('Private R2 attachment storage', () => {
       }),
       expect.any(Object)
     );
+  });
+
+  it('signs a two-minute inline GET without fetching the object or making it public', async () => {
+    const filename = 'café "receipt".pdf';
+    await expect(
+      createAttachmentStorage().getOpenUrl('attachments/random', filename, 'application/pdf')
+    ).resolves.toBe('https://staging-account.r2.cloudflarestorage.com/signed');
+    expect(getSignedUrl).toHaveBeenCalledWith(expect.any(Object), expect.any(GetObjectCommand), {
+      expiresIn: 120,
+    });
+    expect(getSignedUrl).toHaveBeenCalledWith(
+      expect.any(Object),
+      expect.objectContaining({
+        input: {
+          Bucket: 'staging-attachments',
+          Key: 'attachments/random',
+          ResponseContentType: 'application/pdf',
+          ResponseContentDisposition:
+            'inline; filename="caf_ _receipt_.pdf"; filename*=UTF-8\'\'caf%C3%A9%20%22receipt%22.pdf',
+          ResponseCacheControl: 'private, no-store',
+        },
+      }),
+      { expiresIn: 120 }
+    );
+    expect(send).not.toHaveBeenCalled();
   });
 
   it.each([

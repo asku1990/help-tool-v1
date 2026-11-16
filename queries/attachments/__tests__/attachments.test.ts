@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { listAttachments, uploadAttachment } from '..';
+import { attachmentOpenUrl, listAttachments, uploadAttachment } from '..';
 import { ApiClientError } from '@/lib/api/client';
 
 type ProgressHandler = ((_event: ProgressEvent) => void) | null;
@@ -76,6 +76,15 @@ describe('Attachment browser requests', () => {
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
   });
+
+  it.each(['expense', 'fillup'] as const)(
+    'builds an authorized %s Open path with encoded IDs',
+    type => {
+      expect(attachmentOpenUrl('car/id', { type, id: 'parent/id' }, 'attachment/id')).toBe(
+        `/api/vehicles/car%2Fid/${type === 'expense' ? 'expenses' : 'fillups'}/parent%2Fid/attachments/attachment%2Fid/open`
+      );
+    }
+  );
 
   it.each(['expense', 'fillup'] as const)(
     'lists %s metadata using the shared API client',

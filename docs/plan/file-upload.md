@@ -185,9 +185,30 @@ Before treating the feature as ready for staging use, manually check with dispos
 Automated UI tests mock the query/transport seam; they do not validate real R2
 credentials or replace this signed-in, end-to-end check.
 
+## Approved follow-up: open saved files
+
+Each filename is a link targeting a new tab. It calls an authenticated
+`GET .../attachments/:attachmentId/open` endpoint for the expense/fill-up. The lookup
+scopes the attachment, parent, and authorized vehicle together and permits read access
+for owners, editors, and viewers. No signed URLs or object keys enter the listing response.
+
+The endpoint returns an uncached redirect to a **2-minute signed R2 GET URL** with
+the verified PDF/JPEG/PNG/WebP content type, an escaped `inline` filename, and a
+`private, no-store` object response. Links use `noopener noreferrer`; HTML/SVG are
+not served inline. The bucket remains private and no additional credentials are needed.
+
+A signed URL is a temporary bearer capability: anyone holding it can use it until
+expiry without another app check. Clicking Open again performs a new authorization
+check and generates a fresh link. Browser settings may still cause a PDF download.
+An embedded preview, explicit download action, and object lifecycle changes are out of scope.
+
+Manual check: open a disposable PDF and image from each parent type, including as a
+viewer. Confirm the new tab works while the bucket stays private; return to the
+record to generate a fresh link after expiry.
+
 ## Not included
 
-Viewing, downloading, previews, user-facing removal, creation-form integration, other
+An explicit download action, embedded previews, user-facing removal, creation-form integration, other
 formats, malware scanning, parent-deletion storage cleanup, document backups, and recovery.
 Before real-user launch, reassess lifecycle handling and implement document backups with
 tested recovery. Existing PostgreSQL backups do not include R2 attachment bytes.
