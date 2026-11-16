@@ -1,37 +1,6 @@
-import { apiGet, ApiClientError } from '@/lib/api/client';
-
-export type AttachmentRecord = { type: 'expense' | 'fillup'; id: string };
-
-export type AttachmentDto = {
-  id: string;
-  filename: string;
-  contentType: string;
-  sizeBytes: number;
-  createdAtUtc: string;
-  updatedAtUtc: string;
-};
-
-export type AttachmentListDto = {
-  attachments: AttachmentDto[];
-  maxAttachments: number;
-  remainingCapacity: number;
-  canUpload: boolean;
-};
-
-export type UploadAttachmentOptions = {
-  file: File;
-  onProgress: (_percent: number | null) => void;
-  signal: AbortSignal;
-};
-
-function url(vehicleId: string, record: AttachmentRecord) {
-  const resource = record.type === 'expense' ? 'expenses' : 'fillups';
-  return `/api/vehicles/${encodeURIComponent(vehicleId)}/${resource}/${encodeURIComponent(record.id)}/attachments`;
-}
-
-export function listAttachments(vehicleId: string, record: AttachmentRecord, signal?: AbortSignal) {
-  return apiGet<AttachmentListDto>(url(vehicleId, record), { signal, cache: 'no-store' });
-}
+import { ApiClientError } from '@/lib/api/client';
+import { attachmentUrl } from './attachmentUrl';
+import type { AttachmentDto, AttachmentRecord, UploadAttachmentOptions } from './types';
 
 export function uploadAttachment(
   vehicleId: string,
@@ -46,7 +15,7 @@ export function uploadAttachment(
       return;
     }
     const xhr = new XMLHttpRequest();
-    xhr.open('POST', url(vehicleId, record));
+    xhr.open('POST', attachmentUrl(vehicleId, record));
     xhr.withCredentials = true;
     xhr.timeout = 120_000;
     const abort = () => xhr.abort();

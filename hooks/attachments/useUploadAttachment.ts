@@ -1,23 +1,11 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { attachmentKeys } from '@/queries/keys';
 import {
-  listAttachments,
   uploadAttachment,
   type AttachmentListDto,
   type AttachmentRecord,
   type UploadAttachmentOptions,
 } from '@/queries/attachments';
-
-export function useAttachments(vehicleId: string, record: AttachmentRecord) {
-  return useQuery({
-    queryKey: attachmentKeys.byRecord(vehicleId, record.type, record.id),
-    queryFn: ({ signal }) => listAttachments(vehicleId, record, signal),
-    enabled: Boolean(vehicleId && record.id),
-    staleTime: 0,
-    refetchOnMount: 'always',
-    retry: false,
-  });
-}
 
 export function useUploadAttachment(vehicleId: string, record: AttachmentRecord) {
   const client = useQueryClient();

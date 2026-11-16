@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { listAttachments, uploadAttachment } from '../attachments';
+import { listAttachments, uploadAttachment } from '..';
 import { ApiClientError } from '@/lib/api/client';
 
 type ProgressHandler = ((_event: ProgressEvent) => void) | null;

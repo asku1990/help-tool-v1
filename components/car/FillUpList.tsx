@@ -9,7 +9,7 @@ import { useUiStore } from '@/stores/ui';
 import { formatDateFi } from '@/utils';
 import { toast } from 'sonner';
 import { getUiErrorMessage } from '@/lib/api/client-errors';
-import RecordAttachments from './RecordAttachments';
+import RecordAttachments from './attachments/RecordAttachments';
 
 export default function FillUpList({ vehicleId }: { vehicleId: string }) {
   const { data, isLoading, isError, error, hasNextPage, fetchNextPage, isFetchingNextPage } =

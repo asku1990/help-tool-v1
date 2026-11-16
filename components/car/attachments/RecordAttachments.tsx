@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { useAttachments, useUploadAttachment } from '@/hooks/useAttachments';
+import { useAttachments, useUploadAttachment } from '@/hooks/attachments';
 import { MAX_ATTACHMENT_BYTES } from '@/lib/attachments/limits';
 import { getUiErrorMessage } from '@/lib/api/client-errors';
 import type { AttachmentRecord } from '@/queries/attachments';

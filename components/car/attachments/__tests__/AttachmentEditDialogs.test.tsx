@@ -4,8 +4,8 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { describe, expect, it, vi } from 'vitest';
 import { http, HttpResponse } from 'msw';
 import { server } from '@/test/msw/server';
-import ExpenseList from '../ExpenseList';
-import FillUpList from '../FillUpList';
+import ExpenseList from '../../ExpenseList';
+import FillUpList from '../../FillUpList';
 import type { AttachmentRecord } from '@/queries/attachments';
 
 vi.mock('../RecordAttachments', () => ({

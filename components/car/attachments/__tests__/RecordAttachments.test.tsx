@@ -2,7 +2,7 @@ import React from 'react';
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import RecordAttachments from '../RecordAttachments';
+import RecordAttachments from '@/components/car/attachments/RecordAttachments';
 import {
   listAttachments,
   uploadAttachment,
