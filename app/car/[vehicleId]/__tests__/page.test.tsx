@@ -60,7 +60,9 @@ it('opens the edit vehicle dialog', async () => {
   );
 
   renderWithProviders(<VehiclePage />);
-  await waitFor(() => expect(screen.getByRole('heading', { name: /^Car A$/i })).toBeInTheDocument());
+  await waitFor(() =>
+    expect(screen.getByRole('heading', { name: /^Car A$/i })).toBeInTheDocument()
+  );
 
   fireEvent.click(screen.getByRole('button', { name: /^edit$/i }));
   expect(await screen.findByLabelText(/Edit vehicle dialog/i)).toBeInTheDocument();
