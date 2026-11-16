@@ -130,6 +130,34 @@ pnpm exec eslint prisma/__tests__/attachment.int.test.ts
 pnpm exec prettier --check README.md docs/development/database.md docs/plan/file-upload.md prisma/__tests__/attachment.int.test.ts
 ```
 
+### Slice 2 backend
+
+- `GET`/`POST /api/vehicles/:vehicleId/expenses/:expenseId/attachments`
+- `GET`/`POST /api/vehicles/:vehicleId/fillups/:fillUpId/attachments`
+- POST expects exactly one multipart `file` field. GET returns safe metadata and capacity.
+- Upload/listing use the existing session, vehicle-role checks, and IP/path rate limiter.
+- Limits/validation failures return 400/413/415; full records return 409.
+- Storage/database failures return 500 with a refresh-before-retry message.
+
+The installed `file-type` version requires **Node.js 22+**, including the staging
+runtime. Content validation checks detected binary signatures against the supported
+format, extension, and declared MIME (generic/absent MIME is allowed); this is not
+full document parsing or malware scanning.
+
+Configure the server-only `ATTACHMENTS_R2_*` variables listed in `example.env` using
+a separate private staging bucket and bucket-scoped credentials. The database-backup
+script and its `R2_*` settings remain unchanged. This change does not create buckets,
+configure credentials, or authorize deployment.
+
+Run all attachment backend and persistence checks with Docker running:
+
+```bash
+RUN_INTEGRATION=1 pnpm exec vitest run lib/attachments prisma/__tests__/attachment.int.test.ts
+```
+
+Storage tests mock R2; they do not contact a real bucket. The concurrency tests use
+real PostgreSQL and observe a row-lock wait with two simultaneous uploads.
+
 ## Not included
 
 Viewing, downloading, previews, user-facing removal, creation-form integration, other
