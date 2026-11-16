@@ -35,11 +35,8 @@ cp example.env .env.local
 
 3. Add your local values to `.env.local`.
 
-4. Run database migrations (if needed):
-
-```bash
-pnpm prisma migrate dev
-```
+4. Follow the [local database guide](docs/development/database.md)
+   to verify the target database before running migrations.
 
 5. Start development server:
 

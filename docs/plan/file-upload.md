@@ -1,6 +1,6 @@
 # File uploads: first staging version
 
-Status: planning only. The previous attachment implementation has been removed. This
+Status: implementation in reviewable slices. The previous attachment implementation has been removed. This
 document does not authorize deployment, remote migrations, or cloud configuration changes.
 
 ## Goal
@@ -15,17 +15,16 @@ of every category and saved fuel fill-ups. Keep the first implementation small.
 - Show upload progress, errors, and a retry action.
 - Reopening a record shows saved filenames and remaining attachment capacity.
 - Owners and editors may upload; viewers may not.
+- All vehicle roles may list attachment filenames and capacity; private object keys are not exposed.
 - Accept PDF, JPG/JPEG, PNG, and WebP; at most five attachments per record.
 
-## Size limit: confirmation required
+## Confirmed size limit
 
 The earlier requirement was 10,000,000 bytes per file. Vercel Functions have a
 4.5 MB request-body limit, including request overhead.
 
-**Proposed revised file limit: 4,000,000 bytes, one file per request.** Confirm this
-change before implementing. Do not silently retain a 10 MB promise that this upload
-path cannot support. If 10 MB is required, revisit the upload receiver separately;
-do not automatically reintroduce the previous direct-upload architecture.
+**Confirmed file limit: 4,000,000 bytes, one file per request.** Use binary multipart
+uploads, not base64. The earlier 10 MB limit does not apply to this slice.
 
 Reference: <https://vercel.com/docs/functions/limitations#request-body-size>.
 
@@ -36,14 +35,17 @@ Reference: <https://vercel.com/docs/functions/limitations#request-body-size>.
    to the authorized vehicle.
 3. Server checks actual file size and content, not only extension or declared MIME.
 4. Server enforces the five-attachment limit, including concurrent requests, using
-   a database transaction with per-parent serialization. Choose the concrete mechanism
-   during implementation; no distributed reservation service is needed.
+   a database transaction with a parent-row lock acquired before counting attachments
+   and held through metadata insertion and commit. Bound R2 request and transaction
+   durations; no distributed reservation service is needed.
 5. Server generates one unpredictable object key and stores the validated file once
    in a private R2 bucket.
 6. Server saves attachment metadata and returns success after the database commit.
 
 Keep transaction and R2 failure handling together in a small upload module. A repeated
 user upload is a new attachment; this slice does not promise exactly-once delivery.
+Refresh the attachment list after an uncertain failure before offering a manual retry;
+a lost success response followed by retry may create a duplicate.
 
 ## Metadata
 
@@ -51,6 +53,7 @@ Use a small attachment table with:
 
 - ID.
 - Explicit, mutually exclusive expense/fuel fill-up references with database relations.
+- Enforce exactly one parent with a database CHECK constraint, not only application validation.
 - Original filename, one unique R2 object key, verified content type, and size in bytes.
 - `createdAtUtc` and `updatedAtUtc`, following [architecture guidance](../architecture.md).
 
@@ -67,8 +70,8 @@ persisted attachment rows represent successfully saved attachments.
   Manual staging-bucket cleanup is accepted for this slice.
 - No scheduled cleanup, queue, worker, automatic recovery, or temporary-object sweeps.
   This supersedes the earlier automatic-cleanup requirement.
-- Parent deletion integration is deferred. Existing deletion behavior must be accounted
-  for when adding relations, but do not implement R2 deletion on parent deletion here.
+- Cascade attachment metadata deletion with parent deletion. R2 deletion on parent
+  deletion is deferred, so the corresponding disposable objects may remain.
 - Do not use real documents. Orphans and parent deletion are not production-safe lifecycle
   guarantees.
 
@@ -83,6 +86,49 @@ persisted attachment rows represent successfully saved attachments.
 - Use PostgreSQL-backed tests for the concurrency guarantee, not mocks alone.
 
 The separately scoped expense DELETE cross-car authorization fix and its tests remain.
+
+## Review slices
+
+1. Persistence: attachment schema, generated migration, and database-constraint tests.
+2. Backend: upload/listing, authorization, validation, R2, concurrency, and failure tests.
+3. UI: shared upload control, filename list, progress/error/retry, and both edit forms.
+
+Stop after each slice for approval. Do not commit automatically. Generate and test
+migrations against a disposable local PostgreSQL database, not a remote environment.
+
+### Slice 1 migration and validation
+
+Follow the [local database workflow](../development/database.md) to verify the target
+and load `.env.local` explicitly. Generate with `--name add_attachments --create-only`.
+Before applying the new migration, add the CHECK constraint Prisma cannot express:
+
+```sql
+ALTER TABLE "Attachment"
+ADD CONSTRAINT "Attachment_exactly_one_parent"
+CHECK (("expenseId" IS NOT NULL) <> ("fuelFillUpId" IS NOT NULL));
+```
+
+Verify cascading parent foreign keys, unique `objectKey`, parent indexes, and
+`TIMESTAMPTZ(3)` UTC timestamps. Apply only locally, then regenerate the Prisma client.
+
+With Docker running, execute the persistence suite:
+
+```bash
+RUN_INTEGRATION=1 pnpm exec vitest run prisma/__tests__/attachment.int.test.ts
+```
+
+It applies migration files to a disposable PostgreSQL 16 container using an explicit
+container URL, not the application's database. It checks parent constraints,
+uniqueness, persistence, and cascading deletion. Without `RUN_INTEGRATION=1`, it is
+skipped. Five-attachment concurrency tests belong to slice 2.
+
+Also run:
+
+```bash
+pnpm type-check
+pnpm exec eslint prisma/__tests__/attachment.int.test.ts
+pnpm exec prettier --check README.md docs/development/database.md docs/plan/file-upload.md prisma/__tests__/attachment.int.test.ts
+```
 
 ## Not included
 
