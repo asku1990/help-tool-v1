@@ -6,7 +6,7 @@ import { PATCH, DELETE } from '../route';
 vi.mock('@/lib/db', () => {
   const mock = {
     vehicle: { findFirst: vi.fn() },
-    expense: { findFirst: vi.fn(), findMany: vi.fn(), update: vi.fn(), delete: vi.fn() },
+    expense: { findFirst: vi.fn(), findMany: vi.fn(), update: vi.fn(), deleteMany: vi.fn() },
   };
   return { default: mock };
 });
@@ -14,7 +14,7 @@ vi.mock('@/auth', () => ({ auth: vi.fn(async () => ({ user: { email: 'u@e' } }))
 
 type PrismaMock = {
   vehicle: { findFirst: Mock };
-  expense: { findFirst: Mock; findMany: Mock; update: Mock; delete: Mock };
+  expense: { findFirst: Mock; findMany: Mock; update: Mock; deleteMany: Mock };
 };
 
 describe('api/vehicles/[vehicleId]/expenses/[expenseId] route (unit)', () => {
@@ -145,10 +145,26 @@ describe('api/vehicles/[vehicleId]/expenses/[expenseId] route (unit)', () => {
   it('DELETE removes and returns 200', async () => {
     const prisma = (await import('@/lib/db')).default as unknown as PrismaMock;
     prisma.vehicle.findFirst.mockResolvedValueOnce({ id: 'v' });
-    prisma.expense.delete.mockResolvedValueOnce({ id: 'e' });
+    prisma.expense.deleteMany.mockResolvedValueOnce({ count: 1 });
     const res = await DELETE(new NextRequest('http://localhost/x'), {
       params: Promise.resolve({ vehicleId: 'v', expenseId: 'e' }),
     });
     expect(res.status).toBe(200);
+    expect(prisma.expense.deleteMany).toHaveBeenCalledWith({
+      where: { id: 'e', vehicleId: 'v' },
+    });
+  });
+
+  it('DELETE cannot delete an expense belonging to another car', async () => {
+    const prisma = (await import('@/lib/db')).default as unknown as PrismaMock;
+    prisma.vehicle.findFirst.mockResolvedValueOnce({ id: 'authorized-car' });
+    prisma.expense.deleteMany.mockResolvedValueOnce({ count: 0 });
+    const res = await DELETE(new NextRequest('http://localhost/x'), {
+      params: Promise.resolve({ vehicleId: 'authorized-car', expenseId: 'other-car-expense' }),
+    });
+    expect(res.status).toBe(404);
+    expect(prisma.expense.deleteMany).toHaveBeenCalledWith({
+      where: { id: 'other-car-expense', vehicleId: 'authorized-car' },
+    });
   });
 });
