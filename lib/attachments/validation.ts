@@ -1,7 +1,7 @@
 import { fileTypeFromBuffer, type FileTypeResult } from 'file-type';
+import { MAX_ATTACHMENT_BYTES, MAX_ATTACHMENTS } from './limits';
 
-export const MAX_ATTACHMENT_BYTES = 4_000_000;
-export const MAX_ATTACHMENTS = 5;
+export { MAX_ATTACHMENT_BYTES, MAX_ATTACHMENTS };
 // Leave bounded room for the multipart boundary and filename, not additional files.
 const MAX_REQUEST_BYTES = MAX_ATTACHMENT_BYTES + 100_000;
 

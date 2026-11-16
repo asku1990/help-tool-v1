@@ -144,6 +144,7 @@ runtime. Content validation checks detected binary signatures against the suppor
 format, extension, and declared MIME (generic/absent MIME is allowed); this is not
 full document parsing or malware scanning.
 
+Follow the [attachment storage setup guide](../development/attachments.md).
 Configure the server-only `ATTACHMENTS_R2_*` variables listed in `example.env` using
 a separate private staging bucket and bucket-scoped credentials. The database-backup
 script and its `R2_*` settings remain unchanged. This change does not create buckets,
@@ -157,6 +158,32 @@ RUN_INTEGRATION=1 pnpm exec vitest run lib/attachments prisma/__tests__/attachme
 
 Storage tests mock R2; they do not contact a real bucket. The concurrency tests use
 real PostgreSQL and observe a row-lock wait with two simultaneous uploads.
+
+### Slice 3 UI and manual staging check
+
+Both saved-record edit dialogs include a shared attachment panel below (not inside)
+the edit form. Selecting a file does not upload it; **Upload** is a separate action.
+Creation forms are unchanged. The listing response includes `canUpload`, derived
+from the caller's vehicle role; viewers see filenames and capacity without upload controls.
+
+XHR reports byte-transfer progress. Reaching 100% is not treated as success until the
+server confirms persistence. The filename list refreshes after success and failure;
+if that refresh fails, upload/retry stays blocked until a manual refresh succeeds.
+Uploads are never automatically retried. Save and dialog dismissal stay disabled
+during an upload; leaving the page cancels the browser request, not necessarily a
+server upload that has already committed.
+
+Before treating the feature as ready for staging use, manually check with disposable files:
+
+1. Configure the separate private staging attachment bucket/credentials and sign in.
+2. Open a saved expense and a saved fill-up. Select a supported file and press Upload
+   without saving record edits. Confirm progress, success, filename, and remaining capacity.
+3. Close and reopen each record; filenames and capacity should persist.
+4. Check a full record, an oversized/unsupported file, and a failed upload with manual retry.
+5. As a viewer, confirm metadata is visible but upload controls are absent.
+
+Automated UI tests mock the query/transport seam; they do not validate real R2
+credentials or replace this signed-in, end-to-end check.
 
 ## Not included
 

@@ -9,6 +9,7 @@ import { useUiStore } from '@/stores/ui';
 import { formatDateFi } from '@/utils';
 import { toast } from 'sonner';
 import { getUiErrorMessage } from '@/lib/api/client-errors';
+import RecordAttachments from './RecordAttachments';
 
 export default function FillUpList({ vehicleId }: { vehicleId: string }) {
   const { data, isLoading, isError, error, hasNextPage, fetchNextPage, isFetchingNextPage } =
@@ -150,6 +151,7 @@ function EditFillUpButton({
   };
 }) {
   const [open, setOpen] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [state, setState] = useState({
     date: item.date.slice(0, 10),
     odometerKm: String(item.odometerKm),
@@ -174,8 +176,13 @@ function EditFillUpButton({
       >
         Edit
       </button>
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent aria-label="Edit fill-up">
+      <Dialog
+        open={open}
+        onOpenChange={next => {
+          if (!uploading) setOpen(next);
+        }}
+      >
+        <DialogContent aria-label="Edit fill-up" className="max-h-[90dvh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Edit fill-up</DialogTitle>
           </DialogHeader>
@@ -183,6 +190,7 @@ function EditFillUpButton({
             className="space-y-4"
             onSubmit={async e => {
               e.preventDefault();
+              if (uploading) return;
               try {
                 await update.mutateAsync({
                   date: state.date,
@@ -271,15 +279,29 @@ function EditFillUpButton({
             <div className="flex items-center justify-between pt-2">
               <div className="text-sm text-gray-500">Total: {total}</div>
               <div className="flex gap-2">
-                <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={uploading}
+                  onClick={() => setOpen(false)}
+                >
                   Cancel
                 </Button>
-                <Button type="submit" disabled={update.isPending}>
+                <Button type="submit" disabled={update.isPending || uploading}>
                   {update.isPending ? 'Saving…' : 'Save'}
                 </Button>
               </div>
             </div>
           </form>
+          {open ? (
+            <RecordAttachments
+              key={item.id}
+              vehicleId={vehicleId}
+              record={{ type: 'fillup', id: item.id }}
+              onUploadingChange={setUploading}
+              disabled={update.isPending}
+            />
+          ) : null}
         </DialogContent>
       </Dialog>
     </>

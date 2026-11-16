@@ -31,9 +31,13 @@ export async function handleAttachments(req: Request, vehicleId: string, parent:
     if (!(await hasAttachmentParent(prisma, access.vehicle.id, parent))) return notFound();
 
     if (!uploading) {
-      return ok(await listAttachments(prisma, parent), {
-        headers: { 'Cache-Control': 'private, no-store' },
-      });
+      return ok(
+        {
+          ...(await listAttachments(prisma, parent)),
+          canUpload: hasPermission(access.role, 'write'),
+        },
+        { headers: { 'Cache-Control': 'private, no-store' } }
+      );
     }
     // Authenticate and authorize before parsing or buffering the upload.
     const file = await readAttachment(req);

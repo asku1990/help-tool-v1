@@ -103,7 +103,12 @@ describe.each([
     expect(res.status).toBe(200);
     expect(res.headers.get('cache-control')).toBe('private, no-store');
     expect(await res.json()).toEqual({
-      data: { attachments: [item], maxAttachments: 5, remainingCapacity: 4 },
+      data: {
+        attachments: [item],
+        maxAttachments: 5,
+        remainingCapacity: 4,
+        canUpload: role !== 'VIEWER',
+      },
       error: null,
     });
     expect(mocks.access).toHaveBeenCalledWith({
