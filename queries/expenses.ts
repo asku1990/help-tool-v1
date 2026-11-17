@@ -31,7 +31,12 @@ export function listExpenses(vehicleId: string, params?: { cursor?: string; limi
   const url = qs
     ? `/api/vehicles/${vehicleId}/expenses?${qs}`
     : `/api/vehicles/${vehicleId}/expenses`;
-  return apiGet<{ expenses: ExpenseDto[]; expensesTotal: number; nextCursor: string | null }>(url);
+  return apiGet<{
+    expenses: ExpenseDto[];
+    expensesTotal: number;
+    nextCursor: string | null;
+    canWrite: boolean;
+  }>(url);
 }
 
 export function createExpense(

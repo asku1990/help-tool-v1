@@ -13,6 +13,7 @@ import { useUiStore } from '@/stores/ui';
 import { useCreateFillUp, useLatestOdometer } from '@/hooks';
 import { toast } from 'sonner';
 import { getUiErrorMessage } from '@/lib/api/client-errors';
+import RecordAttachments from './attachments/RecordAttachments';
 
 export type FillUpFormProps = {
   vehicleId: string;
@@ -31,10 +32,16 @@ export default function FillUpForm({ vehicleId, onCreated }: FillUpFormProps) {
   const [isFull, setIsFull] = useState<boolean>(true);
   const [notes, setNotes] = useState<string>('');
   const [submitting, setSubmitting] = useState(false);
+  const [savedRecord, setSavedRecord] = useState<{ id: string; addAttachments: boolean } | null>(
+    null
+  );
+  const [uploading, setUploading] = useState(false);
 
   // Reset form when dialog opens
   useEffect(() => {
     if (open) {
+      setSavedRecord(null);
+      setUploading(false);
       setOdometerKm(lastOdometer !== null ? String(lastOdometer) : '');
       setOdometerEdited(false);
       setDate(new Date().toISOString().slice(0, 10));
@@ -48,10 +55,17 @@ export default function FillUpForm({ vehicleId, onCreated }: FillUpFormProps) {
 
   // Pre-fill odometer when data arrives (if dialog is open and user hasn't edited)
   useEffect(() => {
-    if (open && !odometerEdited && lastOdometer !== null && odometerKm === '') {
+    if (
+      open &&
+      !savedRecord &&
+      !submitting &&
+      !odometerEdited &&
+      lastOdometer !== null &&
+      odometerKm === ''
+    ) {
       setOdometerKm(String(lastOdometer));
     }
-  }, [open, odometerEdited, lastOdometer, odometerKm]);
+  }, [open, savedRecord, submitting, odometerEdited, lastOdometer, odometerKm]);
 
   const totalCost = useMemo(() => {
     const l = parseFloat((liters || '0').replace(',', '.'));
@@ -68,11 +82,11 @@ export default function FillUpForm({ vehicleId, onCreated }: FillUpFormProps) {
     parseFloat(liters.replace(',', '.')) > 0 &&
     parseFloat(pricePerLiter.replace(',', '.')) > 0;
 
-  async function submit() {
-    if (!isValid) return;
+  async function submit(addAttachments = false) {
+    if (!isValid || submitting || createFillUp.isPending || savedRecord) return;
     setSubmitting(true);
     try {
-      await createFillUp.mutateAsync({
+      const created = await createFillUp.mutateAsync({
         date,
         odometerKm: parseInt(odometerKm, 10),
         liters: parseFloat(liters.replace(',', '.')),
@@ -81,13 +95,10 @@ export default function FillUpForm({ vehicleId, onCreated }: FillUpFormProps) {
         isFull,
         notes: notes || undefined,
       });
+      setSavedRecord({ id: created.id, addAttachments });
       toast.success('Fill-up saved');
       onCreated?.();
-      setOpen(false);
-      setOdometerKm('');
-      setLiters('');
-      setPricePerLiter('');
-      setNotes('');
+      if (!addAttachments) setOpen(false);
     } catch (error) {
       toast.error(getUiErrorMessage(error, 'Failed to save fill-up'));
     } finally {
@@ -95,20 +106,32 @@ export default function FillUpForm({ vehicleId, onCreated }: FillUpFormProps) {
     }
   }
 
+  const busy = submitting || createFillUp.isPending || uploading;
+  const fieldsDisabled = busy || Boolean(savedRecord);
+  const title = savedRecord ? 'Fill-up saved' : 'Add fill-up';
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog
+      open={open}
+      onOpenChange={next => {
+        if (!busy) setOpen(next);
+      }}
+    >
       <DialogTrigger asChild>
         <Button>Add fill-up</Button>
       </DialogTrigger>
-      <DialogContent aria-label="Add fill-up dialog">
+      <DialogContent aria-label={`${title} dialog`}>
         <DialogHeader>
-          <DialogTitle>Add fill-up</DialogTitle>
+          <DialogTitle>{title}</DialogTitle>
         </DialogHeader>
         <form
+          aria-label={savedRecord ? 'Saved fill-up' : 'Fill-up information'}
           className="space-y-4"
           onSubmit={e => {
             e.preventDefault();
-            submit();
+            const submitter = (e.nativeEvent as SubmitEvent).submitter;
+            void submit(
+              submitter instanceof HTMLButtonElement && submitter.value === 'attachments'
+            );
           }}
         >
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -116,6 +139,7 @@ export default function FillUpForm({ vehicleId, onCreated }: FillUpFormProps) {
               <span className="text-sm">Date</span>
               <input
                 type="date"
+                disabled={fieldsDisabled}
                 value={date}
                 onChange={e => setDate(e.target.value)}
                 className="border rounded-md px-3 py-2"
@@ -126,6 +150,7 @@ export default function FillUpForm({ vehicleId, onCreated }: FillUpFormProps) {
               <span className="text-sm">Odometer km</span>
               <input
                 type="number"
+                disabled={fieldsDisabled}
                 inputMode="numeric"
                 min="0"
                 value={odometerKm}
@@ -150,6 +175,7 @@ export default function FillUpForm({ vehicleId, onCreated }: FillUpFormProps) {
                 type="text"
                 inputMode="decimal"
                 value={liters}
+                disabled={fieldsDisabled}
                 onChange={e => setLiters(e.target.value)}
                 className="border rounded-md px-3 py-2"
                 required
@@ -161,6 +187,7 @@ export default function FillUpForm({ vehicleId, onCreated }: FillUpFormProps) {
                 type="text"
                 inputMode="decimal"
                 value={pricePerLiter}
+                disabled={fieldsDisabled}
                 onChange={e => setPricePerLiter(e.target.value)}
                 className="border rounded-md px-3 py-2"
                 required
@@ -169,6 +196,7 @@ export default function FillUpForm({ vehicleId, onCreated }: FillUpFormProps) {
             <div className="flex items-center gap-2">
               <input
                 id="isFull"
+                disabled={fieldsDisabled}
                 type="checkbox"
                 checked={isFull}
                 onChange={e => setIsFull(e.target.checked)}
@@ -182,26 +210,62 @@ export default function FillUpForm({ vehicleId, onCreated }: FillUpFormProps) {
           <label className="flex flex-col gap-1">
             <span className="text-sm">Notes (optional)</span>
             <textarea
+              disabled={fieldsDisabled}
               value={notes}
               onChange={e => setNotes(e.target.value)}
               className="border rounded-md px-3 py-2"
               rows={3}
             />
           </label>
-          <div className="flex items-center justify-between pt-2">
+          <div className="flex flex-wrap items-center justify-between gap-2 pt-2">
             <div className="text-sm text-gray-500" aria-live="polite">
               Total: {totalCost}
             </div>
-            <div className="flex gap-2">
-              <Button type="button" variant="outline" onClick={() => setOpen(false)}>
-                Cancel
-              </Button>
-              <Button type="submit" disabled={!isValid || submitting || createFillUp.isPending}>
-                {submitting || createFillUp.isPending ? 'Saving…' : 'Save fill-up'}
-              </Button>
-            </div>
+            {!savedRecord ? (
+              <div className="flex flex-wrap justify-end gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={busy}
+                  onClick={() => setOpen(false)}
+                >
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={!isValid || busy}>
+                  {submitting || createFillUp.isPending ? 'Saving…' : 'Save fill-up'}
+                </Button>
+                <Button
+                  type="submit"
+                  value="attachments"
+                  variant="outline"
+                  disabled={!isValid || busy}
+                >
+                  Save &amp; add attachments
+                </Button>
+              </div>
+            ) : null}
           </div>
         </form>
+        {savedRecord ? (
+          <>
+            <p role="status" className="text-sm">
+              Fill-up saved. Add attachments below, or choose Done.
+            </p>
+            {open && savedRecord.addAttachments ? (
+              <RecordAttachments
+                vehicleId={vehicleId}
+                record={{ type: 'fillup', id: savedRecord.id }}
+                onUploadingChange={setUploading}
+                disabled={submitting}
+              />
+            ) : null}
+            <div className="flex justify-end">
+              <Button type="button" disabled={busy} onClick={() => setOpen(false)}>
+                Done
+              </Button>
+            </div>
+          </>
+        ) : null}
       </DialogContent>
     </Dialog>
   );

@@ -117,7 +117,11 @@ export async function GET(req: NextRequest, context: { params: Promise<{ vehicle
     }
 
     return ok(
-      { fillUps, nextCursor: hasMore ? fillUps[fillUps.length - 1]?.id : null },
+      {
+        fillUps,
+        nextCursor: hasMore ? fillUps[fillUps.length - 1]?.id : null,
+        canWrite: hasPermission(access.role, 'write'),
+      },
       { headers: { 'Cache-Control': 'no-store' } }
     );
   } catch (error) {

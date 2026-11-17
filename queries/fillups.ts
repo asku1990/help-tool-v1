@@ -34,7 +34,11 @@ export function listFillUps(
   const url = qs
     ? `/api/vehicles/${vehicleId}/fillups?${qs}`
     : `/api/vehicles/${vehicleId}/fillups`;
-  return apiGet<{ fillUps: FillUpWithSegmentDto[]; nextCursor: string | null }>(url);
+  return apiGet<{
+    fillUps: FillUpWithSegmentDto[];
+    nextCursor: string | null;
+    canWrite: boolean;
+  }>(url);
 }
 
 export function createFillUp(

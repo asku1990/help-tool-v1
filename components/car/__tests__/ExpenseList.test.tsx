@@ -11,10 +11,15 @@ function renderWithProviders(ui: React.ReactElement) {
 it('renders empty state and CTA opens dialog via store', async () => {
   // Mock fetch to return empty expenses
   vi.spyOn(global, 'fetch').mockResolvedValue(
-    new Response(JSON.stringify({ data: { expenses: [], expensesTotal: 0, nextCursor: null } }), {
-      status: 200,
-      headers: { 'Content-Type': 'application/json' },
-    })
+    new Response(
+      JSON.stringify({
+        data: { expenses: [], expensesTotal: 0, nextCursor: null, canWrite: true },
+      }),
+      {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }
+    )
   );
   renderWithProviders(<ExpenseList vehicleId="vid" />);
   expect(

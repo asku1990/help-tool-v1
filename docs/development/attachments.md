@@ -70,7 +70,24 @@ remaining capacity persist. In the R2 dashboard, a new object should appear unde
 Viewers can list filenames but cannot upload, rename, or delete. There are five slots per record.
 See the [manual checks in the feature plan](../plan/file-upload.md#slice-3-ui-and-manual-staging-check).
 
+## Attachments During the Creation Workflow
+
+Choose **Save & add attachments** in Add expense or Add fill-up. The record is created first,
+then the same dialog shows the existing attachment panel. Upload files there and choose
+**Done** when finished; no record edit is required. An upload failure does not undo the saved
+record, and retrying Upload does not create it again.
+
+Ordinary **Save expense / Save fill-up** keeps its existing close-after-save behavior.
+See [creating records with attachments](../features/records.md#attachments-after-creating-a-record)
+for state, dismissal, and inspection-update failure behavior.
+
 ## Open an attachment
+
+Select the date/summary of an expense or fill-up to open **Details** and view saved
+information and attachment links
+without entering an editable form. This view has no upload, rename, or delete controls,
+even for owners and editors. Use **⋯ → Edit** to manage attachments.
+See [viewing saved records](../features/records.md) for the complete viewing behavior.
 
 Select a saved filename to open it in a new tab. Owners, editors, and viewers with access to
 the vehicle can open its attachments. The app checks the vehicle, parent record, and

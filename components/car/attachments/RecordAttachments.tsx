@@ -16,8 +16,9 @@ import { attachmentOpenUrl, type AttachmentRecord } from '@/queries/attachments'
 type Props = {
   vehicleId: string;
   record: AttachmentRecord;
-  onUploadingChange: (_uploading: boolean) => void;
+  onUploadingChange?: (_uploading: boolean) => void;
   disabled?: boolean;
+  readOnly?: boolean;
 };
 
 export default function RecordAttachments({
@@ -25,6 +26,7 @@ export default function RecordAttachments({
   record,
   onUploadingChange,
   disabled = false,
+  readOnly = false,
 }: Props) {
   const list = useAttachments(vehicleId, record);
   const upload = useUploadAttachment(vehicleId, record);
@@ -60,6 +62,7 @@ export default function RecordAttachments({
 
   async function submitUpload() {
     if (
+      readOnly ||
       disabled ||
       controller.current ||
       !file ||
@@ -80,7 +83,7 @@ export default function RecordAttachments({
     setRenameError('');
     setSuccess(false);
     setProgress(0);
-    onUploadingChange(true);
+    onUploadingChange?.(true);
     try {
       await upload.mutateAsync({ file, signal: activeController.signal, onProgress: setProgress });
       setSuccess(true);
@@ -90,12 +93,13 @@ export default function RecordAttachments({
       setUploadError(getUiErrorMessage(error, 'Failed to upload attachment.'));
     } finally {
       controller.current = null;
-      onUploadingChange(false);
+      onUploadingChange?.(false);
     }
   }
 
   async function removeAttachment(id: string, filename: string) {
     if (
+      readOnly ||
       disabled ||
       controller.current ||
       upload.isPending ||
@@ -113,19 +117,20 @@ export default function RecordAttachments({
     setUploadError('');
     setRenameError('');
     setSuccess(false);
-    onUploadingChange(true);
+    onUploadingChange?.(true);
     try {
       await deletion.mutateAsync({ id, signal: activeController.signal });
     } catch (error) {
       setDeleteError(getUiErrorMessage(error, 'Could not delete the attachment. Try again.'));
     } finally {
       controller.current = null;
-      onUploadingChange(false);
+      onUploadingChange?.(false);
     }
   }
 
   async function saveName() {
     if (
+      readOnly ||
       !editing ||
       !editing.name.trim() ||
       disabled ||
@@ -142,7 +147,7 @@ export default function RecordAttachments({
     controller.current = activeController;
     setRenameError('');
     setSuccess(false);
-    onUploadingChange(true);
+    onUploadingChange?.(true);
     try {
       await rename.mutateAsync({
         id: editing.id,
@@ -154,17 +159,18 @@ export default function RecordAttachments({
       setRenameError(getUiErrorMessage(error, 'Could not rename the attachment. Try again.'));
     } finally {
       controller.current = null;
-      onUploadingChange(false);
+      onUploadingChange?.(false);
     }
   }
 
   const full = list.data?.remainingCapacity === 0;
   const busy = upload.isPending || deletion.isPending || rename.isPending;
-  const canUpload = list.data?.canUpload && !list.isError;
+  const canWrite = !readOnly && list.data?.canUpload;
+  const canUpload = canWrite && !list.isError;
   return (
     <section className="space-y-3 border-t pt-4" aria-label="Attachments">
       <h3 className="text-sm font-medium">Attachments</h3>
-      <p className="text-xs text-gray-500">PDF, JPG, PNG, WebP · Max 4 MB</p>
+      {!readOnly ? <p className="text-xs text-gray-500">PDF, JPG, PNG, WebP · Max 4 MB</p> : null}
       {list.isPending ? (
         <p role="status" className="text-sm">
           Loading attachments…
@@ -173,8 +179,8 @@ export default function RecordAttachments({
       {list.isError ? (
         <div className="space-y-2">
           <p role="alert" className="text-sm text-red-600">
-            {getUiErrorMessage(list.error, 'Could not load attachments.')} Refresh the list before
-            uploading, renaming, or deleting.
+            {getUiErrorMessage(list.error, 'Could not load attachments.')}
+            {!readOnly ? ' Refresh the list before uploading, renaming, or deleting.' : null}
           </p>
           <Button
             type="button"
@@ -191,9 +197,11 @@ export default function RecordAttachments({
       ) : null}
       {list.data ? (
         <>
-          <p className="text-sm text-gray-600">
-            {list.data.remainingCapacity} of {list.data.maxAttachments} attachment slots remaining
-          </p>
+          {!readOnly ? (
+            <p className="text-sm text-gray-600">
+              {list.data.remainingCapacity} of {list.data.maxAttachments} attachment slots remaining
+            </p>
+          ) : null}
           {list.data.attachments.length ? (
             <ul className="space-y-1 text-sm" aria-label="Saved attachments">
               {list.data.attachments.map(item => (
@@ -209,7 +217,7 @@ export default function RecordAttachments({
                     >
                       {item.filename}
                     </a>
-                    {list.data?.canUpload ? (
+                    {canWrite ? (
                       <>
                         <Button
                           type="button"
@@ -250,7 +258,7 @@ export default function RecordAttachments({
                       </>
                     ) : null}
                   </div>
-                  {editing?.id === item.id && list.data?.canUpload ? (
+                  {editing?.id === item.id && canWrite ? (
                     <div className="flex flex-wrap items-center gap-1">
                       <input
                         autoFocus
@@ -314,7 +322,7 @@ export default function RecordAttachments({
           ) : (
             <p className="text-sm text-gray-500">No attachments yet.</p>
           )}
-          {!list.data.canUpload ? (
+          {!readOnly && !list.data.canUpload ? (
             <p className="text-sm text-gray-500">
               View-only access. Only owners and editors may upload, rename, or delete.
             </p>
