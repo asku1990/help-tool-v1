@@ -41,6 +41,25 @@ These are relative comparisons, not absolute efficiency ratings. Keep the numeri
 signed delta when available, and comparison description readable without relying on color.
 Partial fill-ups and the initial full-tank baseline do not have completed-trip consumption.
 
+## Consumption Chart
+
+- Recharts renders one point per completed full-tank-to-full-tank segment, dated by its ending
+  fill-up. Points are ordered chronologically and spaced by elapsed time.
+- The axes show calendar dates and consumption in L/100 km. The actual span of completed
+  segments determines the date labels, not the selected range's maximum duration.
+  Spans up to 62 days show day.month labels (for example, 20.10.) at daily, three-day,
+  or weekly intervals. Longer spans show month.year labels (for example, 3.2026) at month
+  boundaries. Labels are independent of trip dates and may be skipped to avoid overlap
+  on narrow screens. A single trip still has a date label.
+  Month tick generation is capped at 24 ticks, using a larger month interval for long
+  histories; invalid segment dates are ignored.
+  Hovering or tapping a point shows its exact date, consumption, and completed segment distance.
+- The 30/90/180-day, 1 year (rolling 365 days), 2 years (rolling 730 days), and All filters select
+  segments by their ending date. The dashed line and Avg/Min/Max summary describe the selected
+  segments; the average remains distance-weighted.
+- A single completed segment is shown as a point; no segments in the selected range shows
+  the empty state rather than a zero-consumption chart.
+
 ## Implementation
 
 - Shared calculations: `lib/consumption/`, exported through `lib/consumption/index.ts`.
