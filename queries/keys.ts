@@ -27,3 +27,8 @@ export const adminKeys = {
   vehicles: () => [...adminKeys.all, 'vehicles'] as const,
   vehicleAccess: (vehicleId: string) => [...adminKeys.all, 'vehicle-access', vehicleId] as const,
 };
+
+export const attachmentKeys = {
+  byRecord: (vehicleId: string, type: 'expense' | 'fillup', recordId: string) =>
+    ['attachments', vehicleId, type, recordId] as const,
+};

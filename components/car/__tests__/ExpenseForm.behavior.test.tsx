@@ -40,6 +40,7 @@ describe('ExpenseForm inspection flow', () => {
     fireEvent.click(screen.getByRole('button', { name: /add expense/i }));
     const dialog = await screen.findByLabelText(/Add expense dialog/i);
     expect(dialog).toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: 'Attachments' })).not.toBeInTheDocument();
 
     // Fill required fields
     fireEvent.change(screen.getByLabelText(/Amount/i), { target: { value: '10.00' } });

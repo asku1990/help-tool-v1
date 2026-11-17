@@ -5,7 +5,7 @@ PostgreSQL runs in Docker.
 
 ## Prerequisites
 
-- Node.js and pnpm.
+- Node.js 22.x and pnpm (matching `package.json` and CI).
 - Docker Desktop or another Docker engine with the Compose plugin, running.
 - Google OAuth development credentials.
 - Optional: Proton Pass CLI if you keep secrets as `pass://` references.

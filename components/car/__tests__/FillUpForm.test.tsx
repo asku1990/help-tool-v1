@@ -25,6 +25,7 @@ describe('FillUpForm', () => {
     fireEvent.click(screen.getByRole('button', { name: /add fill-up/i }));
     const dialog = await screen.findByLabelText(/Add fill-up dialog/i);
     expect(dialog).toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: 'Attachments' })).not.toBeInTheDocument();
 
     fireEvent.change(screen.getByLabelText(/Odometer km/i), { target: { value: '1000' } });
     fireEvent.change(screen.getByLabelText(/Liters/i), { target: { value: '30' } });

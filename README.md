@@ -9,6 +9,7 @@ car management; additional feature areas are a longer-term goal.
 - Fuel fill-ups and consumption insights
 - Maintenance and expense tracking
 - Google sign-in and vehicle access permissions
+- Expense and fill-up attachments for disposable staging files
 
 ## Tech Stack
 
@@ -22,6 +23,7 @@ Vitest, and Playwright.
 - [Development commands](docs/commands.md) — testing, formatting, builds, and Prisma commands.
 - [Architecture](docs/architecture.md) — feature organization, responsibilities, and data flow.
 - [Fuel consumption](docs/features/consumption.md) — calculation rules and consumption displays.
+- [Attachment storage](docs/development/attachments.md) — private staging storage and disposable-file checks.
 - [Agent guidelines](AGENTS.md) — contribution workflow and coding standards.
 - [Documentation rules](docs/documentation-rules.md) — where documentation belongs and how to update it.
 

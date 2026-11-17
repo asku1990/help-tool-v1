@@ -111,6 +111,9 @@ UI → hook → queries module → lib/api/client → route handler → Prisma �
 - Query defaults live in `app/query-provider.tsx`. Reuse its stale time, garbage-collection time,
   and retry policy instead of repeating inline cache settings in hooks. Document and justify
   exceptions when a feature genuinely needs different behavior.
+- Attachment hooks deliberately refresh on reopening and disable automatic retries. Requests
+  run even when reported offline so manual uploads cannot silently queue; a failed list refresh
+  blocks another upload until capacity can be confirmed.
 - Define reusable query and mutation hooks in separate files.
 - Use centralized query keys and invalidate all affected views after mutations, including
   derived summaries as well as directly changed record lists.
@@ -123,13 +126,61 @@ UI → hook → queries module → lib/api/client → route handler → Prisma �
 - Validate external input with Zod and return structured validation errors.
 - Use `getSessionUserId`, `getVehicleAccess`, and `hasPermission` from
   `lib/api/vehicle-access.ts`. Sign-in permission alone does not grant access to every vehicle.
-- Scope database queries to the authorized vehicle. Check permissions before reading or mutating
-  its records; never depend on a client-side access check for server authorization.
+- Owners have read/write/admin access, editors read/write, and viewers read-only access.
+- Scope database queries to the authorized vehicle and nested parent/child together. Check
+  permissions before reading or mutating records; never depend on client-side access checks.
 - Convert Prisma decimal values for JSON using `lib/prisma/decimal.ts`.
 - Paginate record lists with cursors and configured limits. Pagination is a presentation concern,
   not a limit on the history used to calculate summaries.
 - Keep credentials in environment configuration. `example.env` documents keys; real values must
-  not appear in source, logs, test fixtures, or documentation.
+  not appear in source, logs, test fixtures, or documentation. Server-only credentials must not
+  use a `NEXT_PUBLIC_` prefix.
+- The IP/path rate limiter is process-local, not a distributed quota or concurrency guarantee.
+
+## Persistence and External Storage
+
+Use the shared client from `lib/db.ts`. Database constraints and transactions enforce invariants
+under concurrent requests; client checks or separate count/insert operations do not suffice.
+Review cascading deletes and committed migration SQL before changing relations.
+Remote migration application is a separate operational action, not implicit validation.
+
+Attachments use a separate private R2 bucket and server-only credentials, isolated from database
+backups and production resources. The staging-only lifecycle may leave orphaned objects.
+PostgreSQL backups do not include attachment bytes or establish document recoverability.
+See the [attachment plan](plan/file-upload.md) for the accepted scope and
+[storage guide](development/attachments.md) for configuration.
+
+The `vercel-build` script generates Prisma, applies migrations to its configured database,
+and then builds. Do not use it as a harmless check against a remote database.
+
+### UTC Timestamp Naming and Storage
+
+New fields representing instants use explicit UTC names, such as `createdAtUtc`,
+`updatedAtUtc`, or `expiresAtUtc`, and timezone-aware PostgreSQL columns:
+
+```prisma
+createdAtUtc DateTime @default(now()) @db.Timestamptz(3)
+updatedAtUtc DateTime @updatedAt @db.Timestamptz(3)
+```
+
+PostgreSQL `timestamptz` represents an instant, not the original timezone; display depends
+on the database session. Transfer instants as ISO 8601 UTC strings with `Z` and format
+for the user only when displaying them. Prisma maintains `@updatedAt`; raw SQL writers
+must update that field explicitly.
+
+Do not append `Utc` to date-only business values or rename existing timestamp columns
+as part of an unrelated feature.
+
+## Testing Boundaries
+
+- Colocate tests in `__tests__/` and use shared hook/API seams for component mocks.
+- Use real PostgreSQL tests for constraints and concurrent uploads; Prisma mocks cannot
+  establish those guarantees.
+- Test authorization failures and mismatched vehicle/parent/child IDs.
+- Use Playwright under `e2e/` for browser workflows.
+- Keep authentication bypasses disabled outside controlled test environments.
+- Coverage, lint, and type checks complement each other; report checks that could not run
+  rather than treating source inspection as runtime validation.
 
 ## Architectural Changes
 
