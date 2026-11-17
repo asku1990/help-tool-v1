@@ -206,9 +206,55 @@ Manual check: open a disposable PDF and image from each parent type, including a
 viewer. Confirm the new tab works while the bucket stays private; return to the
 record to generate a fresh link after expiry.
 
+## Approved follow-up: delete saved files
+
+Owners and editors can delete an individual attachment using **×** after its filename
+in either saved-record edit dialog. The button has a filename-specific accessible label
+and tooltip. A native browser confirmation names the file and warns deletion cannot be undone.
+Deletion is independent of saving record edits; viewers cannot delete.
+
+- `DELETE /api/vehicles/:vehicleId/expenses/:expenseId/attachments/:attachmentId`
+- `DELETE /api/vehicles/:vehicleId/fillups/:fillUpId/attachments/:attachmentId`
+
+Both routes share authentication, write-permission checks, rate limiting, and a lookup scoped
+to attachment, parent, and authorized vehicle. R2 deletion runs before metadata deletion;
+missing R2 objects are safe to delete again. Storage failures preserve metadata. If the database
+operation fails after R2 succeeds, the filename may remain with a broken Open link until
+manual deletion retry finishes. Storage and database deletion are not atomic.
+
+The UI reuses the existing attachment busy state to block conflicting actions, record save,
+and dialog dismissal. Deletion is never automatically retried or queued offline. The list
+refreshes after success or failure without optimistic updates; a failed refresh blocks further
+uploads and deletes until a manual refresh succeeds.
+
+Tests cover both parent routes, write roles and access rejection, nested-ID scoping, storage
+and database failures, manual retry, confirmation cancellation, busy states, and capacity refresh.
+See the [storage guide](../development/attachments.md#delete-an-attachment) for manual checks.
+
+## Approved follow-up: rename saved files
+
+Owners and editors can use a compact pencil beside a saved filename in either edit dialog.
+An inline field edits only the name before the final extension, with **Save name** and
+**Cancel rename** actions. Renaming saves independently of record edits; viewers cannot rename.
+
+- `PATCH /api/vehicles/:vehicleId/expenses/:expenseId/attachments/:attachmentId`
+- `PATCH /api/vehicles/:vehicleId/fillups/:fillUpId/attachments/:attachmentId`
+
+The JSON body is `{ name: string }`. The shared server handler authenticates, rate-limits,
+requires vehicle write access, and scopes lookup and update to attachment, parent, and vehicle.
+It trims the name, rejects empty names, path separators, and control characters, and limits the
+complete filename to 255 characters. The extension is derived from stored metadata, never from
+client input. Only filename metadata changes; object key, file bytes, and capacity remain unchanged.
+
+The UI reuses attachment busy-state protection during saving, never automatically retries or queues
+offline, and refreshes the list after success or failure without optimistic updates.
+Failure preserves the draft for manual retry; a failed list refresh blocks further mutations.
+New Open requests use the updated filename; previously issued signed links are unchanged.
+See the [storage guide](../development/attachments.md#rename-an-attachment) for manual checks.
+
 ## Not included
 
-An explicit download action, embedded previews, user-facing removal, creation-form integration, other
+An explicit download action, embedded previews, undo, bulk deletion, creation-form integration, other
 formats, malware scanning, parent-deletion storage cleanup, document backups, and recovery.
 Before real-user launch, reassess lifecycle handling and implement document backups with
 tested recovery. Existing PostgreSQL backups do not include R2 attachment bytes.
