@@ -10,7 +10,7 @@ function renderWithProviders(ui: React.ReactElement) {
 
 it('renders empty state and CTA opens dialog via store', async () => {
   vi.spyOn(global, 'fetch').mockResolvedValue(
-    new Response(JSON.stringify({ data: { fillUps: [], nextCursor: null } }), {
+    new Response(JSON.stringify({ data: { fillUps: [], nextCursor: null, canWrite: true } }), {
       status: 200,
       headers: { 'Content-Type': 'application/json' },
     })

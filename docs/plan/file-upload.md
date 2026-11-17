@@ -252,6 +252,15 @@ Failure preserves the draft for manual retry; a failed list refresh blocks furth
 New Open requests use the updated filename; previously issued signed links are unchanged.
 See the [storage guide](../development/attachments.md#rename-an-attachment) for manual checks.
 
+## Approved follow-up: read-only record details
+
+Both lists open **Details** from the date/summary button for viewing saved information and attachment
+links without entering Edit. The **⋯** disclosure also offers Details, plus Edit/Delete for
+owners and editors.
+The existing Edit flow and attachment-management controls remain
+unchanged. See [viewing saved records](../features/records.md) for implemented behavior and
+manual checks. Compact rows, attachment counts, and creation-form integration are separate work.
+
 ## Not included
 
 An explicit download action, embedded previews, undo, bulk deletion, creation-form integration, other

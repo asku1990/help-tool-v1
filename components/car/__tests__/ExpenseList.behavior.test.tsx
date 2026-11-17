@@ -22,6 +22,7 @@ describe('ExpenseList behavior', () => {
             ],
             expensesTotal: 15.5,
             nextCursor: null,
+            canWrite: true,
           },
         })
       )
@@ -51,6 +52,7 @@ describe('ExpenseList behavior', () => {
             ],
             expensesTotal: 10,
             nextCursor: null,
+            canWrite: true,
           },
         })
       ),
@@ -60,7 +62,8 @@ describe('ExpenseList behavior', () => {
     );
     const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
     renderWithProviders(<ExpenseList vehicleId="vid" />);
-    const delBtn = await screen.findByRole('button', { name: /delete/i });
+    fireEvent.click(await screen.findByRole('button', { name: /actions for/ }));
+    const delBtn = screen.getByRole('button', { name: /delete/i });
     fireEvent.click(delBtn);
     await waitFor(() => expect(confirmSpy).toHaveBeenCalled());
     confirmSpy.mockRestore();
@@ -76,13 +79,15 @@ describe('ExpenseList behavior', () => {
             ],
             expensesTotal: 10,
             nextCursor: null,
+            canWrite: true,
           },
         })
       )
     );
 
     renderWithProviders(<ExpenseList vehicleId="vid" />);
-    const editBtn = await screen.findByRole('button', { name: /edit/i });
+    fireEvent.click(await screen.findByRole('button', { name: /actions for/ }));
+    const editBtn = screen.getByRole('button', { name: /edit/i });
     fireEvent.click(editBtn);
     expect(await screen.findByLabelText(/edit expense/i)).toBeInTheDocument();
   });

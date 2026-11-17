@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { useInfiniteExpenses, useUpdateExpense, useDeleteExpense } from '@/hooks';
 import { Button, Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui';
 import { ExpenseListSkeleton } from '@/components/car';
@@ -9,6 +9,7 @@ import { formatDateFi } from '@/utils';
 import { toast } from 'sonner';
 import { getUiErrorMessage } from '@/lib/api/client-errors';
 import RecordAttachments from './attachments/RecordAttachments';
+import { RecordActions, RecordDetailsButton } from './records';
 
 export default function ExpenseList({ vehicleId }: { vehicleId: string }) {
   const { data, isLoading, isError, error, hasNextPage, fetchNextPage, isFetchingNextPage } =
@@ -16,6 +17,7 @@ export default function ExpenseList({ vehicleId }: { vehicleId: string }) {
 
   const items = useMemo(() => (data?.pages || []).flatMap(p => p.expenses), [data]);
   const total = useMemo(() => items.reduce((s, e) => s + e.amount, 0), [items]);
+  const canWrite = data?.pages[0]?.canWrite === true;
 
   if (isLoading) return <ExpenseListSkeleton rows={3} />;
   if (isError)
@@ -35,7 +37,7 @@ export default function ExpenseList({ vehicleId }: { vehicleId: string }) {
     return (
       <div className="text-sm text-gray-600 flex items-center justify-between">
         <span>No expenses yet. Log one to track maintenance and total cost.</span>
-        <EmptyCta />
+        {canWrite ? <EmptyCta /> : null}
       </div>
     );
 
@@ -44,15 +46,12 @@ export default function ExpenseList({ vehicleId }: { vehicleId: string }) {
       <div className="text-xs text-gray-500">Total: {formatCurrency(total)}</div>
       <ul className="divide-y">
         {items.map(e => (
-          <li key={e.id} className="py-3 grid gap-2 sm:grid-cols-5 sm:items-center">
-            <div className="text-sm">{formatDateFi(new Date(e.date))}</div>
-            <div className="text-sm">
-              <span className="inline-block rounded px-2 py-0.5 bg-gray-100 text-gray-700 text-xs">
-                {e.category}
-              </span>
-              {e.vendor ? <span className="text-gray-600 text-xs ml-2">{e.vendor}</span> : null}
-            </div>
-            <div className="text-sm text-gray-600">
+          <li
+            key={e.id}
+            className="grid grid-cols-[minmax(0,1fr)_auto] gap-2 py-3 sm:grid-cols-5 sm:items-center"
+          >
+            <RecordDetailsButton vehicleId={vehicleId} type="expense" item={e} />
+            <div className="col-start-1 text-sm text-gray-600 sm:col-start-auto">
               {e.odometerKm ? `Odo: ${e.odometerKm} km` : ''}
               {e.oilConsumption ? (
                 <span className="ml-2 text-xs text-amber-600">
@@ -60,12 +59,21 @@ export default function ExpenseList({ vehicleId }: { vehicleId: string }) {
                 </span>
               ) : null}
             </div>
-            <div className="text-sm font-medium sm:text-right">{formatCurrency(e.amount)}</div>
-            {e.notes ? <div className="text-xs text-gray-500 sm:col-span-4">{e.notes}</div> : null}
-            <div className="sm:text-right flex gap-2 sm:justify-end">
-              <EditExpenseButton vehicleId={vehicleId} item={e} />
-              <DeleteExpenseButton vehicleId={vehicleId} expenseId={e.id} />
+            <div className="col-start-1 text-sm font-medium sm:col-start-auto sm:text-right">
+              {formatCurrency(e.amount)}
             </div>
+            {e.notes ? (
+              <div className="col-start-1 text-xs text-gray-500 sm:col-span-4">{e.notes}</div>
+            ) : null}
+            <RecordActions label={`Expense actions for ${formatDateFi(new Date(e.date))}`}>
+              <RecordDetailsButton vehicleId={vehicleId} type="expense" item={e} variant="menu" />
+              {canWrite ? (
+                <>
+                  <EditExpenseButton vehicleId={vehicleId} item={e} />
+                  <DeleteExpenseButton vehicleId={vehicleId} expenseId={e.id} />
+                </>
+              ) : null}
+            </RecordActions>
           </li>
         ))}
       </ul>
@@ -127,6 +135,7 @@ function EditExpenseButton({
   };
 }) {
   const [open, setOpen] = useState(false);
+  const returnFocus = useRef<HTMLElement | null>(null);
   const [uploading, setUploading] = useState(false);
   const [state, setState] = useState({
     date: item.date.slice(0, 10),
@@ -142,8 +151,12 @@ function EditExpenseButton({
     <>
       <button
         type="button"
-        className="text-xs px-2 py-1 rounded border"
-        onClick={() => setOpen(true)}
+        className="block min-h-11 w-full cursor-pointer rounded px-3 py-2 text-left text-sm hover:bg-gray-100"
+        onClick={event => {
+          returnFocus.current =
+            event.currentTarget.closest('details')?.querySelector('summary') ?? event.currentTarget;
+          setOpen(true);
+        }}
       >
         Edit
       </button>
@@ -153,7 +166,14 @@ function EditExpenseButton({
           if (!uploading) setOpen(next);
         }}
       >
-        <DialogContent aria-label="Edit expense" className="max-h-[90dvh] overflow-y-auto">
+        <DialogContent
+          aria-label="Edit expense"
+          className="max-h-[90dvh] overflow-y-auto"
+          onCloseAutoFocus={event => {
+            event.preventDefault();
+            returnFocus.current?.focus();
+          }}
+        >
           <DialogHeader>
             <DialogTitle>Edit expense</DialogTitle>
           </DialogHeader>
@@ -312,7 +332,7 @@ function DeleteExpenseButton({ vehicleId, expenseId }: { vehicleId: string; expe
   return (
     <button
       type="button"
-      className="text-xs px-2 py-1 rounded border"
+      className="block min-h-11 w-full cursor-pointer rounded px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50"
       onClick={async () => {
         if (!confirm('Delete this expense?')) return;
         try {

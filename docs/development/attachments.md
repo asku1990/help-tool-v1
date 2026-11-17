@@ -72,6 +72,12 @@ See the [manual checks in the feature plan](../plan/file-upload.md#slice-3-ui-an
 
 ## Open an attachment
 
+Select the date/summary of an expense or fill-up to open **Details** and view saved
+information and attachment links
+without entering an editable form. This view has no upload, rename, or delete controls,
+even for owners and editors. Use **⋯ → Edit** to manage attachments.
+See [viewing saved records](../features/records.md) for the complete viewing behavior.
+
 Select a saved filename to open it in a new tab. Owners, editors, and viewers with access to
 the vehicle can open its attachments. The app checks the vehicle, parent record, and
 attachment before redirecting to a signed R2 link that expires after **2 minutes**.

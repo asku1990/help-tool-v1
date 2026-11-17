@@ -33,14 +33,19 @@ const receipt: AttachmentDto = {
 function metadata(attachments: AttachmentDto[] = [], canUpload = true): AttachmentListDto {
   return { attachments, canUpload, maxAttachments: 5, remainingCapacity: 5 - attachments.length };
 }
-function renderPanel(record: AttachmentRecord = { type: 'expense', id: 'e1' }) {
+function renderPanel(record: AttachmentRecord = { type: 'expense', id: 'e1' }, readOnly = false) {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false, gcTime: 0 }, mutations: { retry: false } },
   });
   const onUploadingChange = vi.fn();
   const result = render(
     <QueryClientProvider client={client}>
-      <RecordAttachments vehicleId="car" record={record} onUploadingChange={onUploadingChange} />
+      <RecordAttachments
+        vehicleId="car"
+        record={record}
+        onUploadingChange={onUploadingChange}
+        readOnly={readOnly}
+      />
     </QueryClientProvider>
   );
   return { ...result, client, onUploadingChange };
@@ -97,6 +102,20 @@ describe('Record attachments', () => {
     expect(
       screen.queryByRole('button', { name: /remove|download|preview/i })
     ).not.toBeInTheDocument();
+  });
+
+  it('offers only attachment links in read-only mode even when the caller can write', async () => {
+    vi.mocked(listAttachments).mockResolvedValue(metadata([receipt]));
+    renderPanel({ type: 'expense', id: 'e1' }, true);
+    expect(
+      await screen.findByRole('link', { name: 'Open receipt.pdf in a new tab' })
+    ).toBeInTheDocument();
+    expect(screen.queryByLabelText('Attachment file')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Upload|Rename|Delete/ })).not.toBeInTheDocument();
+    expect(screen.queryByText(/attachment slots remaining/)).not.toBeInTheDocument();
+    expect(uploadAttachment).not.toHaveBeenCalled();
+    expect(renameAttachment).not.toHaveBeenCalled();
+    expect(deleteAttachment).not.toHaveBeenCalled();
   });
 
   it('does not delete when confirmation is cancelled', async () => {
