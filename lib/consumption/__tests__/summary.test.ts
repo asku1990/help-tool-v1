@@ -5,6 +5,54 @@ import type { ConsumptionFillUp } from '../segments';
 describe('vehicle summary', () => {
   const now = new Date('2026-11-17T12:00:00Z');
 
+  it.each([
+    {
+      period: 'winter month rollover',
+      previous: '2026-10-31T23:59:59.999+02:00',
+      current: '2026-11-01T00:00:00+02:00',
+      now: '2026-11-01T00:30:00+02:00',
+    },
+    {
+      period: 'summer month rollover',
+      previous: '2026-06-30T23:59:59.999+03:00',
+      current: '2026-07-01T00:00:00+03:00',
+      now: '2026-07-01T00:30:00+03:00',
+    },
+    {
+      period: 'year rollover',
+      previous: '2026-12-31T23:59:59.999+02:00',
+      current: '2027-01-01T00:00:00+02:00',
+      now: '2027-01-01T00:30:00+02:00',
+    },
+  ])('uses the Helsinki calendar at $period', ({ previous, current, now: timestamp }) => {
+    const fillUps: ConsumptionFillUp[] = [
+      {
+        id: 'previous',
+        date: previous,
+        odometerKm: 100,
+        liters: 5,
+        totalCost: 10,
+        isFull: false,
+      },
+      {
+        id: 'current',
+        date: current,
+        odometerKm: 200,
+        liters: 10,
+        totalCost: 20,
+        isFull: false,
+      },
+    ];
+    const expenses = [
+      { date: previous, category: 'PARKING', amount: 5 },
+      { date: current, category: 'PARKING', amount: 7 },
+    ];
+    const summary = computeVehicleSummary(fillUps, expenses, new Date(timestamp));
+    expect(summary.spendMTD).toBe(27);
+    expect(summary.spend30d).toBe(42);
+    expect(summary.breakdown90d.map(item => item.amount)).toEqual([30, 0, 12]);
+  });
+
   it('includes history beyond the default list page in lifetime and period totals', () => {
     const fillUps: ConsumptionFillUp[] = Array.from({ length: 61 }, (_, i) => ({
       id: String(i),

@@ -23,6 +23,9 @@ For application layers and dependency rules, see [architecture](../architecture.
 - A period's consumption distance and fuel cost use segments ending in that period; this is
   an interval-based estimate, not a daily allocation of driving. Spend and category breakdowns
   use record dates.
+- Month-to-date spending uses the current calendar month in `Europe/Helsinki`, including
+  daylight-saving changes, regardless of the API server's timezone. Both fill-up and expense
+  dates are evaluated in that reporting timezone. The 30/90-day windows remain rolling durations.
 - No completed distance means unavailable consumption or cost/km, not zero. JSON uses `null`
   for unavailable ratios; the UI displays an unavailable marker.
 
