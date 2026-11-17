@@ -34,8 +34,11 @@ Implementation: `components/car/records/RecordDetailsButton.tsx`, used by both l
 and the read-only mode of `components/car/attachments/RecordAttachments.tsx`.
 The dialog uses the record data already loaded by the list, without new record endpoints.
 
-The lists retain their existing values and notes. Attachment counts and attachments in
-creation forms remain separate work.
+The lists retain their existing values. Note previews use at most two lines on mobile
+and one on desktop; Details keeps the full notes. Fill-up status and consumption figures
+are outside the note preview and remain visible. Expenses without odometer or oil-consumption
+values do not render an empty metrics row; numeric zero is still shown and amounts stay
+aligned on desktop. Attachment counts and attachments in creation forms remain separate work.
 
 Manual check: open Details for an expense and a fill-up, including a record with long notes,
 no attachments, and available attachments. Confirm there are no editable fields or mutation

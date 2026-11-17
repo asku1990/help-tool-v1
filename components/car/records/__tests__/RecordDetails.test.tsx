@@ -41,8 +41,10 @@ describe.each([
   { type: 'fillup', Component: FillUpList, title: 'Fill-up details', resource: 'fillups' },
 ])('$type details from the list', ({ type, Component, title, resource }) => {
   let canWrite: boolean | undefined;
+  let notes: string;
   beforeEach(() => {
     canWrite = true;
+    notes = 'Saved notes\nSecond line';
     vi.resetAllMocks();
     vi.mocked(listAttachments).mockResolvedValue(metadata);
     server.use(
@@ -59,7 +61,7 @@ describe.each([
                 odometerKm: 0,
                 liters: 0,
                 oilConsumption: 0,
-                notes: 'Saved notes\nSecond line',
+                notes,
               },
             ],
             expensesTotal: 10,
@@ -80,7 +82,7 @@ describe.each([
                 pricePerLiter: 2,
                 totalCost: 20,
                 isFull: true,
-                notes: 'Saved notes\nSecond line',
+                notes,
                 segment: {
                   distanceKm: 200,
                   litersUsed: 15,
@@ -113,6 +115,27 @@ describe.each([
       </QueryClientProvider>
     );
   }
+
+  it('limits long note previews without shortening the full notes in Details', async () => {
+    notes = 'A long saved note with useful record information. '.repeat(30).trim();
+    renderList();
+    const preview = await screen.findByText(notes);
+    expect(preview).toHaveClass('line-clamp-2', 'sm:line-clamp-1', 'break-words');
+    if (type === 'fillup') {
+      expect(preview).not.toContainElement(screen.getByText('Full tank'));
+      expect(preview).not.toContainElement(screen.getByTitle('Higher than previous trip'));
+    }
+    fireEvent.click(screen.getByRole('button', { name: /View .* details for/ }));
+    const dialog = within(await screen.findByRole('dialog', { name: title }));
+    const fullNotes = dialog.getByText(notes);
+    expect(fullNotes).toHaveTextContent(notes);
+    expect(fullNotes).not.toHaveClass('line-clamp-2');
+    expect(fullNotes).not.toHaveClass('sm:line-clamp-1');
+    if (type === 'fillup') {
+      expect(dialog.getByText('Full tank')).toBeInTheDocument();
+      expect(dialog.getByText('7.50 L/100km')).toBeInTheDocument();
+    }
+  });
 
   it.each([true, false])(
     'opens read-only fields and safe attachment links with canUpload=%s',

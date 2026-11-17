@@ -62,9 +62,16 @@ export default function FillUpList({ vehicleId }: { vehicleId: string }) {
                 {f.liters} L @ {f.pricePerLiter.toFixed(3)} →{' '}
                 <span className="font-medium">{formatCurrency(f.totalCost)}</span>
               </div>
-              <div className="col-start-1 text-xs text-gray-500 sm:col-start-auto">
-                {f.isFull ? 'Full tank' : 'Partial'}
-                {f.notes ? ` • ${f.notes}` : ''}
+              <div className="col-start-1 min-w-0 text-xs text-gray-500 sm:col-start-auto">
+                <div className="flex items-start gap-1">
+                  <span className="shrink-0">{f.isFull ? 'Full tank' : 'Partial'}</span>
+                  {f.notes ? (
+                    <>
+                      <span aria-hidden="true">·</span>
+                      <p className="min-w-0 line-clamp-2 break-words sm:line-clamp-1">{f.notes}</p>
+                    </>
+                  ) : null}
+                </div>
                 {f.isFull && f.segment ? (
                   <div className="text-[11px] text-gray-600 mt-0.5">
                     Trip {f.segment.distanceKm.toFixed(0)} km •{' '}

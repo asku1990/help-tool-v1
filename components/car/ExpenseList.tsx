@@ -51,19 +51,23 @@ export default function ExpenseList({ vehicleId }: { vehicleId: string }) {
             className="grid grid-cols-[minmax(0,1fr)_auto] gap-2 py-3 sm:grid-cols-5 sm:items-center"
           >
             <RecordDetailsButton vehicleId={vehicleId} type="expense" item={e} />
-            <div className="col-start-1 text-sm text-gray-600 sm:col-start-auto">
-              {e.odometerKm ? `Odo: ${e.odometerKm} km` : ''}
-              {e.oilConsumption ? (
-                <span className="ml-2 text-xs text-amber-600">
-                  {e.oilConsumption.toFixed(1)} L/10k
-                </span>
-              ) : null}
-            </div>
-            <div className="col-start-1 text-sm font-medium sm:col-start-auto sm:text-right">
+            {e.odometerKm != null || e.oilConsumption != null ? (
+              <div className="col-start-1 flex flex-wrap items-center gap-x-2 text-sm text-gray-600 sm:col-start-3">
+                {e.odometerKm != null ? `Odo: ${e.odometerKm} km` : null}
+                {e.oilConsumption != null ? (
+                  <span className="text-xs text-amber-600">
+                    {e.oilConsumption.toFixed(1)} L/10k
+                  </span>
+                ) : null}
+              </div>
+            ) : null}
+            <div className="col-start-1 text-sm font-medium sm:col-start-4 sm:text-right">
               {formatCurrency(e.amount)}
             </div>
             {e.notes ? (
-              <div className="col-start-1 text-xs text-gray-500 sm:col-span-4">{e.notes}</div>
+              <div className="col-start-1 min-w-0 line-clamp-2 break-words text-xs text-gray-500 sm:col-span-4 sm:line-clamp-1">
+                {e.notes}
+              </div>
             ) : null}
             <RecordActions label={`Expense actions for ${formatDateFi(new Date(e.date))}`}>
               <RecordDetailsButton vehicleId={vehicleId} type="expense" item={e} variant="menu" />
