@@ -198,5 +198,5 @@ The script dumps only `public`, omits ownership and privilege statements, and st
 so the dump is portable to a local PostgreSQL database.
 
 The [GitHub backup workflow](../.github/workflows/db-backup-r2.yml) can be run manually
-and is scheduled for Sundays at `02:00 UTC`. Configure the required variables above as
+and is scheduled for the first day of each month at `02:00 UTC`. Configure the required variables above as
 GitHub Actions secrets; it also accepts `R2_REGION`, `R2_PREFIX`, and `R2_ENDPOINT`.
