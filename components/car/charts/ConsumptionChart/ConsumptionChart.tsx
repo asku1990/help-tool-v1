@@ -1,11 +1,21 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useMemo } from 'react';
+import {
+  CartesianGrid,
+  Line,
+  LineChart,
+  ReferenceLine,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from 'recharts';
 import { formatDateFi } from '@/utils';
 import { consumptionPer100 } from '@/lib/consumption';
 
 export type ChartOptions = {
-  rangeDays: 30 | 90 | 180 | 0; // 0 = All
+  rangeDays: 30 | 90 | 180 | 365 | 730 | 0; // 0 = All
 };
 
 export type SegmentPoint = {
@@ -20,121 +30,132 @@ export type ConsumptionChartProps = {
 };
 
 export default function ConsumptionChart({ segments, options }: ConsumptionChartProps) {
-  const containerRef = useRef<HTMLDivElement | null>(null);
-  const [width, setWidth] = useState<number>(600);
-  const height = 180;
-  const padding = 16;
+  const rangeDays = options?.rangeDays ?? 0;
+  const { points, avg } = useMemo(() => {
+    const from = rangeDays ? Date.now() - rangeDays * 24 * 60 * 60 * 1000 : null;
+    const filtered = segments
+      .map(segment => ({ ...segment, timestamp: new Date(segment.date).getTime() }))
+      .filter(
+        segment =>
+          Number.isFinite(segment.timestamp) && (from === null || segment.timestamp >= from)
+      )
+      .sort((a, b) => a.timestamp - b.timestamp);
 
-  const resolvedOptions: ChartOptions = options ?? { rangeDays: 0 };
-
-  useEffect(() => {
-    if (!containerRef.current) return;
-    const el = containerRef.current;
-    const ro = new ResizeObserver(entries => {
-      for (const entry of entries) {
-        const w = entry.contentRect.width;
-        if (w && Number.isFinite(w)) setWidth(Math.max(320, Math.floor(w)));
-      }
-    });
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, []);
-
-  const filtered = useMemo(() => {
-    const now = new Date();
-    const from = resolvedOptions.rangeDays
-      ? new Date(now.getTime() - resolvedOptions.rangeDays * 24 * 60 * 60 * 1000)
-      : null;
-    return segments.filter(p => (from ? new Date(p.date) >= from : true));
-  }, [segments, resolvedOptions.rangeDays]);
-
-  const { points, yVals, yMin, yRange, avg, avgY, pathD, gridYs } = useMemo(() => {
-    const pts = filtered.map((s, i) => ({ x: i, y: s.lPer100, date: s.date }));
-    const xMax = Math.max(1, pts.length - 1);
-    const yvRaw = pts.map(p => p.y).filter(Number.isFinite);
-    const hasData = yvRaw.length > 0;
-    const yv = hasData ? yvRaw : [0];
-    const ymin = hasData ? Math.min(...yv) : 0;
-    const ymax = hasData ? Math.max(...yv) : 1;
-    const yrange = ymax - ymin || 1;
-    const toX = (i: number) => padding + (i / xMax) * (width - padding * 2);
-    const toY = (v: number) => padding + (1 - (v - ymin) / yrange) * (height - padding * 2);
-    const d = pts
-      .map((p, idx) => `${idx === 0 ? 'M' : 'L'} ${toX(p.x).toFixed(2)} ${toY(p.y).toFixed(2)}`)
-      .join(' ');
-    const a = consumptionPer100(
-      filtered.map(s => ({
-        distanceKm: s.distanceKm,
-        litersUsed: (s.lPer100 * s.distanceKm) / 100,
-      }))
-    );
-    const ay = toY(a);
-    const gridStep = Math.max(1, Math.round(yrange / 4));
-    const gridValues: number[] = [];
-    for (let v = Math.floor(ymin); v <= Math.ceil(ymax); v += gridStep) gridValues.push(v);
     return {
-      points: pts,
-      yVals: hasData ? yvRaw : [],
-      yMin: ymin,
-      yRange: yrange,
-      avg: a,
-      avgY: ay,
-      pathD: d,
-      gridYs: gridValues.map(v => ({ v, y: toY(v) })),
+      points: filtered,
+      avg: consumptionPer100(
+        filtered.map(segment => ({
+          distanceKm: segment.distanceKm,
+          litersUsed: (segment.lPer100 * segment.distanceKm) / 100,
+        }))
+      ),
     };
-  }, [filtered, width]);
+  }, [segments, rangeDays]);
 
-  if (!filtered.length) {
+  if (!points.length) {
     return <div className="text-sm text-gray-500">No consumption data yet.</div>;
   }
 
+  const values = points.map(point => point.lPer100);
+  const ticks: number[] = [];
+  const firstTimestamp = points[0].timestamp;
+  const lastTimestamp = points[points.length - 1].timestamp;
+  const firstDate = new Date(firstTimestamp);
+  const spanDays = (lastTimestamp - firstTimestamp) / (24 * 60 * 60 * 1000);
+  const showDays = spanDays <= 62;
+
+  if (showDays) {
+    const stepDays = spanDays <= 7 ? 1 : spanDays <= 21 ? 3 : 7;
+    const day = new Date(firstDate.getFullYear(), firstDate.getMonth(), firstDate.getDate());
+    if (day.getTime() < firstTimestamp) day.setDate(day.getDate() + 1);
+    while (day.getTime() <= lastTimestamp) {
+      ticks.push(day.getTime());
+      day.setDate(day.getDate() + stepDays);
+    }
+  } else {
+    const maxTicks = 24;
+    const lastDate = new Date(lastTimestamp);
+    const monthSpan =
+      (lastDate.getFullYear() - firstDate.getFullYear()) * 12 +
+      lastDate.getMonth() -
+      firstDate.getMonth();
+    const stepMonths = Math.max(1, Math.ceil((monthSpan + 1) / maxTicks));
+    const month = new Date(firstDate.getFullYear(), firstDate.getMonth(), 1);
+    if (month.getTime() < firstTimestamp) month.setMonth(month.getMonth() + 1);
+    while (month.getTime() <= lastTimestamp && ticks.length < maxTicks) {
+      ticks.push(month.getTime());
+      month.setMonth(month.getMonth() + stepMonths);
+    }
+  }
+  // A single trip or a same-day history may not cross a calendar boundary.
+  if (!ticks.length) ticks.push(firstTimestamp);
+
   return (
-    <div ref={containerRef} className="bg-white p-4 sm:p-6 rounded-xl shadow-sm border">
-      <div className="text-sm font-medium mb-2">Consumption trend (L/100km)</div>
-      <svg
-        width="100%"
-        height={height}
-        viewBox={`0 0 ${width} ${height}`}
-        role="img"
-        aria-label="Fuel consumption trend chart"
-      >
-        <rect x="0" y="0" width={width} height={height} fill="white" />
-        {gridYs.map(g => (
-          <g key={g.v}>
-            <line x1={padding} y1={g.y} x2={width - padding} y2={g.y} stroke="#f1f5f9" />
-            <text x={padding - 6} y={g.y + 3} fontSize="10" textAnchor="end" fill="#64748b">
-              {g.v.toFixed(0)}
-            </text>
-          </g>
-        ))}
-        <line
-          x1={padding}
-          y1={avgY}
-          x2={width - padding}
-          y2={avgY}
-          stroke="#e5e7eb"
-          strokeDasharray="4 4"
-        />
-        <path d={pathD} fill="none" stroke="#2563eb" strokeWidth="2" />
-        {/* Cost series removed per request */}
-        {points.map((p, i) => {
-          const x = padding + (i / Math.max(1, points.length - 1)) * (width - padding * 2);
-          const y = padding + (1 - (p.y - yMin) / (yRange || 1)) * (height - padding * 2);
-          return (
-            <g key={i}>
-              <circle cx={x} cy={y} r={3} fill="#2563eb">
-                <title>
-                  {formatDateFi(new Date(p.date))}: {p.y.toFixed(2)} L/100km
-                </title>
-              </circle>
-            </g>
-          );
-        })}
-      </svg>
-      <div className="text-xs text-gray-500 mt-2">
-        Avg: {avg.toFixed(2)} L/100km • Min: {Math.min(...yVals).toFixed(2)} • Max:{' '}
-        {Math.max(...yVals).toFixed(2)}
+    <div className="min-w-0 bg-white p-4 sm:p-6 rounded-xl shadow-sm border">
+      <div className="text-sm font-medium mb-2">Consumption trend (L/100 km)</div>
+      <div role="group" aria-label="Fuel consumption trend chart">
+        <ResponsiveContainer width="100%" height={260} minWidth={0}>
+          <LineChart data={points} margin={{ top: 16, right: 20, bottom: 20, left: 8 }}>
+            <CartesianGrid stroke="#f1f5f9" vertical={false} />
+            <XAxis
+              dataKey="timestamp"
+              type="number"
+              scale="time"
+              domain={['dataMin', 'dataMax']}
+              ticks={ticks}
+              tickFormatter={value => {
+                const date = new Date(value);
+                return showDays
+                  ? `${date.getDate()}.${date.getMonth() + 1}.`
+                  : `${date.getMonth() + 1}.${date.getFullYear()}`;
+              }}
+              tick={{ fontSize: 11 }}
+              minTickGap={32}
+              label={{ value: 'Date', position: 'insideBottom', offset: -12 }}
+            />
+            <YAxis
+              width={48}
+              domain={['auto', 'auto']}
+              tick={{ fontSize: 11 }}
+              label={{ value: 'L/100 km', angle: -90, position: 'insideLeft' }}
+            />
+            <Tooltip
+              content={({ active, payload }) => {
+                const point = payload?.[0]?.payload as
+                  | (SegmentPoint & { timestamp: number })
+                  | undefined;
+                if (!active || !point) return null;
+
+                return (
+                  <div className="rounded-lg border bg-white p-3 text-sm shadow-sm">
+                    <div className="font-medium">{formatDateFi(new Date(point.date))}</div>
+                    <div>Consumption: {point.lPer100.toFixed(2)} L/100 km</div>
+                    <div>Distance: {point.distanceKm.toLocaleString('fi-FI')} km</div>
+                  </div>
+                );
+              }}
+            />
+            <ReferenceLine y={avg} stroke="#64748b" strokeDasharray="4 4" />
+            <Line
+              name="Consumption"
+              dataKey="lPer100"
+              type="linear"
+              stroke="#2563eb"
+              strokeWidth={2}
+              dot={{ r: 3 }}
+              activeDot={{ r: 5 }}
+              isAnimationActive={false}
+            />
+          </LineChart>
+        </ResponsiveContainer>
       </div>
+      <div className="text-xs text-gray-500 mt-2">
+        Avg: {avg.toFixed(2)} L/100km • Min: {Math.min(...values).toFixed(2)} • Max:{' '}
+        {Math.max(...values).toFixed(2)}
+      </div>
+      <p className="text-xs text-gray-500 mt-1">
+        Dashed line: distance-weighted average. Hover or tap a point for trip details.
+      </p>
     </div>
   );
 }

@@ -19,13 +19,15 @@ export default function ChartToolbar({
         className="border rounded px-2 py-1 text-sm"
         value={options.rangeDays}
         onChange={e =>
-          onChange({ ...options, rangeDays: Number(e.target.value) as 30 | 90 | 180 | 0 })
+          onChange({ ...options, rangeDays: Number(e.target.value) as ChartOptions['rangeDays'] })
         }
         aria-label="Range"
       >
         <option value={30}>30d</option>
         <option value={90}>90d</option>
         <option value={180}>180d</option>
+        <option value={365}>1 year</option>
+        <option value={730}>2 years</option>
         <option value={0}>All</option>
       </select>
     </div>
