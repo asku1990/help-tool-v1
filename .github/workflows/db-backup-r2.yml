@@ -3,7 +3,7 @@ name: Database Backup to R2
 on:
   workflow_dispatch:
   schedule:
-    - cron: '0 2 * * 0'
+    - cron: '0 2 1 * *'
 
 permissions:
   contents: read
