@@ -11,6 +11,8 @@ export function useUploadAttachment(vehicleId: string, record: AttachmentRecord)
   const client = useQueryClient();
   const queryKey = attachmentKeys.byRecord(vehicleId, record.type, record.id);
   return useMutation({
+    // Let XHR fail normally offline instead of silently queuing a manual upload.
+    networkMode: 'always',
     mutationFn: (options: UploadAttachmentOptions) => uploadAttachment(vehicleId, record, options),
     retry: false,
     onSuccess: async attachment => {

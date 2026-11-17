@@ -1,6 +1,6 @@
 import React from 'react';
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { onlineManager, QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import RecordAttachments from '@/components/car/attachments/RecordAttachments';
 import {
@@ -8,6 +8,7 @@ import {
   uploadAttachment,
   type AttachmentDto,
   type AttachmentListDto,
+  type AttachmentRecord,
 } from '@/queries/attachments';
 import { ApiClientError } from '@/lib/api/client';
 
@@ -28,18 +29,14 @@ const receipt: AttachmentDto = {
 function metadata(attachments: AttachmentDto[] = [], canUpload = true): AttachmentListDto {
   return { attachments, canUpload, maxAttachments: 5, remainingCapacity: 5 - attachments.length };
 }
-function renderPanel() {
+function renderPanel(record: AttachmentRecord = { type: 'expense', id: 'e1' }) {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false, gcTime: 0 }, mutations: { retry: false } },
   });
   const onUploadingChange = vi.fn();
   const result = render(
     <QueryClientProvider client={client}>
-      <RecordAttachments
-        vehicleId="car"
-        record={{ type: 'expense', id: 'e1' }}
-        onUploadingChange={onUploadingChange}
-      />
+      <RecordAttachments vehicleId="car" record={record} onUploadingChange={onUploadingChange} />
     </QueryClientProvider>
   );
   return { ...result, client, onUploadingChange };
@@ -57,7 +54,10 @@ describe('Record attachments', () => {
     vi.mocked(listAttachments).mockResolvedValue(metadata());
     vi.mocked(uploadAttachment).mockResolvedValue(receipt);
   });
-  afterEach(cleanup);
+  afterEach(() => {
+    cleanup();
+    onlineManager.setOnline(true);
+  });
 
   it('shows filenames, capacity, and a safe Open link without offering removal', async () => {
     vi.mocked(listAttachments).mockResolvedValue(metadata([receipt]));
@@ -165,6 +165,33 @@ describe('Record attachments', () => {
     expect(await screen.findByRole('button', { name: 'Retry upload' })).toBeEnabled();
     expect(screen.getByText('Selected file: receipt.pdf')).toBeInTheDocument();
   });
+
+  it.each(['expense', 'fillup'] as const)(
+    'unlocks the %s dialog after an offline failure without queuing another upload',
+    async type => {
+      const { onUploadingChange } = renderPanel({ type, id: 'parent' });
+      await select();
+      act(() => onlineManager.setOnline(false));
+      vi.mocked(uploadAttachment).mockRejectedValueOnce(
+        new ApiClientError('Connection failed.', 0)
+      );
+      vi.mocked(listAttachments).mockRejectedValueOnce(new Error('List unavailable.'));
+
+      fireEvent.click(screen.getByRole('button', { name: 'Upload' }));
+
+      expect(
+        await screen.findByRole('button', { name: 'Refresh attachments' })
+      ).toBeInTheDocument();
+      await waitFor(() => expect(onUploadingChange).toHaveBeenLastCalledWith(false));
+      expect(uploadAttachment).toHaveBeenCalledOnce();
+      expect(listAttachments).toHaveBeenCalledTimes(2);
+      expect(screen.queryByRole('button', { name: 'Retry upload' })).not.toBeInTheDocument();
+      expect(screen.queryByRole('progressbar')).not.toBeInTheDocument();
+
+      await act(async () => onlineManager.setOnline(true));
+      expect(uploadAttachment).toHaveBeenCalledOnce();
+    }
+  );
 
   it('keeps confirmed metadata even when refreshing after success fails', async () => {
     renderPanel();
