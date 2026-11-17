@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { attachmentOpenUrl, listAttachments, uploadAttachment } from '..';
+import { attachmentOpenUrl, deleteAttachment, listAttachments, uploadAttachment } from '..';
 import { ApiClientError } from '@/lib/api/client';
 
 type ProgressHandler = ((_event: ProgressEvent) => void) | null;
@@ -76,6 +76,23 @@ describe('Attachment browser requests', () => {
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
   });
+
+  it.each(['expense', 'fillup'] as const)(
+    'deletes a %s attachment using encoded IDs and the shared API client',
+    async type => {
+      const fetch = vi
+        .spyOn(globalThis, 'fetch')
+        .mockResolvedValue(Response.json({ data: { id: 'attachment/id' }, error: null }));
+      const signal = new AbortController().signal;
+      await expect(
+        deleteAttachment('car/id', { type, id: 'parent/id' }, 'attachment/id', signal)
+      ).resolves.toEqual({ id: 'attachment/id' });
+      expect(fetch).toHaveBeenCalledWith(
+        `/api/vehicles/car%2Fid/${type === 'expense' ? 'expenses' : 'fillups'}/parent%2Fid/attachments/attachment%2Fid`,
+        { method: 'DELETE', signal }
+      );
+    }
+  );
 
   it.each(['expense', 'fillup'] as const)(
     'builds an authorized %s Open path with encoded IDs',

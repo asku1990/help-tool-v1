@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import RecordAttachments from '@/components/car/attachments/RecordAttachments';
 import {
   listAttachments,
+  deleteAttachment,
   uploadAttachment,
   type AttachmentDto,
   type AttachmentListDto,
@@ -16,6 +17,7 @@ vi.mock('@/queries/attachments', async importOriginal => ({
   ...(await importOriginal<typeof import('@/queries/attachments')>()),
   listAttachments: vi.fn(),
   uploadAttachment: vi.fn(),
+  deleteAttachment: vi.fn(),
 }));
 
 const receipt: AttachmentDto = {
@@ -53,13 +55,16 @@ describe('Record attachments', () => {
     vi.resetAllMocks();
     vi.mocked(listAttachments).mockResolvedValue(metadata());
     vi.mocked(uploadAttachment).mockResolvedValue(receipt);
+    vi.mocked(deleteAttachment).mockResolvedValue({ id: receipt.id });
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
   });
   afterEach(() => {
     cleanup();
+    vi.restoreAllMocks();
     onlineManager.setOnline(true);
   });
 
-  it('shows filenames, capacity, and a safe Open link without offering removal', async () => {
+  it('shows filenames, capacity, a safe Open link, and a separate delete button', async () => {
     vi.mocked(listAttachments).mockResolvedValue(metadata([receipt]));
     renderPanel();
     expect(await screen.findByText('receipt.pdf')).toBeInTheDocument();
@@ -72,10 +77,107 @@ describe('Record attachments', () => {
     expect(open).toHaveAttribute('referrerpolicy', 'no-referrer');
     expect(open).not.toHaveAttribute('download');
     expect(open).toHaveTextContent('receipt.pdf');
+    expect(open).toHaveClass('inline-flex', 'items-center', 'min-h-0');
+    expect(screen.getByRole('button', { name: 'Delete receipt.pdf' })).toHaveAttribute(
+      'type',
+      'button'
+    );
+    expect(screen.getByRole('button', { name: 'Delete receipt.pdf' })).toHaveClass(
+      'h-6',
+      'min-h-0',
+      'min-w-6'
+    );
     expect(screen.queryByRole('button', { name: 'Open' })).not.toBeInTheDocument();
     expect(
       screen.queryByRole('button', { name: /remove|download|preview/i })
     ).not.toBeInTheDocument();
+  });
+
+  it('does not delete when confirmation is cancelled', async () => {
+    vi.mocked(listAttachments).mockResolvedValue(metadata([receipt]));
+    vi.mocked(window.confirm).mockReturnValue(false);
+    renderPanel();
+    fireEvent.click(await screen.findByRole('button', { name: 'Delete receipt.pdf' }));
+    expect(window.confirm).toHaveBeenCalledWith('Delete “receipt.pdf”? This cannot be undone.');
+    expect(deleteAttachment).not.toHaveBeenCalled();
+    expect(screen.getByText('receipt.pdf')).toBeInTheDocument();
+  });
+
+  it.each(['expense', 'fillup'] as const)(
+    'deletes a %s attachment and refreshes capacity while blocking conflicting actions',
+    async type => {
+      vi.mocked(listAttachments).mockResolvedValue(metadata([receipt]));
+      let complete: (_result: { id: string }) => void = () => {};
+      vi.mocked(deleteAttachment).mockImplementation(
+        () =>
+          new Promise(resolve => {
+            complete = resolve;
+          })
+      );
+      const { onUploadingChange } = renderPanel({ type, id: 'parent' });
+      fireEvent.click(await screen.findByRole('button', { name: 'Delete receipt.pdf' }));
+      await waitFor(() => expect(deleteAttachment).toHaveBeenCalledOnce());
+      expect(deleteAttachment).toHaveBeenCalledWith(
+        'car',
+        { type, id: 'parent' },
+        'a1',
+        expect.any(AbortSignal)
+      );
+      expect(screen.getByRole('button', { name: 'Delete receipt.pdf' })).toBeDisabled();
+      expect(screen.getByText('Deleting…')).toBeInTheDocument();
+      expect(screen.getByLabelText('Attachment file')).toBeDisabled();
+      expect(screen.getByRole('button', { name: 'Upload' })).toBeDisabled();
+      expect(screen.queryByRole('progressbar')).not.toBeInTheDocument();
+      expect(onUploadingChange).toHaveBeenCalledWith(true);
+      vi.mocked(listAttachments).mockResolvedValue(metadata());
+      await act(async () => complete({ id: 'a1' }));
+      expect(await screen.findByText('No attachments yet.')).toBeInTheDocument();
+      expect(screen.getByText('5 of 5 attachment slots remaining')).toBeInTheDocument();
+      expect(onUploadingChange).toHaveBeenLastCalledWith(false);
+      expect(listAttachments).toHaveBeenCalledTimes(2);
+    }
+  );
+
+  it('refreshes after deletion failure and only retries when clicked again', async () => {
+    vi.mocked(listAttachments).mockResolvedValue(metadata([receipt]));
+    vi.mocked(deleteAttachment).mockRejectedValueOnce(new Error('Could not delete attachment.'));
+    const { onUploadingChange } = renderPanel();
+    fireEvent.click(await screen.findByRole('button', { name: 'Delete receipt.pdf' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Could not delete attachment.');
+    expect(listAttachments).toHaveBeenCalledTimes(2);
+    expect(deleteAttachment).toHaveBeenCalledOnce();
+    expect(onUploadingChange).toHaveBeenLastCalledWith(false);
+    vi.mocked(listAttachments).mockResolvedValue(metadata());
+    fireEvent.click(screen.getByRole('button', { name: 'Delete receipt.pdf' }));
+    expect(await screen.findByText('No attachments yet.')).toBeInTheDocument();
+    expect(deleteAttachment).toHaveBeenCalledTimes(2);
+  });
+
+  it('blocks deletion when the list refresh fails until manually refreshed', async () => {
+    vi.mocked(listAttachments).mockResolvedValue(metadata([receipt]));
+    renderPanel();
+    const button = await screen.findByRole('button', { name: 'Delete receipt.pdf' });
+    vi.mocked(listAttachments).mockRejectedValue(new Error('List unavailable.'));
+    fireEvent.click(button);
+    expect(await screen.findByRole('button', { name: 'Refresh attachments' })).toBeInTheDocument();
+    expect(button).toBeDisabled();
+    vi.mocked(listAttachments).mockResolvedValue(metadata());
+    fireEvent.click(screen.getByRole('button', { name: 'Refresh attachments' }));
+    expect(await screen.findByText('No attachments yet.')).toBeInTheDocument();
+  });
+
+  it('fails offline without queuing deletion or leaving the dialog locked', async () => {
+    vi.mocked(listAttachments).mockResolvedValue(metadata([receipt]));
+    vi.mocked(deleteAttachment).mockRejectedValue(new Error('Connection failed.'));
+    const { onUploadingChange } = renderPanel();
+    const button = await screen.findByRole('button', { name: 'Delete receipt.pdf' });
+    act(() => onlineManager.setOnline(false));
+    fireEvent.click(button);
+    expect(await screen.findByRole('alert')).toHaveTextContent('Connection failed.');
+    expect(onUploadingChange).toHaveBeenLastCalledWith(false);
+    expect(deleteAttachment).toHaveBeenCalledOnce();
+    await act(async () => onlineManager.setOnline(true));
+    expect(deleteAttachment).toHaveBeenCalledOnce();
   });
 
   it('does not upload on file selection and uses a separate non-submit action', async () => {
@@ -210,6 +312,7 @@ describe('Record attachments', () => {
     expect(screen.getByText(/View-only access/)).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Open receipt.pdf in a new tab' })).toBeInTheDocument();
     expect(screen.queryByLabelText('Attachment file')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Delete receipt.pdf' })).not.toBeInTheDocument();
     expect(uploadAttachment).not.toHaveBeenCalled();
   });
 

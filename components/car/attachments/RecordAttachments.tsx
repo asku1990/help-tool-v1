@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { useAttachments, useUploadAttachment } from '@/hooks/attachments';
+import { useAttachments, useDeleteAttachment, useUploadAttachment } from '@/hooks/attachments';
 import { MAX_ATTACHMENT_BYTES } from '@/lib/attachments/limits';
 import { getUiErrorMessage } from '@/lib/api/client-errors';
 import { attachmentOpenUrl, type AttachmentRecord } from '@/queries/attachments';
@@ -22,9 +22,11 @@ export default function RecordAttachments({
 }: Props) {
   const list = useAttachments(vehicleId, record);
   const upload = useUploadAttachment(vehicleId, record);
+  const deletion = useDeleteAttachment(vehicleId, record);
   const [file, setFile] = useState<File | null>(null);
   const [fileError, setFileError] = useState('');
   const [uploadError, setUploadError] = useState('');
+  const [deleteError, setDeleteError] = useState('');
   const [success, setSuccess] = useState(false);
   const [progress, setProgress] = useState<number | null>(0);
   const input = useRef<HTMLInputElement>(null);
@@ -52,6 +54,7 @@ export default function RecordAttachments({
       !file ||
       fileError ||
       upload.isPending ||
+      deletion.isPending ||
       list.isFetching ||
       list.isError ||
       !list.data?.canUpload ||
@@ -61,6 +64,7 @@ export default function RecordAttachments({
     const activeController = new AbortController();
     controller.current = activeController;
     setUploadError('');
+    setDeleteError('');
     setSuccess(false);
     setProgress(0);
     onUploadingChange(true);
@@ -77,8 +81,36 @@ export default function RecordAttachments({
     }
   }
 
+  async function removeAttachment(id: string, filename: string) {
+    if (
+      disabled ||
+      controller.current ||
+      upload.isPending ||
+      deletion.isPending ||
+      list.isFetching ||
+      list.isError ||
+      !list.data?.canUpload
+    )
+      return;
+    if (!confirm(`Delete “${filename}”? This cannot be undone.`)) return;
+    const activeController = new AbortController();
+    controller.current = activeController;
+    setDeleteError('');
+    setUploadError('');
+    setSuccess(false);
+    onUploadingChange(true);
+    try {
+      await deletion.mutateAsync({ id, signal: activeController.signal });
+    } catch (error) {
+      setDeleteError(getUiErrorMessage(error, 'Could not delete the attachment. Try again.'));
+    } finally {
+      controller.current = null;
+      onUploadingChange(false);
+    }
+  }
+
   const full = list.data?.remainingCapacity === 0;
-  const busy = upload.isPending;
+  const busy = upload.isPending || deletion.isPending;
   const canUpload = list.data?.canUpload && !list.isError;
   return (
     <section className="space-y-3 border-t pt-4" aria-label="Attachments">
@@ -93,7 +125,7 @@ export default function RecordAttachments({
         <div className="space-y-2">
           <p role="alert" className="text-sm text-red-600">
             {getUiErrorMessage(list.error, 'Could not load attachments.')} Refresh the list before
-            uploading.
+            uploading or deleting.
           </p>
           <Button
             type="button"
@@ -116,17 +148,33 @@ export default function RecordAttachments({
           {list.data.attachments.length ? (
             <ul className="space-y-1 text-sm" aria-label="Saved attachments">
               {list.data.attachments.map(item => (
-                <li key={item.id} className="break-all">
+                <li key={item.id} className="flex items-center gap-1">
                   <a
                     href={attachmentOpenUrl(vehicleId, record, item.id)}
                     target="_blank"
                     rel="noopener noreferrer"
                     referrerPolicy="no-referrer"
                     aria-label={`Open ${item.filename} in a new tab`}
-                    className="underline underline-offset-2 hover:text-blue-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
+                    className="inline-flex min-h-0 min-w-0 items-center break-all underline underline-offset-2 hover:text-blue-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
                   >
                     {item.filename}
                   </a>
+                  {list.data?.canUpload ? (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-6 min-h-0 min-w-6 shrink-0 cursor-pointer px-1 hover:bg-red-100 hover:text-red-600"
+                      aria-label={`Delete ${item.filename}`}
+                      title={`Delete ${item.filename}`}
+                      disabled={disabled || busy || list.isFetching || list.isError}
+                      onClick={() => {
+                        void removeAttachment(item.id, item.filename);
+                      }}
+                    >
+                      {deletion.isPending && deletion.variables?.id === item.id ? 'Deleting…' : '×'}
+                    </Button>
+                  ) : null}
                 </li>
               ))}
             </ul>
@@ -135,7 +183,7 @@ export default function RecordAttachments({
           )}
           {!list.data.canUpload ? (
             <p className="text-sm text-gray-500">
-              View-only access. Only owners and editors may upload.
+              View-only access. Only owners and editors may upload or delete.
             </p>
           ) : null}
         </>
@@ -172,11 +220,11 @@ export default function RecordAttachments({
               void submitUpload();
             }}
           >
-            {busy ? 'Uploading…' : uploadError ? 'Retry upload' : 'Upload'}
+            {upload.isPending ? 'Uploading…' : uploadError ? 'Retry upload' : 'Upload'}
           </Button>
         </div>
       ) : null}
-      {busy ? (
+      {upload.isPending ? (
         <div className="space-y-1" role="status">
           <progress
             className="w-full"
@@ -192,6 +240,11 @@ export default function RecordAttachments({
                 : `Uploading… ${progress}%`}
           </p>
         </div>
+      ) : null}
+      {deleteError ? (
+        <p role="alert" className="text-sm text-red-600">
+          {deleteError}
+        </p>
       ) : null}
       {uploadError ? (
         <p role="alert" className="text-sm text-red-600">

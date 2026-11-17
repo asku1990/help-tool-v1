@@ -1,8 +1,8 @@
 # Attachment storage setup
 
 For local/staging testing with **disposable files only**. This version uploads files,
-lists filenames, and opens PDFs/images in a new browser tab. Removal and automatic
-object cleanup are not implemented. Database backups do not include attachment bytes.
+lists filenames, opens PDFs/images in a new browser tab, and deletes individual attachments.
+Automatic object cleanup is not implemented. Database backups do not include attachment bytes.
 
 ## 1. Create a private R2 bucket
 
@@ -67,7 +67,7 @@ Saving record edits is not required. Reopen the record to confirm the filename a
 remaining capacity persist. In the R2 dashboard, a new object should appear under
 `attachments/` with a random key, not the original filename.
 
-Viewers can list filenames but cannot upload. There are five slots per record.
+Viewers can list filenames but cannot upload or delete. There are five slots per record.
 See the [manual checks in the feature plan](../plan/file-upload.md#slice-3-ui-and-manual-staging-check).
 
 ## Open an attachment
@@ -81,6 +81,24 @@ Anyone holding that signed link can use it until expiry, even if their app acces
 revoked meanwhile. Do not share it. Each click on Open checks current app access again.
 The browser receives file bytes for viewing, but is not instructed to download them.
 PDF behavior depends on browser settings; no embedded viewer is provided.
+
+## Delete an attachment
+
+Owners and editors can press **×** beside a saved filename and confirm the browser prompt.
+Deletion is immediate and independent of saving record edits; it cannot be undone.
+Upload, delete, record save, and dialog dismissal are blocked while deletion is processing.
+The filename list and remaining capacity refresh afterward, including after a failed request.
+If refreshing fails, use **Refresh attachments** before another upload or deletion.
+
+The server deletes the R2 object first, then its database metadata. A storage failure leaves
+metadata intact. If storage succeeds but the database operation fails, the filename may remain
+with a broken Open link; retry deletion to finish removing it. Deleting an already-missing
+R2 object is safe. There is no automatic retry or recovery worker.
+
+Manual check with disposable files: cancel the confirmation and verify the file remains,
+then confirm deletion on both an expense and a fill-up. Verify the filename disappears,
+capacity increases, and the object is removed from the attachment bucket. Check that viewers
+have no delete buttons.
 
 ## Troubleshooting
 
