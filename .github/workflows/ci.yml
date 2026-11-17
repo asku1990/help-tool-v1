@@ -12,7 +12,7 @@ env:
 
 jobs:
   unit:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -28,7 +28,7 @@ jobs:
         run: pnpm test -- --reporter=verbose
 
   integration:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     env:
       NODE_OPTIONS: '--max_old_space_size=4096'
       RUN_INTEGRATION: '1'
@@ -55,7 +55,7 @@ jobs:
           path: coverage
 
   e2e:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     if: github.event_name == 'pull_request'
     env:
       TEST_BYPASS_AUTH: '0'
@@ -80,7 +80,7 @@ jobs:
           path: playwright-report
 
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: [unit, integration]
     steps:
       - uses: actions/checkout@v4
