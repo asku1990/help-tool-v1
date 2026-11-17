@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { useInfiniteFillUps, useUpdateFillUp, useDeleteFillUp } from '@/hooks';
 import type { FillUpWithSegmentDto } from '@/queries/fillups';
 import { Button, Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui';
@@ -10,6 +10,7 @@ import { formatDateFi } from '@/utils';
 import { toast } from 'sonner';
 import { getUiErrorMessage } from '@/lib/api/client-errors';
 import RecordAttachments from './attachments/RecordAttachments';
+import { RecordActions, RecordDetailsButton } from './records';
 
 export default function FillUpList({ vehicleId }: { vehicleId: string }) {
   const { data, isLoading, isError, error, hasNextPage, fetchNextPage, isFetchingNextPage } =
@@ -20,6 +21,7 @@ export default function FillUpList({ vehicleId }: { vehicleId: string }) {
     [data]
   );
   const totalFuelCost = useMemo(() => items.reduce((s, f) => s + f.totalCost, 0), [items]);
+  const canWrite = data?.pages[0]?.canWrite === true;
 
   if (isLoading) return <FillUpListSkeleton rows={4} />;
   if (isError)
@@ -39,7 +41,7 @@ export default function FillUpList({ vehicleId }: { vehicleId: string }) {
     return (
       <div className="text-sm text-gray-600 flex items-center justify-between">
         <span>No fill-ups yet. Add your first to see real consumption and cost/km.</span>
-        <EmptyCta />
+        {canWrite ? <EmptyCta /> : null}
       </div>
     );
 
@@ -51,16 +53,25 @@ export default function FillUpList({ vehicleId }: { vehicleId: string }) {
         </div>
         <ul className="divide-y">
           {items.map(f => (
-            <li key={f.id} className="py-3 grid gap-2 sm:grid-cols-5 sm:items-center">
-              <div className="text-sm">{formatDateFi(new Date(f.date))}</div>
-              <div className="text-sm text-gray-600">Odo: {f.odometerKm} km</div>
-              <div className="text-sm text-gray-600">
+            <li
+              key={f.id}
+              className="grid grid-cols-[minmax(0,1fr)_auto] gap-2 py-3 sm:grid-cols-5 sm:items-center"
+            >
+              <RecordDetailsButton vehicleId={vehicleId} type="fillup" item={f} />
+              <div className="col-start-1 text-sm text-gray-600 sm:col-start-auto">
                 {f.liters} L @ {f.pricePerLiter.toFixed(3)} →{' '}
                 <span className="font-medium">{formatCurrency(f.totalCost)}</span>
               </div>
-              <div className="text-xs text-gray-500">
-                {f.isFull ? 'Full tank' : 'Partial'}
-                {f.notes ? ` • ${f.notes}` : ''}
+              <div className="col-start-1 min-w-0 text-xs text-gray-500 sm:col-start-auto">
+                <div className="flex items-start gap-1">
+                  <span className="shrink-0">{f.isFull ? 'Full tank' : 'Partial'}</span>
+                  {f.notes ? (
+                    <>
+                      <span aria-hidden="true">·</span>
+                      <p className="min-w-0 line-clamp-2 break-words sm:line-clamp-1">{f.notes}</p>
+                    </>
+                  ) : null}
+                </div>
                 {f.isFull && f.segment ? (
                   <div className="text-[11px] text-gray-600 mt-0.5">
                     Trip {f.segment.distanceKm.toFixed(0)} km •{' '}
@@ -74,21 +85,26 @@ export default function FillUpList({ vehicleId }: { vehicleId: string }) {
                   </div>
                 ) : null}
               </div>
-              <div className="sm:text-right flex gap-2 sm:justify-end">
-                <EditFillUpButton
-                  vehicleId={vehicleId}
-                  item={{
-                    id: f.id,
-                    date: f.date,
-                    odometerKm: f.odometerKm,
-                    liters: f.liters,
-                    pricePerLiter: f.pricePerLiter,
-                    isFull: f.isFull,
-                    notes: f.notes,
-                  }}
-                />
-                <DeleteFillUpButton vehicleId={vehicleId} fillUpId={f.id} />
-              </div>
+              <RecordActions label={`Fill-up actions for ${formatDateFi(new Date(f.date))}`}>
+                <RecordDetailsButton vehicleId={vehicleId} type="fillup" item={f} variant="menu" />
+                {canWrite ? (
+                  <>
+                    <EditFillUpButton
+                      vehicleId={vehicleId}
+                      item={{
+                        id: f.id,
+                        date: f.date,
+                        odometerKm: f.odometerKm,
+                        liters: f.liters,
+                        pricePerLiter: f.pricePerLiter,
+                        isFull: f.isFull,
+                        notes: f.notes,
+                      }}
+                    />
+                    <DeleteFillUpButton vehicleId={vehicleId} fillUpId={f.id} />
+                  </>
+                ) : null}
+              </RecordActions>
             </li>
           ))}
         </ul>
@@ -179,6 +195,7 @@ function EditFillUpButton({
   };
 }) {
   const [open, setOpen] = useState(false);
+  const returnFocus = useRef<HTMLElement | null>(null);
   const [uploading, setUploading] = useState(false);
   const [state, setState] = useState({
     date: item.date.slice(0, 10),
@@ -199,8 +216,12 @@ function EditFillUpButton({
     <>
       <button
         type="button"
-        className="text-xs px-2 py-1 rounded border"
-        onClick={() => setOpen(true)}
+        className="block min-h-11 w-full cursor-pointer rounded px-3 py-2 text-left text-sm hover:bg-gray-100"
+        onClick={event => {
+          returnFocus.current =
+            event.currentTarget.closest('details')?.querySelector('summary') ?? event.currentTarget;
+          setOpen(true);
+        }}
       >
         Edit
       </button>
@@ -210,7 +231,14 @@ function EditFillUpButton({
           if (!uploading) setOpen(next);
         }}
       >
-        <DialogContent aria-label="Edit fill-up" className="max-h-[90dvh] overflow-y-auto">
+        <DialogContent
+          aria-label="Edit fill-up"
+          className="max-h-[90dvh] overflow-y-auto"
+          onCloseAutoFocus={event => {
+            event.preventDefault();
+            returnFocus.current?.focus();
+          }}
+        >
           <DialogHeader>
             <DialogTitle>Edit fill-up</DialogTitle>
           </DialogHeader>
@@ -341,7 +369,7 @@ function DeleteFillUpButton({ vehicleId, fillUpId }: { vehicleId: string; fillUp
   return (
     <button
       type="button"
-      className="text-xs px-2 py-1 rounded border"
+      className="block min-h-11 w-full cursor-pointer rounded px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50"
       onClick={async () => {
         if (!confirm('Delete this fill-up?')) return;
         try {

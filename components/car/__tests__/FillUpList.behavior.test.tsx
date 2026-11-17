@@ -46,6 +46,7 @@ describe('FillUpList behavior', () => {
               },
             ],
             nextCursor: null,
+            canWrite: true,
           },
         })
       )
@@ -77,6 +78,7 @@ describe('FillUpList behavior', () => {
               },
             ],
             nextCursor: null,
+            canWrite: true,
           },
         })
       )
@@ -111,13 +113,15 @@ describe('FillUpList behavior', () => {
               },
             ],
             nextCursor: null,
+            canWrite: true,
           },
         })
       )
     );
 
     renderWithProviders(<FillUpList vehicleId="vid" />);
-    const editBtn = await screen.findByRole('button', { name: /edit/i });
+    fireEvent.click(await screen.findByRole('button', { name: /actions for/ }));
+    const editBtn = screen.getByRole('button', { name: /edit/i });
     fireEvent.click(editBtn);
     expect(await screen.findByLabelText(/edit fill-up/i)).toBeInTheDocument();
   });

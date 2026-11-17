@@ -66,7 +66,12 @@ export async function GET(req: NextRequest, context: { params: Promise<{ vehicle
     const expensesTotal = decimalToNumber(agg._sum.amount ?? 0);
 
     return ok(
-      { expenses, expensesTotal, nextCursor: hasMore ? expenses[expenses.length - 1]?.id : null },
+      {
+        expenses,
+        expensesTotal,
+        nextCursor: hasMore ? expenses[expenses.length - 1]?.id : null,
+        canWrite: hasPermission(access.role, 'write'),
+      },
       { headers: { 'Cache-Control': 'no-store' } }
     );
   } catch (error) {

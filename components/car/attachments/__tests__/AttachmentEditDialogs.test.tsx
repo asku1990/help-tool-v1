@@ -44,6 +44,7 @@ describe.each([
             expenses: [{ id: 'parent', date: '2026-11-16', category: 'OTHER', amount: 10 }],
             expensesTotal: 10,
             nextCursor: null,
+            canWrite: true,
           },
         })
       ),
@@ -62,6 +63,7 @@ describe.each([
               },
             ],
             nextCursor: null,
+            canWrite: true,
           },
         })
       )
@@ -72,7 +74,8 @@ describe.each([
         <Component vehicleId="car" />
       </QueryClientProvider>
     );
-    const edit = await screen.findByRole('button', { name: 'Edit' });
+    fireEvent.click(await screen.findByRole('button', { name: /actions for/ }));
+    const edit = screen.getByRole('button', { name: 'Edit' });
     expect(screen.queryByRole('region', { name: 'Attachments' })).not.toBeInTheDocument();
     fireEvent.click(edit);
     const panel = await screen.findByRole('region', { name: 'Attachments' });
