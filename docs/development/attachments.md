@@ -1,7 +1,7 @@
 # Attachment storage setup
 
 For local/staging testing with **disposable files only**. This version uploads files,
-lists filenames, opens PDFs/images in a new browser tab, and deletes individual attachments.
+lists filenames, opens PDFs/images in a new browser tab, and renames or deletes individual attachments.
 Automatic object cleanup is not implemented. Database backups do not include attachment bytes.
 
 ## 1. Create a private R2 bucket
@@ -67,7 +67,7 @@ Saving record edits is not required. Reopen the record to confirm the filename a
 remaining capacity persist. In the R2 dashboard, a new object should appear under
 `attachments/` with a random key, not the original filename.
 
-Viewers can list filenames but cannot upload or delete. There are five slots per record.
+Viewers can list filenames but cannot upload, rename, or delete. There are five slots per record.
 See the [manual checks in the feature plan](../plan/file-upload.md#slice-3-ui-and-manual-staging-check).
 
 ## Open an attachment
@@ -99,6 +99,27 @@ Manual check with disposable files: cancel the confirmation and verify the file 
 then confirm deletion on both an expense and a fill-up. Verify the filename disappears,
 capacity increases, and the object is removed from the attachment bucket. Check that viewers
 have no delete buttons.
+
+## Rename an attachment
+
+Owners and editors can press the pencil beside a filename, edit the name, and choose
+**Save name** or **Cancel rename**. The extension is shown separately and cannot change.
+For an existing filename without a dot, the whole name is editable and no extension is appended.
+Names are trimmed and must be non-empty, with no path separators or control characters;
+the full filename including its extension must not exceed 255 characters.
+
+Renaming saves immediately, independently of record edits. It changes only database metadata,
+not the stored object key or bytes. Opening the file again uses the new filename; an already-open
+tab or previously issued signed URL may still use the old name until opened again.
+
+While saving, conflicting attachment actions, record save, and dialog dismissal are blocked.
+The list refreshes after success or failure, without automatic retries or offline queuing.
+A failed save keeps the draft for manual retry; if refreshing fails, refresh the list before
+trying another mutation. Attachment capacity does not change.
+
+Manual check: rename a disposable attachment on both an expense and a fill-up, cancel an edit,
+and reopen each record. Confirm the name persists, its extension stays fixed, and the file still
+opens. Viewers must have no pencil controls.
 
 ## Troubleshooting
 

@@ -231,6 +231,27 @@ Tests cover both parent routes, write roles and access rejection, nested-ID scop
 and database failures, manual retry, confirmation cancellation, busy states, and capacity refresh.
 See the [storage guide](../development/attachments.md#delete-an-attachment) for manual checks.
 
+## Approved follow-up: rename saved files
+
+Owners and editors can use a compact pencil beside a saved filename in either edit dialog.
+An inline field edits only the name before the final extension, with **Save name** and
+**Cancel rename** actions. Renaming saves independently of record edits; viewers cannot rename.
+
+- `PATCH /api/vehicles/:vehicleId/expenses/:expenseId/attachments/:attachmentId`
+- `PATCH /api/vehicles/:vehicleId/fillups/:fillUpId/attachments/:attachmentId`
+
+The JSON body is `{ name: string }`. The shared server handler authenticates, rate-limits,
+requires vehicle write access, and scopes lookup and update to attachment, parent, and vehicle.
+It trims the name, rejects empty names, path separators, and control characters, and limits the
+complete filename to 255 characters. The extension is derived from stored metadata, never from
+client input. Only filename metadata changes; object key, file bytes, and capacity remain unchanged.
+
+The UI reuses attachment busy-state protection during saving, never automatically retries or queues
+offline, and refreshes the list after success or failure without optimistic updates.
+Failure preserves the draft for manual retry; a failed list refresh blocks further mutations.
+New Open requests use the updated filename; previously issued signed links are unchanged.
+See the [storage guide](../development/attachments.md#rename-an-attachment) for manual checks.
+
 ## Not included
 
 An explicit download action, embedded previews, undo, bulk deletion, creation-form integration, other

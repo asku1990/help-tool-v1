@@ -1,8 +1,14 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { Pencil } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { useAttachments, useDeleteAttachment, useUploadAttachment } from '@/hooks/attachments';
+import {
+  useAttachments,
+  useDeleteAttachment,
+  useRenameAttachment,
+  useUploadAttachment,
+} from '@/hooks/attachments';
 import { MAX_ATTACHMENT_BYTES } from '@/lib/attachments/limits';
 import { getUiErrorMessage } from '@/lib/api/client-errors';
 import { attachmentOpenUrl, type AttachmentRecord } from '@/queries/attachments';
@@ -23,6 +29,11 @@ export default function RecordAttachments({
   const list = useAttachments(vehicleId, record);
   const upload = useUploadAttachment(vehicleId, record);
   const deletion = useDeleteAttachment(vehicleId, record);
+  const rename = useRenameAttachment(vehicleId, record);
+  const [editing, setEditing] = useState<{ id: string; name: string; extension: string } | null>(
+    null
+  );
+  const [renameError, setRenameError] = useState('');
   const [file, setFile] = useState<File | null>(null);
   const [fileError, setFileError] = useState('');
   const [uploadError, setUploadError] = useState('');
@@ -55,6 +66,7 @@ export default function RecordAttachments({
       fileError ||
       upload.isPending ||
       deletion.isPending ||
+      rename.isPending ||
       list.isFetching ||
       list.isError ||
       !list.data?.canUpload ||
@@ -65,6 +77,7 @@ export default function RecordAttachments({
     controller.current = activeController;
     setUploadError('');
     setDeleteError('');
+    setRenameError('');
     setSuccess(false);
     setProgress(0);
     onUploadingChange(true);
@@ -87,6 +100,7 @@ export default function RecordAttachments({
       controller.current ||
       upload.isPending ||
       deletion.isPending ||
+      rename.isPending ||
       list.isFetching ||
       list.isError ||
       !list.data?.canUpload
@@ -97,6 +111,7 @@ export default function RecordAttachments({
     controller.current = activeController;
     setDeleteError('');
     setUploadError('');
+    setRenameError('');
     setSuccess(false);
     onUploadingChange(true);
     try {
@@ -109,8 +124,42 @@ export default function RecordAttachments({
     }
   }
 
+  async function saveName() {
+    if (
+      !editing ||
+      !editing.name.trim() ||
+      disabled ||
+      controller.current ||
+      upload.isPending ||
+      deletion.isPending ||
+      rename.isPending ||
+      list.isFetching ||
+      list.isError ||
+      !list.data?.canUpload
+    )
+      return;
+    const activeController = new AbortController();
+    controller.current = activeController;
+    setRenameError('');
+    setSuccess(false);
+    onUploadingChange(true);
+    try {
+      await rename.mutateAsync({
+        id: editing.id,
+        name: editing.name,
+        signal: activeController.signal,
+      });
+      setEditing(null);
+    } catch (error) {
+      setRenameError(getUiErrorMessage(error, 'Could not rename the attachment. Try again.'));
+    } finally {
+      controller.current = null;
+      onUploadingChange(false);
+    }
+  }
+
   const full = list.data?.remainingCapacity === 0;
-  const busy = upload.isPending || deletion.isPending;
+  const busy = upload.isPending || deletion.isPending || rename.isPending;
   const canUpload = list.data?.canUpload && !list.isError;
   return (
     <section className="space-y-3 border-t pt-4" aria-label="Attachments">
@@ -125,7 +174,7 @@ export default function RecordAttachments({
         <div className="space-y-2">
           <p role="alert" className="text-sm text-red-600">
             {getUiErrorMessage(list.error, 'Could not load attachments.')} Refresh the list before
-            uploading or deleting.
+            uploading, renaming, or deleting.
           </p>
           <Button
             type="button"
@@ -148,32 +197,116 @@ export default function RecordAttachments({
           {list.data.attachments.length ? (
             <ul className="space-y-1 text-sm" aria-label="Saved attachments">
               {list.data.attachments.map(item => (
-                <li key={item.id} className="flex items-center gap-1">
-                  <a
-                    href={attachmentOpenUrl(vehicleId, record, item.id)}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    referrerPolicy="no-referrer"
-                    aria-label={`Open ${item.filename} in a new tab`}
-                    className="inline-flex min-h-0 min-w-0 items-center break-all underline underline-offset-2 hover:text-blue-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
-                  >
-                    {item.filename}
-                  </a>
-                  {list.data?.canUpload ? (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="h-6 min-h-0 min-w-6 shrink-0 cursor-pointer px-1 hover:bg-red-100 hover:text-red-600"
-                      aria-label={`Delete ${item.filename}`}
-                      title={`Delete ${item.filename}`}
-                      disabled={disabled || busy || list.isFetching || list.isError}
-                      onClick={() => {
-                        void removeAttachment(item.id, item.filename);
-                      }}
+                <li key={item.id} className="space-y-1">
+                  <div className="flex items-center gap-1">
+                    <a
+                      href={attachmentOpenUrl(vehicleId, record, item.id)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      referrerPolicy="no-referrer"
+                      aria-label={`Open ${item.filename} in a new tab`}
+                      className="inline-flex min-h-0 min-w-0 items-center break-all underline underline-offset-2 hover:text-blue-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
                     >
-                      {deletion.isPending && deletion.variables?.id === item.id ? 'Deleting…' : '×'}
-                    </Button>
+                      {item.filename}
+                    </a>
+                    {list.data?.canUpload ? (
+                      <>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 min-h-0 min-w-6 shrink-0 cursor-pointer px-1 hover:text-blue-600"
+                          aria-label={`Rename ${item.filename}`}
+                          title={`Rename ${item.filename}`}
+                          disabled={disabled || busy || list.isFetching || list.isError}
+                          onClick={() => {
+                            const dot = item.filename.lastIndexOf('.');
+                            setEditing({
+                              id: item.id,
+                              name: dot === -1 ? item.filename : item.filename.slice(0, dot),
+                              extension: dot === -1 ? '' : item.filename.slice(dot),
+                            });
+                            setRenameError('');
+                          }}
+                        >
+                          <Pencil className="size-3" />
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 min-h-0 min-w-6 shrink-0 cursor-pointer px-1 hover:bg-red-100 hover:text-red-600"
+                          aria-label={`Delete ${item.filename}`}
+                          title={`Delete ${item.filename}`}
+                          disabled={disabled || busy || list.isFetching || list.isError}
+                          onClick={() => {
+                            void removeAttachment(item.id, item.filename);
+                          }}
+                        >
+                          {deletion.isPending && deletion.variables?.id === item.id
+                            ? 'Deleting…'
+                            : '×'}
+                        </Button>
+                      </>
+                    ) : null}
+                  </div>
+                  {editing?.id === item.id && list.data?.canUpload ? (
+                    <div className="flex flex-wrap items-center gap-1">
+                      <input
+                        autoFocus
+                        aria-label="Attachment name"
+                        value={editing.name}
+                        maxLength={255 - editing.extension.length}
+                        disabled={disabled || busy}
+                        onChange={event => setEditing({ ...editing, name: event.target.value })}
+                        onKeyDown={event => {
+                          if (event.key === 'Enter') {
+                            event.preventDefault();
+                            void saveName();
+                          } else if (event.key === 'Escape') {
+                            event.preventDefault();
+                            event.stopPropagation();
+                            if (!busy) {
+                              setEditing(null);
+                              setRenameError('');
+                            }
+                          }
+                        }}
+                        className="min-w-0 flex-1 rounded-md border px-2 py-1"
+                      />
+                      <span className="text-gray-500">{editing.extension}</span>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="h-7 min-h-0 cursor-pointer px-2"
+                        disabled={
+                          disabled ||
+                          busy ||
+                          list.isFetching ||
+                          list.isError ||
+                          !editing.name.trim()
+                        }
+                        onClick={() => {
+                          void saveName();
+                        }}
+                      >
+                        {rename.isPending ? 'Saving…' : 'Save name'}
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 min-h-0 cursor-pointer px-2"
+                        disabled={busy}
+                        onClick={() => {
+                          setEditing(null);
+                          setRenameError('');
+                        }}
+                      >
+                        Cancel rename
+                      </Button>
+                    </div>
                   ) : null}
                 </li>
               ))}
@@ -183,7 +316,7 @@ export default function RecordAttachments({
           )}
           {!list.data.canUpload ? (
             <p className="text-sm text-gray-500">
-              View-only access. Only owners and editors may upload or delete.
+              View-only access. Only owners and editors may upload, rename, or delete.
             </p>
           ) : null}
         </>
@@ -240,6 +373,11 @@ export default function RecordAttachments({
                 : `Uploading… ${progress}%`}
           </p>
         </div>
+      ) : null}
+      {renameError ? (
+        <p role="alert" className="text-sm text-red-600">
+          {renameError}
+        </p>
       ) : null}
       {deleteError ? (
         <p role="alert" className="text-sm text-red-600">

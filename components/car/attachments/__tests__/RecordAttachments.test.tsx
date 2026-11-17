@@ -6,6 +6,7 @@ import RecordAttachments from '@/components/car/attachments/RecordAttachments';
 import {
   listAttachments,
   deleteAttachment,
+  renameAttachment,
   uploadAttachment,
   type AttachmentDto,
   type AttachmentListDto,
@@ -18,6 +19,7 @@ vi.mock('@/queries/attachments', async importOriginal => ({
   listAttachments: vi.fn(),
   uploadAttachment: vi.fn(),
   deleteAttachment: vi.fn(),
+  renameAttachment: vi.fn(),
 }));
 
 const receipt: AttachmentDto = {
@@ -56,6 +58,10 @@ describe('Record attachments', () => {
     vi.mocked(listAttachments).mockResolvedValue(metadata());
     vi.mocked(uploadAttachment).mockResolvedValue(receipt);
     vi.mocked(deleteAttachment).mockResolvedValue({ id: receipt.id });
+    vi.mocked(renameAttachment).mockResolvedValue({
+      id: receipt.id,
+      filename: 'Service receipt.pdf',
+    });
     vi.spyOn(window, 'confirm').mockReturnValue(true);
   });
   afterEach(() => {
@@ -101,6 +107,153 @@ describe('Record attachments', () => {
     expect(window.confirm).toHaveBeenCalledWith('Delete “receipt.pdf”? This cannot be undone.');
     expect(deleteAttachment).not.toHaveBeenCalled();
     expect(screen.getByText('receipt.pdf')).toBeInTheDocument();
+  });
+
+  it('opens a name-only editor and cancels without sending a rename', async () => {
+    vi.mocked(listAttachments).mockResolvedValue(metadata([receipt]));
+    renderPanel();
+    fireEvent.click(await screen.findByRole('button', { name: 'Rename receipt.pdf' }));
+    expect(screen.getByRole('textbox', { name: 'Attachment name' })).toHaveValue('receipt');
+    expect(screen.getByText('.pdf')).toBeInTheDocument();
+    fireEvent.change(screen.getByRole('textbox', { name: 'Attachment name' }), {
+      target: { value: 'Changed' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel rename' }));
+    expect(screen.queryByRole('textbox', { name: 'Attachment name' })).not.toBeInTheDocument();
+    expect(renameAttachment).not.toHaveBeenCalled();
+    expect(screen.getByText('receipt.pdf')).toBeInTheDocument();
+  });
+
+  it.each(['expense', 'fillup'] as const)(
+    'edits the whole extensionless %s filename without inventing an extension',
+    async type => {
+      vi.mocked(listAttachments).mockResolvedValue(metadata([{ ...receipt, filename: 'pdf' }]));
+      renderPanel({ type, id: 'parent' });
+      fireEvent.click(await screen.findByRole('button', { name: 'Rename pdf' }));
+      const input = screen.getByRole('textbox', { name: 'Attachment name' });
+      expect(input).toHaveValue('pdf');
+      expect(input).toHaveAttribute('maxlength', '255');
+      fireEvent.change(input, { target: { value: 'Receipt' } });
+      vi.mocked(renameAttachment).mockResolvedValue({ id: receipt.id, filename: 'Receipt' });
+      vi.mocked(listAttachments).mockResolvedValue(metadata([{ ...receipt, filename: 'Receipt' }]));
+      fireEvent.click(screen.getByRole('button', { name: 'Save name' }));
+      expect(
+        await screen.findByRole('link', { name: 'Open Receipt in a new tab' })
+      ).toBeInTheDocument();
+      expect(renameAttachment).toHaveBeenCalledWith(
+        'car',
+        { type, id: 'parent' },
+        receipt.id,
+        'Receipt',
+        expect.any(AbortSignal)
+      );
+    }
+  );
+
+  it.each(['expense', 'fillup'] as const)(
+    'renames a %s attachment independently and blocks conflicting actions until refreshed',
+    async type => {
+      vi.mocked(listAttachments).mockResolvedValue(metadata([receipt]));
+      let complete: (_result: { id: string; filename: string }) => void = () => {};
+      vi.mocked(renameAttachment).mockImplementation(
+        () =>
+          new Promise(resolve => {
+            complete = resolve;
+          })
+      );
+      const { onUploadingChange } = renderPanel({ type, id: 'parent' });
+      fireEvent.click(await screen.findByRole('button', { name: 'Rename receipt.pdf' }));
+      fireEvent.change(screen.getByRole('textbox', { name: 'Attachment name' }), {
+        target: { value: 'Service receipt' },
+      });
+      fireEvent.click(screen.getByRole('button', { name: 'Save name' }));
+      await waitFor(() => expect(renameAttachment).toHaveBeenCalledOnce());
+      expect(renameAttachment).toHaveBeenCalledWith(
+        'car',
+        { type, id: 'parent' },
+        'a1',
+        'Service receipt',
+        expect.any(AbortSignal)
+      );
+      expect(screen.getByText('receipt.pdf')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Delete receipt.pdf' })).toBeDisabled();
+      expect(screen.getByRole('button', { name: 'Cancel rename' })).toBeDisabled();
+      expect(screen.getByRole('button', { name: 'Upload' })).toBeDisabled();
+      expect(onUploadingChange).toHaveBeenCalledWith(true);
+      vi.mocked(listAttachments).mockResolvedValue(
+        metadata([{ ...receipt, filename: 'Service receipt.pdf' }])
+      );
+      await act(async () => complete({ id: 'a1', filename: 'Service receipt.pdf' }));
+      expect(
+        await screen.findByRole('link', { name: 'Open Service receipt.pdf in a new tab' })
+      ).toBeInTheDocument();
+      expect(screen.queryByRole('textbox', { name: 'Attachment name' })).not.toBeInTheDocument();
+      expect(screen.getByText('4 of 5 attachment slots remaining')).toBeInTheDocument();
+      expect(onUploadingChange).toHaveBeenLastCalledWith(false);
+      expect(listAttachments).toHaveBeenCalledTimes(2);
+    }
+  );
+
+  it('keeps the draft and permits manual retry after a failed rename', async () => {
+    vi.mocked(listAttachments).mockResolvedValue(metadata([receipt]));
+    vi.mocked(renameAttachment).mockRejectedValueOnce(new Error('Could not rename attachment.'));
+    renderPanel();
+    fireEvent.click(await screen.findByRole('button', { name: 'Rename receipt.pdf' }));
+    const input = screen.getByRole('textbox', { name: 'Attachment name' });
+    fireEvent.change(input, { target: { value: 'Service receipt' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save name' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Could not rename attachment.');
+    expect(input).toHaveValue('Service receipt');
+    expect(listAttachments).toHaveBeenCalledTimes(2);
+    expect(renameAttachment).toHaveBeenCalledOnce();
+    vi.mocked(listAttachments).mockResolvedValue(
+      metadata([{ ...receipt, filename: 'Service receipt.pdf' }])
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Save name' }));
+    expect(await screen.findByText('Service receipt.pdf')).toBeInTheDocument();
+    expect(renameAttachment).toHaveBeenCalledTimes(2);
+  });
+
+  it('disables saving an empty name', async () => {
+    vi.mocked(listAttachments).mockResolvedValue(metadata([receipt]));
+    renderPanel();
+    fireEvent.click(await screen.findByRole('button', { name: 'Rename receipt.pdf' }));
+    fireEvent.change(screen.getByRole('textbox', { name: 'Attachment name' }), {
+      target: { value: '  ' },
+    });
+    expect(screen.getByRole('button', { name: 'Save name' })).toBeDisabled();
+    expect(renameAttachment).not.toHaveBeenCalled();
+  });
+
+  it('blocks another rename after a failed list refresh until manually refreshed', async () => {
+    vi.mocked(listAttachments).mockResolvedValue(metadata([receipt]));
+    vi.mocked(renameAttachment).mockRejectedValueOnce(new Error('Connection failed.'));
+    const { onUploadingChange } = renderPanel();
+    fireEvent.click(await screen.findByRole('button', { name: 'Rename receipt.pdf' }));
+    vi.mocked(listAttachments).mockRejectedValue(new Error('List unavailable.'));
+    fireEvent.click(screen.getByRole('button', { name: 'Save name' }));
+    const refresh = await screen.findByRole('button', { name: 'Refresh attachments' });
+    await waitFor(() => expect(onUploadingChange).toHaveBeenLastCalledWith(false));
+    expect(screen.getByRole('button', { name: 'Save name' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Delete receipt.pdf' })).toBeDisabled();
+    expect(renameAttachment).toHaveBeenCalledOnce();
+    vi.mocked(listAttachments).mockResolvedValue(metadata([receipt]));
+    fireEvent.click(refresh);
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Save name' })).toBeEnabled());
+  });
+
+  it('fails offline without queuing a rename or leaving the dialog locked', async () => {
+    vi.mocked(listAttachments).mockResolvedValue(metadata([receipt]));
+    vi.mocked(renameAttachment).mockRejectedValue(new Error('Connection failed.'));
+    const { onUploadingChange } = renderPanel();
+    fireEvent.click(await screen.findByRole('button', { name: 'Rename receipt.pdf' }));
+    act(() => onlineManager.setOnline(false));
+    fireEvent.click(screen.getByRole('button', { name: 'Save name' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Connection failed.');
+    expect(onUploadingChange).toHaveBeenLastCalledWith(false);
+    expect(renameAttachment).toHaveBeenCalledOnce();
+    await act(async () => onlineManager.setOnline(true));
+    expect(renameAttachment).toHaveBeenCalledOnce();
   });
 
   it.each(['expense', 'fillup'] as const)(
@@ -313,6 +466,7 @@ describe('Record attachments', () => {
     expect(screen.getByRole('link', { name: 'Open receipt.pdf in a new tab' })).toBeInTheDocument();
     expect(screen.queryByLabelText('Attachment file')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Delete receipt.pdf' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Rename receipt.pdf' })).not.toBeInTheDocument();
     expect(uploadAttachment).not.toHaveBeenCalled();
   });
 
