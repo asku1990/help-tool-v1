@@ -59,6 +59,16 @@ Integration and end-to-end tests may need a configured database, Docker, and env
 variables. Read the relevant test setup before running against an existing database.
 Test-only authentication bypasses must never be enabled for normal or production use.
 
+With Docker running, execute the PostgreSQL integration suites:
+
+```bash
+RUN_INTEGRATION=1 pnpm exec vitest run .int.test. --reporter=verbose
+```
+
+These suites migrate disposable Testcontainers databases, not the app's configured database.
+The shared setup leaves HTTP interception disabled for `.int.test.*` files so MSW cannot
+interfere with Docker socket requests. Unit and UI suites retain their MSW handlers.
+
 ## Prisma
 
 Prisma CLI does not automatically load `.env.local`. Export the intended `DATABASE_URL`
