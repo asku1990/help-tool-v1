@@ -11,7 +11,8 @@ of every category and saved fuel fill-ups. Keep the first implementation small.
 ## User experience
 
 - Open an existing record, select one file, and press a separate **Upload** button.
-- Uploading is independent of saving record edits. Creation forms remain unchanged.
+- Uploading is independent of saving record edits. Creation dialogs also offer a
+  save-first attachment step; see the approved follow-up below.
 - Show upload progress, errors, and a retry action.
 - Reopening a record shows saved filenames and remaining attachment capacity.
 - Owners and editors may upload; viewers may not.
@@ -163,7 +164,8 @@ real PostgreSQL and observe a row-lock wait with two simultaneous uploads.
 
 Both saved-record edit dialogs include a shared attachment panel below (not inside)
 the edit form. Selecting a file does not upload it; **Upload** is a separate action.
-Creation forms are unchanged. The listing response includes `canUpload`, derived
+Creation forms initially stayed unchanged; the approved save-first follow-up below extends them.
+The listing response includes `canUpload`, derived
 from the caller's vehicle role; viewers see filenames and capacity without upload controls.
 
 XHR reports byte-transfer progress. Reaching 100% is not treated as success until the
@@ -259,11 +261,22 @@ links without entering Edit. The **⋯** disclosure also offers Details, plus Ed
 owners and editors.
 The existing Edit flow and attachment-management controls remain
 unchanged. See [viewing saved records](../features/records.md) for implemented behavior and
-manual checks. Compact rows, attachment counts, and creation-form integration are separate work.
+manual checks. List compaction, attachment counts, and the save-first creation follow-up are
+separate slices.
+
+## Approved follow-up: save and add attachments
+
+Expense and fill-up creation dialogs offer **Save & add attachments** alongside ordinary
+Save. Creation must succeed before mounting the existing attachment panel with the confirmed
+record ID. Uploading is still a separate action after saving; files are not staged before
+record creation. No new storage lifecycle, schema, or upload endpoint is needed.
+
+See [creating records with attachments](../features/records.md#attachments-after-creating-a-record)
+for implemented behavior, partial-failure handling, and manual checks.
 
 ## Not included
 
-An explicit download action, embedded previews, undo, bulk deletion, creation-form integration, other
+An explicit download action, embedded previews, undo, bulk deletion, pre-save file selection, other
 formats, malware scanning, parent-deletion storage cleanup, document backups, and recovery.
 Before real-user launch, reassess lifecycle handling and implement document backups with
 tested recovery. Existing PostgreSQL backups do not include R2 attachment bytes.
