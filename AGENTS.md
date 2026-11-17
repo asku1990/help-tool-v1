@@ -1,39 +1,53 @@
 # Repository Guidelines
 
-## Project Structure & Module Organization
+## Read First
 
-- `app/` contains Next.js routes, layouts, and API handlers; treat route-segment folders (e.g., `app/car/[vehicleId]`) as feature roots that bundle UI, data loading, and tests.
-- `components/` hosts reusable UI and domain components; subfolders mirror feature areas (`components/car/**`, `components/ui/**`).
-- `hooks/`, `stores/`, and `queries/` expose shared client-side logic; mock them in tests instead of duplicating API calls.
-- `lib/` houses cross-cutting helpers such as API clients and Prisma utilities; `prisma/` keeps schema and seeds.
-- Tests live alongside features in `__tests__` folders plus targeted suites under `test/`; assets reside in `public/`.
+- Read [README.md](README.md) for basic project scope and documentation navigation.
+- Before planning or modifying code or documentation, read [docs/documentation-rules.md](docs/documentation-rules.md). Follow it for documentation placement, detail level, and updates; do not rely only on this file.
+- Use [docs/local-development.md](docs/local-development.md) for setup, [docs/database.md](docs/database.md) for database operations, and [docs/commands.md](docs/commands.md) for development commands.
+- Read [docs/architecture.md](docs/architecture.md) before planning or changing code. It is the source of truth for feature organization, module responsibilities, dependency flow, security, and cache ownership.
+- This file owns agent workflow and contribution standards. Do not create competing architecture definitions in editor-specific rule files.
+- Read relevant feature plans and decision logs under `docs/` when they apply. Distinguish future plans from implemented behavior; surface conflicts rather than silently choosing a different design.
+- Read the relevant `docs/features/` guide before changing a feature. Keep documentation ownership and update requirements in [docs/documentation-rules.md](docs/documentation-rules.md), not competing definitions here.
+
+## Scope & Implementation Workflow
+
+- Inspect the working tree, relevant documentation, existing implementations, and callers before editing. Preserve unrelated user changes.
+- Explain the intended scope and validation briefly. Prefer small, targeted changes and existing modules over new abstractions.
+- Stay within the user's approved scope. Ask before expanding a bug fix into a broader refactor, changing architectural direction, or performing destructive operations.
+- Follow the feature-folder and dependency rules in the architecture document. Do not reorganize unrelated legacy files as part of a focused fix.
+- Add regression coverage at the real call site or shared calculation interface. For bug fixes, establish the failing behavior before applying the fix when execution is available.
+- Review the diff for correctness, security, duplication, and configuration risks. Update the architecture document when an approved architectural decision changes.
+- Report what changed, which checks actually ran, and any unresolved failures or permission blockers. Do not describe unexecuted checks as passing.
 
 ## Build, Test, and Development Commands
 
-- `pnpm dev` starts Next.js with Turbopack; use during feature development.
-- `pnpm build` runs Prisma codegen/migrations (via scripts) and compiles the production bundle.
-- `pnpm start` serves the built app locally; pair with `pnpm build`.
-- `pnpm lint`, `pnpm type-check`, and `pnpm format` enforce style.
-- `pnpm test` (Vitest with coverage) is the gatekeeper; `pnpm check` stitches format, lint, and type-check for CI parity.
+- Follow [docs/commands.md](docs/commands.md) for the command reference and [docs/local-development.md](docs/local-development.md) for environment loading.
+- Run targeted tests, lint, and type-check for changed code, then the coverage gate when appropriate.
+- Format only touched files for focused changes; repository-wide formatting commands can create unrelated diffs.
+- Verify the target environment before database commands and follow [docs/database.md](docs/database.md) for backup and restore safety.
 
 ## Coding Style & Naming Conventions
 
 - TypeScript everywhere; stick to ES modules, React function components, and hooks.
-- Follow Prettier defaults (2-space indent, single quotes off) and ESLint (Next + TypeScript) rules; do not suppress `@typescript-eslint/no-explicit-any`.
+- Follow `.prettierrc` (2-space indent, single quotes) and ESLint (Next + TypeScript) rules; do not suppress `@typescript-eslint/no-explicit-any`.
 - Absolutely no `any` usage—reach for specific types, generics, or utility helpers, and refactor tests to keep type safety intact.
 - Name files by feature (`ExpenseForm.tsx`, `useFillUps.ts`) and colocate tests as `*.test.ts(x)` inside `__tests__`.
 - Tailwind classes live inline; prefer utility-first styling over custom CSS.
+- Use the project logger instead of adding `console.log`; include enough operation context to diagnose failures without logging secrets.
 
 ## Testing Guidelines
 
 - Vitest + Testing Library drive unit/component coverage; prefer behavior-oriented test names (`Component > scenario > expectation`).
+- Prefer integration coverage for changed flows, pure calculation tests for domain rules, and focused UI tests for visible behavior. Keep tests deterministic with explicit fixtures, clocks, and request mocks where needed.
 - Coverage thresholds (from `vitest.config.mts`) require ≥65% statements/lines and 70% functions/branches; flakiness often means missing mock setup for `fetch`.
-- Run `pnpm test --watch` for fast iteration; CI runs `pnpm test` with `--coverage`.
+- Use `pnpm test:watch` for fast iteration and `pnpm test` for the coverage gate. Run lint and type-check before marking code ready; report blocked checks explicitly.
 
 ## Commit & Pull Request Guidelines
 
 - Keep commits linear and descriptive, mirroring the existing Conventional-style prefixes (`feat:`, `fix:`, `refactor:`) seen in `git log`.
 - Each commit should encapsulate a logical change (tests + code). Avoid “WIP” noise.
+- Do not commit, push, or merge unless the user asks.
 - PRs must describe the problem, solution, and validation steps; attach screenshots or coverage diffs when UI or tests change. Link Jira/GitHub issues when applicable and note any env/config updates (e.g., new `.env` keys).
 
 ## Security & Configuration Tips

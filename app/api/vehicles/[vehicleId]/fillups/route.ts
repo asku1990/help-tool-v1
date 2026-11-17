@@ -7,6 +7,7 @@ import { checkRateLimit, rateLimitHeaders, rateLimitKey } from '@/lib/api/rate-l
 import { logger } from '@/lib/logger';
 import { decimalToNumber } from '@/lib/prisma/decimal';
 import { getSessionUserId, getVehicleAccess, hasPermission } from '@/lib/api/vehicle-access';
+import { buildConsumptionSegments } from '@/lib/consumption';
 
 export async function GET(req: NextRequest, context: { params: Promise<{ vehicleId: string }> }) {
   try {
@@ -63,7 +64,7 @@ export async function GET(req: NextRequest, context: { params: Promise<{ vehicle
     }));
 
     if (withSegments) {
-      // Compute segments in a pagination-safe way by backfilling older records up to previous full
+      // Include complete older history for the baseline and previous consumption rate.
       const oldestFullInPage = [...pageItems]
         .filter(f => f.isFull)
         .sort((a, b) => a.date.getTime() - b.date.getTime())[0];
@@ -73,59 +74,20 @@ export async function GET(req: NextRequest, context: { params: Promise<{ vehicle
         olderChunk = await prisma.fuelFillUp.findMany({
           where: { vehicleId: vehicle.id, date: { lte: oldestFullInPage.date } },
           orderBy: [{ date: 'desc' }, { odometerKm: 'desc' }],
-          take: 200,
         });
       }
 
       const combinedMap = new Map<string, (typeof pageItems)[number]>();
       for (const it of [...pageItems, ...olderChunk]) combinedMap.set(it.id, it);
-      const combined = Array.from(combinedMap.values());
-      // Sort by date ascending, then by odometer for same-day entries
-      const asc = combined.sort((a, b) => {
-        const dateDiff = a.date.getTime() - b.date.getTime();
-        if (dateDiff !== 0) return dateDiff;
-        return a.odometerKm - b.odometerKm;
-      });
-
-      type Seg = {
-        distanceKm: number;
-        litersUsed: number;
-        lPer100: number;
-        fuelCost: number;
-        costPer100: number;
-      };
-
-      const segmentByFullId = new Map<string, Seg & { prevLPer100?: number }>();
-      const segmentsLinear: Array<{ fullId: string; lPer100: number }> = [];
-      let lastFullIndex = -1;
-      for (let i = 0; i < asc.length; i++) {
-        if (!asc[i].isFull) continue;
-        if (lastFullIndex >= 0) {
-          const prev = asc[lastFullIndex];
-          const curr = asc[i];
-          const distanceKm = curr.odometerKm - prev.odometerKm;
-          if (distanceKm > 0) {
-            const slice = asc.slice(lastFullIndex + 1, i + 1);
-            const litersUsed = slice.reduce((s, f) => s + decimalToNumber(f.liters), 0);
-            const fuelCost = slice.reduce((s, f) => s + decimalToNumber(f.totalCost), 0);
-            const lPer100 = (litersUsed / distanceKm) * 100;
-            const costPer100 = (fuelCost / distanceKm) * 100;
-            segmentByFullId.set(curr.id, { distanceKm, litersUsed, lPer100, fuelCost, costPer100 });
-            segmentsLinear.push({ fullId: curr.id, lPer100 });
-          }
-        }
-        lastFullIndex = i;
-      }
-
-      for (let i = 0; i < segmentsLinear.length; i++) {
-        const curr = segmentsLinear[i];
-        const prev = segmentsLinear[i - 1];
-        if (!prev) continue;
-        const existing = segmentByFullId.get(curr.fullId);
-        if (existing) {
-          segmentByFullId.set(curr.fullId, { ...existing, prevLPer100: prev.lPer100 });
-        }
-      }
+      const segments = buildConsumptionSegments(
+        Array.from(combinedMap.values()).map(f => ({
+          ...f,
+          date: f.date.toISOString(),
+          liters: decimalToNumber(f.liters),
+          totalCost: decimalToNumber(f.totalCost),
+        }))
+      );
+      const segmentByFullId = new Map(segments.map(s => [s.fullId, s]));
 
       fillUps = fillUps.map(f => {
         if (!f.isFull) return f;

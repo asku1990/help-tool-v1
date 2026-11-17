@@ -9,6 +9,7 @@ import { useUiStore } from '@/stores/ui';
 import { formatDateFi } from '@/utils';
 import { toast } from 'sonner';
 import { getUiErrorMessage } from '@/lib/api/client-errors';
+import RecordAttachments from './attachments/RecordAttachments';
 
 export default function FillUpList({ vehicleId }: { vehicleId: string }) {
   const { data, isLoading, isError, error, hasNextPage, fetchNextPage, isFetchingNextPage } =
@@ -46,7 +47,7 @@ export default function FillUpList({ vehicleId }: { vehicleId: string }) {
     <>
       <div className="space-y-2">
         <div className="text-xs text-gray-500">
-          Total fuel cost: {formatCurrency(totalFuelCost)}
+          Fuel cost — loaded records: {formatCurrency(totalFuelCost)}
         </div>
         <ul className="divide-y">
           {items.map(f => (
@@ -62,8 +63,8 @@ export default function FillUpList({ vehicleId }: { vehicleId: string }) {
                 {f.notes ? ` • ${f.notes}` : ''}
                 {f.isFull && f.segment ? (
                   <div className="text-[11px] text-gray-600 mt-0.5">
-                    Trip {f.segment.distanceKm.toFixed(0)} km • {f.segment.lPer100.toFixed(2)}{' '}
-                    L/100km
+                    Trip {f.segment.distanceKm.toFixed(0)} km •{' '}
+                    <ConsumptionRate value={f.segment.lPer100} previous={f.segment.prevLPer100} />
                     {typeof f.segment.prevLPer100 === 'number' ? (
                       <>
                         {' '}
@@ -121,6 +122,34 @@ function formatCurrency(n: number) {
   return new Intl.NumberFormat(undefined, { style: 'currency', currency: 'EUR' }).format(n);
 }
 
+function ConsumptionRate({ value, previous }: { value: number; previous?: number }) {
+  const diff = previous === undefined ? 0 : value - previous;
+  const color =
+    diff < 0
+      ? 'bg-green-50 text-green-800'
+      : diff > 0
+        ? 'bg-red-50 text-red-800'
+        : 'bg-gray-100 text-gray-700';
+  const comparison =
+    previous === undefined
+      ? 'No previous trip to compare'
+      : diff < 0
+        ? 'Lower than previous trip'
+        : diff > 0
+          ? 'Higher than previous trip'
+          : 'Same as previous trip';
+
+  return (
+    <span
+      className={`inline-flex items-center rounded-md px-2 py-1 text-sm font-semibold tabular-nums ${color}`}
+      title={comparison}
+    >
+      {value.toFixed(2)} L/100km
+      <span className="sr-only"> — {comparison}</span>
+    </span>
+  );
+}
+
 function Delta({ now, prev }: { now: number; prev: number }) {
   const diff = now - prev;
   const sign = diff === 0 ? '' : diff > 0 ? '+' : '−';
@@ -150,6 +179,7 @@ function EditFillUpButton({
   };
 }) {
   const [open, setOpen] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [state, setState] = useState({
     date: item.date.slice(0, 10),
     odometerKm: String(item.odometerKm),
@@ -174,8 +204,13 @@ function EditFillUpButton({
       >
         Edit
       </button>
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent aria-label="Edit fill-up">
+      <Dialog
+        open={open}
+        onOpenChange={next => {
+          if (!uploading) setOpen(next);
+        }}
+      >
+        <DialogContent aria-label="Edit fill-up" className="max-h-[90dvh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Edit fill-up</DialogTitle>
           </DialogHeader>
@@ -183,6 +218,7 @@ function EditFillUpButton({
             className="space-y-4"
             onSubmit={async e => {
               e.preventDefault();
+              if (uploading) return;
               try {
                 await update.mutateAsync({
                   date: state.date,
@@ -271,15 +307,29 @@ function EditFillUpButton({
             <div className="flex items-center justify-between pt-2">
               <div className="text-sm text-gray-500">Total: {total}</div>
               <div className="flex gap-2">
-                <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={uploading}
+                  onClick={() => setOpen(false)}
+                >
                   Cancel
                 </Button>
-                <Button type="submit" disabled={update.isPending}>
+                <Button type="submit" disabled={update.isPending || uploading}>
                   {update.isPending ? 'Saving…' : 'Save'}
                 </Button>
               </div>
             </div>
           </form>
+          {open ? (
+            <RecordAttachments
+              key={item.id}
+              vehicleId={vehicleId}
+              record={{ type: 'fillup', id: item.id }}
+              onUploadingChange={setUploading}
+              disabled={update.isPending}
+            />
+          ) : null}
         </DialogContent>
       </Dialog>
     </>

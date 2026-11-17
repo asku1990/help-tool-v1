@@ -106,6 +106,7 @@ model FuelFillUp {
   notes          String?
 
   vehicle        Vehicle   @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  attachments    Attachment[]
 
   @@index([vehicleId, date])
 }
@@ -123,8 +124,28 @@ model Expense {
   notes           String?
 
   vehicle    Vehicle  @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  attachments Attachment[]
 
   @@index([vehicleId, date])
+}
+
+// The migration must enforce exactly one non-null parent with a CHECK constraint.
+model Attachment {
+  id            String   @id @default(uuid())
+  expenseId     String?
+  fuelFillUpId  String?
+  filename      String
+  objectKey     String   @unique
+  contentType   String
+  sizeBytes     Int
+  createdAtUtc  DateTime @default(now()) @db.Timestamptz(3)
+  updatedAtUtc  DateTime @updatedAt @db.Timestamptz(3)
+
+  expense       Expense?    @relation(fields: [expenseId], references: [id], onDelete: Cascade)
+  fuelFillUp    FuelFillUp? @relation(fields: [fuelFillUpId], references: [id], onDelete: Cascade)
+
+  @@index([expenseId])
+  @@index([fuelFillUpId])
 }
 
 enum TireType {

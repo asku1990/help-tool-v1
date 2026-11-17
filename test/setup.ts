@@ -1,6 +1,6 @@
 import '@testing-library/jest-dom';
 import React from 'react';
-import { vi, beforeAll, afterEach, afterAll } from 'vitest';
+import { vi, expect, beforeAll, afterEach, afterAll } from 'vitest';
 
 if (typeof window !== 'undefined') {
   Object.defineProperty(window, 'matchMedia', {
@@ -29,9 +29,13 @@ vi.mock('next-auth/react', () => ({
 import { server } from './msw/server';
 import { handlers } from './msw/handlers';
 
-beforeAll(() => {
-  server.listen({ onUnhandledRequest: 'bypass' });
-  server.use(...handlers);
-});
-afterEach(() => server.resetHandlers());
-afterAll(() => server.close());
+// Real-database suites must not intercept Testcontainers' Docker socket traffic.
+const isIntegrationTest = /\.int\.test\.[jt]sx?$/.test(expect.getState().testPath ?? '');
+if (!isIntegrationTest) {
+  beforeAll(() => {
+    server.listen({ onUnhandledRequest: 'bypass' });
+    server.use(...handlers);
+  });
+  afterEach(() => server.resetHandlers());
+  afterAll(() => server.close());
+}

@@ -1,5 +1,5 @@
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { expenseKeys } from '@/queries/keys';
+import { expenseKeys, vehicleSummaryKeys } from '@/queries/keys';
 import {
   createExpense,
   listExpenses,
@@ -75,6 +75,7 @@ export function useCreateExpense(vehicleId: string) {
     onSettled: () => {
       qc.invalidateQueries({ queryKey: expenseKeys.byVehicle(vehicleId) });
       qc.invalidateQueries({ queryKey: expenseKeys.infiniteByVehicle(vehicleId) });
+      qc.invalidateQueries({ queryKey: vehicleSummaryKeys.byVehicle(vehicleId) });
     },
   });
 }
@@ -98,6 +99,7 @@ export function useUpdateExpense(vehicleId: string, expenseId: string) {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: expenseKeys.byVehicle(vehicleId) });
       qc.invalidateQueries({ queryKey: expenseKeys.infiniteByVehicle(vehicleId) });
+      qc.invalidateQueries({ queryKey: vehicleSummaryKeys.byVehicle(vehicleId) });
     },
   });
 }
@@ -109,6 +111,7 @@ export function useDeleteExpense(vehicleId: string, expenseId: string) {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: expenseKeys.byVehicle(vehicleId) });
       qc.invalidateQueries({ queryKey: expenseKeys.infiniteByVehicle(vehicleId) });
+      qc.invalidateQueries({ queryKey: vehicleSummaryKeys.byVehicle(vehicleId) });
     },
   });
 }
@@ -152,6 +155,7 @@ export function useImportExpenses(vehicleId: string) {
     onSettled: () => {
       qc.invalidateQueries({ queryKey: expenseKeys.byVehicle(vehicleId) });
       qc.invalidateQueries({ queryKey: expenseKeys.infiniteByVehicle(vehicleId) });
+      qc.invalidateQueries({ queryKey: vehicleSummaryKeys.byVehicle(vehicleId) });
     },
   });
 }
@@ -202,6 +206,7 @@ export function useImportExpensesToVehicle() {
       if (!vehicleId) return;
       qc.invalidateQueries({ queryKey: expenseKeys.byVehicle(vehicleId) });
       qc.invalidateQueries({ queryKey: expenseKeys.infiniteByVehicle(vehicleId) });
+      qc.invalidateQueries({ queryKey: vehicleSummaryKeys.byVehicle(vehicleId) });
     },
   });
 }

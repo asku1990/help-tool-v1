@@ -160,7 +160,10 @@ export async function DELETE(
     const { vehicleId, expenseId } = await context.params;
     const access = await getVehicleAccess(vehicleId, userId);
     if (!access || !hasPermission(access.role, 'write')) return notFound();
-    await prisma.expense.delete({ where: { id: expenseId } });
+    const deleted = await prisma.expense.deleteMany({
+      where: { id: expenseId, vehicleId: access.vehicle.id },
+    });
+    if (deleted.count === 0) return notFound();
     return ok({ id: expenseId });
   } catch (error) {
     logger.error('DELETE /api/vehicles/[vehicleId]/expenses/[expenseId] failed', { error });

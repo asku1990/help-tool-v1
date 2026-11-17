@@ -1,13 +1,14 @@
 // @vitest-environment node
 import { beforeAll, afterAll, describe, it, expect, vi } from 'vitest';
 import { PostgreSqlContainer, StartedPostgreSqlContainer } from '@testcontainers/postgresql';
-import { PrismaClient } from '@/generated/prisma';
-import { GET, POST } from '../route';
+import type { PrismaClient } from '@/generated/prisma';
 import { NextRequest } from 'next/server';
 import { execa } from 'execa';
 
-let container: StartedPostgreSqlContainer;
+let container: StartedPostgreSqlContainer | undefined;
 let prisma: PrismaClient;
+let GET: typeof import('../route').GET;
+let POST: typeof import('../route').POST;
 const userEmail = 'fillup-int@example.com';
 let vehicleId: string;
 
@@ -15,25 +16,35 @@ vi.mock('@/auth', () => ({ auth: vi.fn(async () => ({ user: { email: userEmail }
 
 beforeAll(async () => {
   if (!process.env.RUN_INTEGRATION) return;
-  container = await new PostgreSqlContainer().start();
-  const { username, password, database, host, port } = container;
-  process.env.DATABASE_URL = `postgresql://${username}:${password}@${host}:${port}/${database}?connection_limit=1&pool_timeout=0`;
+  container = await new PostgreSqlContainer('postgres:16-alpine').start();
+  const databaseUrl = new URL(container.getConnectionUri());
+  databaseUrl.searchParams.set('connection_limit', '1');
+  databaseUrl.searchParams.set('pool_timeout', '0');
+  process.env.DATABASE_URL = databaseUrl.toString();
 
   await execa('pnpm', ['prisma', 'migrate', 'deploy'], { stdio: 'inherit' });
 
-  prisma = new PrismaClient();
+  // Initialize the route's shared client only after selecting the disposable database.
+  prisma = (await import('@/lib/db')).default;
+  ({ GET, POST } = await import('../route'));
   const user = await prisma.user.create({
     data: { email: userEmail, username: 'tester', passwordHash: '', userType: 'REGULAR' },
   });
   const vehicle = await prisma.vehicle.create({ data: { userId: user.id, name: 'Car A' } });
   vehicleId = vehicle.id;
-});
+  await prisma.vehicleAccess.create({
+    data: { userId: user.id, vehicleId, role: 'OWNER' },
+  });
+}, 120_000);
 
 afterAll(async () => {
   if (!process.env.RUN_INTEGRATION) return;
-  await prisma?.$disconnect();
-  await container.stop();
-});
+  try {
+    await prisma?.$disconnect();
+  } finally {
+    await container?.stop();
+  }
+}, 30_000);
 
 describe('GET fill-ups', () => {
   it('returns empty list', async () => {

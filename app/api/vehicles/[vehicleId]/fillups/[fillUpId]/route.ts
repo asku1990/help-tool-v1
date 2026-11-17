@@ -33,7 +33,7 @@ export async function PATCH(
     if (!canWrite) return notFound();
 
     const updated = await prisma.fuelFillUp.update({
-      where: { id: fillUpId },
+      where: { id: fillUpId, vehicleId },
       data: {
         date: parsed.data.date ? new Date(parsed.data.date) : undefined,
         odometerKm: parsed.data.odometerKm,
@@ -70,7 +70,7 @@ export async function DELETE(
     const { vehicleId, fillUpId } = await context.params;
     const canWrite = await canAccessVehicle(vehicleId, userId, 'write');
     if (!canWrite) return notFound();
-    await prisma.fuelFillUp.delete({ where: { id: fillUpId } });
+    await prisma.fuelFillUp.delete({ where: { id: fillUpId, vehicleId } });
     return ok({ id: fillUpId });
   } catch (error) {
     let code: string | undefined;

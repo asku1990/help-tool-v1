@@ -4,6 +4,10 @@ export const vehicleKeys = {
   detail: (id: string) => [...vehicleKeys.all, 'detail', id] as const,
 };
 
+export const vehicleSummaryKeys = {
+  byVehicle: (vehicleId: string) => ['vehicle-summary', vehicleId] as const,
+};
+
 export const expenseKeys = {
   all: ['expenses'] as const,
   byVehicle: (vehicleId: string) => [...expenseKeys.all, vehicleId] as const,
@@ -22,4 +26,9 @@ export const adminKeys = {
   users: () => [...adminKeys.all, 'users'] as const,
   vehicles: () => [...adminKeys.all, 'vehicles'] as const,
   vehicleAccess: (vehicleId: string) => [...adminKeys.all, 'vehicle-access', vehicleId] as const,
+};
+
+export const attachmentKeys = {
+  byRecord: (vehicleId: string, type: 'expense' | 'fillup', recordId: string) =>
+    ['attachments', vehicleId, type, recordId] as const,
 };
