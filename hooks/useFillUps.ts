@@ -1,5 +1,5 @@
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { fillUpKeys } from '@/queries/keys';
+import { fillUpKeys, vehicleSummaryKeys } from '@/queries/keys';
 import {
   createFillUp,
   listFillUps,
@@ -74,6 +74,7 @@ export function useCreateFillUp(vehicleId: string) {
     onSettled: () => {
       qc.invalidateQueries({ queryKey: fillUpKeys.byVehicle(vehicleId) });
       qc.invalidateQueries({ queryKey: fillUpKeys.infiniteByVehicle(vehicleId) });
+      qc.invalidateQueries({ queryKey: vehicleSummaryKeys.byVehicle(vehicleId) });
     },
   });
 }
@@ -86,6 +87,7 @@ export function useUpdateFillUp(vehicleId: string, fillUpId: string) {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: fillUpKeys.byVehicle(vehicleId) });
       qc.invalidateQueries({ queryKey: fillUpKeys.infiniteByVehicle(vehicleId) });
+      qc.invalidateQueries({ queryKey: vehicleSummaryKeys.byVehicle(vehicleId) });
     },
   });
 }
@@ -97,6 +99,7 @@ export function useDeleteFillUp(vehicleId: string, fillUpId: string) {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: fillUpKeys.byVehicle(vehicleId) });
       qc.invalidateQueries({ queryKey: fillUpKeys.infiniteByVehicle(vehicleId) });
+      qc.invalidateQueries({ queryKey: vehicleSummaryKeys.byVehicle(vehicleId) });
     },
   });
 }
@@ -140,6 +143,7 @@ export function useImportFillUps(vehicleId: string) {
     onSettled: () => {
       qc.invalidateQueries({ queryKey: fillUpKeys.byVehicle(vehicleId) });
       qc.invalidateQueries({ queryKey: fillUpKeys.infiniteByVehicle(vehicleId) });
+      qc.invalidateQueries({ queryKey: vehicleSummaryKeys.byVehicle(vehicleId) });
     },
   });
 }
@@ -188,6 +192,7 @@ export function useImportFillUpsToVehicle() {
       if (!vehicleId) return;
       qc.invalidateQueries({ queryKey: fillUpKeys.byVehicle(vehicleId) });
       qc.invalidateQueries({ queryKey: fillUpKeys.infiniteByVehicle(vehicleId) });
+      qc.invalidateQueries({ queryKey: vehicleSummaryKeys.byVehicle(vehicleId) });
     },
   });
 }

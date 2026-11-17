@@ -4,6 +4,10 @@ export const vehicleKeys = {
   detail: (id: string) => [...vehicleKeys.all, 'detail', id] as const,
 };
 
+export const vehicleSummaryKeys = {
+  byVehicle: (vehicleId: string) => ['vehicle-summary', vehicleId] as const,
+};
+
 export const expenseKeys = {
   all: ['expenses'] as const,
   byVehicle: (vehicleId: string) => [...expenseKeys.all, vehicleId] as const,

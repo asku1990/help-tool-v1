@@ -47,7 +47,7 @@ export default function FillUpList({ vehicleId }: { vehicleId: string }) {
     <>
       <div className="space-y-2">
         <div className="text-xs text-gray-500">
-          Total fuel cost: {formatCurrency(totalFuelCost)}
+          Fuel cost — loaded records: {formatCurrency(totalFuelCost)}
         </div>
         <ul className="divide-y">
           {items.map(f => (
@@ -63,8 +63,8 @@ export default function FillUpList({ vehicleId }: { vehicleId: string }) {
                 {f.notes ? ` • ${f.notes}` : ''}
                 {f.isFull && f.segment ? (
                   <div className="text-[11px] text-gray-600 mt-0.5">
-                    Trip {f.segment.distanceKm.toFixed(0)} km • {f.segment.lPer100.toFixed(2)}{' '}
-                    L/100km
+                    Trip {f.segment.distanceKm.toFixed(0)} km •{' '}
+                    <ConsumptionRate value={f.segment.lPer100} previous={f.segment.prevLPer100} />
                     {typeof f.segment.prevLPer100 === 'number' ? (
                       <>
                         {' '}
@@ -120,6 +120,34 @@ function EmptyCta() {
 
 function formatCurrency(n: number) {
   return new Intl.NumberFormat(undefined, { style: 'currency', currency: 'EUR' }).format(n);
+}
+
+function ConsumptionRate({ value, previous }: { value: number; previous?: number }) {
+  const diff = previous === undefined ? 0 : value - previous;
+  const color =
+    diff < 0
+      ? 'bg-green-50 text-green-800'
+      : diff > 0
+        ? 'bg-red-50 text-red-800'
+        : 'bg-gray-100 text-gray-700';
+  const comparison =
+    previous === undefined
+      ? 'No previous trip to compare'
+      : diff < 0
+        ? 'Lower than previous trip'
+        : diff > 0
+          ? 'Higher than previous trip'
+          : 'Same as previous trip';
+
+  return (
+    <span
+      className={`inline-flex items-center rounded-md px-2 py-1 text-sm font-semibold tabular-nums ${color}`}
+      title={comparison}
+    >
+      {value.toFixed(2)} L/100km
+      <span className="sr-only"> — {comparison}</span>
+    </span>
+  );
 }
 
 function Delta({ now, prev }: { now: number; prev: number }) {
