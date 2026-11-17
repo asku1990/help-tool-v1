@@ -36,6 +36,28 @@ describe('ConsumptionBadges', () => {
     expect(screen.getByText(/Lifetime/i)).toBeInTheDocument();
     // Cost/100 should render currency
     expect(screen.getAllByText(/€/i).length).toBeGreaterThan(0);
+    const valueFor = (label: string) => screen.getByText(label).parentElement;
+    expect(valueFor('Latest')).toHaveTextContent('6.00 L/100km');
+    expect(valueFor('Avg (3)')).toHaveTextContent('5.33 L/100km');
+    expect(valueFor('Avg (6)')).toHaveTextContent('5.33 L/100km');
+    expect(valueFor('Lifetime')).toHaveTextContent('5.33 L/100km');
+    expect(valueFor('Cost/100')).toHaveTextContent(/8[.,]67/);
+  });
+
+  it('uses the last three and six completed trips with distance weighting', () => {
+    const segments = Array.from({ length: 7 }, (_, i) => ({
+      date: `2026-11-${String(i + 1).padStart(2, '0')}`,
+      distanceKm: (i + 1) * 100,
+      litersUsed: (i + 1) ** 2,
+      lPer100: i + 1,
+      fuelCost: (i + 1) ** 2 * 2,
+      costPer100: (i + 1) * 2,
+    }));
+    render(<ConsumptionBadges segments={segments} />);
+    expect(screen.getByText('Avg (3)').parentElement).toHaveTextContent('6.11 L/100km');
+    expect(screen.getByText('Avg (6)').parentElement).toHaveTextContent('5.15 L/100km');
+    expect(screen.getByText('Lifetime').parentElement).toHaveTextContent('5.00 L/100km');
+    expect(screen.getByText('Cost/100').parentElement).toHaveTextContent(/12[.,]22/);
   });
 
   it('renders dashes when no data', () => {

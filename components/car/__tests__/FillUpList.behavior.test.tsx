@@ -11,7 +11,56 @@ function renderWithProviders(ui: React.ReactElement) {
 }
 
 describe('FillUpList behavior', () => {
-  it('renders non-empty list and total fuel cost', async () => {
+  it.each([
+    { consumption: 4, previous: 5, comparison: 'Lower than previous trip', color: 'bg-green-50' },
+    { consumption: 6, previous: 5, comparison: 'Higher than previous trip', color: 'bg-red-50' },
+    { consumption: 5, previous: 5, comparison: 'Same as previous trip', color: 'bg-gray-100' },
+    {
+      consumption: 5,
+      previous: undefined,
+      comparison: 'No previous trip to compare',
+      color: 'bg-gray-100',
+    },
+  ])('colors consumption: $comparison', async ({ consumption, previous, comparison, color }) => {
+    server.use(
+      http.get('/api/vehicles/:vehicleId/fillups', () =>
+        HttpResponse.json({
+          data: {
+            fillUps: [
+              {
+                id: 'f1',
+                date: '2026-11-17',
+                odometerKm: 1000,
+                liters: consumption,
+                pricePerLiter: 1.5,
+                totalCost: consumption * 1.5,
+                isFull: true,
+                segment: {
+                  distanceKm: 100,
+                  litersUsed: consumption,
+                  lPer100: consumption,
+                  fuelCost: consumption * 1.5,
+                  costPer100: consumption * 1.5,
+                  prevLPer100: previous,
+                },
+              },
+            ],
+            nextCursor: null,
+          },
+        })
+      )
+    );
+    renderWithProviders(<FillUpList vehicleId="vid" />);
+    const badge = await screen.findByTitle(comparison);
+    expect(badge).toHaveTextContent(`${consumption.toFixed(2)} L/100km`);
+    expect(badge).toHaveClass(color, 'font-semibold');
+    if (previous !== undefined && consumption !== previous) {
+      const expectedDelta = consumption < previous ? /Δ −1.00/ : /Δ \+1.00/;
+      expect(screen.getByText(expectedDelta)).toBeInTheDocument();
+    }
+  });
+
+  it('labels the fuel subtotal as loaded records rather than a lifetime total', async () => {
     server.use(
       http.get('/api/vehicles/:vehicleId/fillups', () =>
         HttpResponse.json({
@@ -33,7 +82,7 @@ describe('FillUpList behavior', () => {
       )
     );
     renderWithProviders(<FillUpList vehicleId="vid" />);
-    expect(await screen.findByText(/Total fuel cost/i)).toBeInTheDocument();
+    expect(await screen.findByText(/Fuel cost — loaded records/i)).toHaveTextContent(/30[.,]00/);
   });
 
   it('handles error and retry', async () => {
