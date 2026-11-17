@@ -1,5 +1,7 @@
 'use client';
 
+import { consumptionPer100, fuelCostPer100 } from '@/lib/consumption';
+
 type Segment = {
   date: string;
   distanceKm: number;
@@ -11,10 +13,10 @@ type Segment = {
 
 export default function ConsumptionBadges({ segments }: { segments: Segment[] }) {
   const latest = segments[segments.length - 1]?.lPer100;
-  const avg3 = average(segments.slice(-3).map(s => s.lPer100));
-  const avg6 = average(segments.slice(-6).map(s => s.lPer100));
-  const lifetime = average(segments.map(s => s.lPer100));
-  const costPer100 = average(segments.slice(-3).map(s => s.costPer100));
+  const avg3 = consumptionPer100(segments.slice(-3));
+  const avg6 = consumptionPer100(segments.slice(-6));
+  const lifetime = consumptionPer100(segments);
+  const costPer100 = fuelCostPer100(segments.slice(-3));
 
   return (
     <div className="bg-white p-4 rounded-xl shadow-sm border">
@@ -39,12 +41,6 @@ function Badge({ label, value, suffix }: { label: string; value: string; suffix?
       </div>
     </div>
   );
-}
-
-function average(values: number[]): number {
-  const arr = values.filter(v => Number.isFinite(v));
-  if (arr.length === 0) return NaN;
-  return arr.reduce((a, b) => a + b, 0) / arr.length;
 }
 
 function formatNumber(n: number, digits: number): string {

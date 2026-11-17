@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { formatDateFi } from '@/utils';
+import { consumptionPer100 } from '@/lib/consumption';
 
 export type ChartOptions = {
   rangeDays: 30 | 90 | 180 | 0; // 0 = All
@@ -10,7 +11,7 @@ export type ChartOptions = {
 export type SegmentPoint = {
   date: string;
   lPer100: number;
-  distanceKm?: number;
+  distanceKm: number;
 };
 
 export type ConsumptionChartProps = {
@@ -61,7 +62,12 @@ export default function ConsumptionChart({ segments, options }: ConsumptionChart
     const d = pts
       .map((p, idx) => `${idx === 0 ? 'M' : 'L'} ${toX(p.x).toFixed(2)} ${toY(p.y).toFixed(2)}`)
       .join(' ');
-    const a = yv.reduce((acc, b) => acc + b, 0) / (yv.length || 1);
+    const a = consumptionPer100(
+      filtered.map(s => ({
+        distanceKm: s.distanceKm,
+        litersUsed: (s.lPer100 * s.distanceKm) / 100,
+      }))
+    );
     const ay = toY(a);
     const gridStep = Math.max(1, Math.round(yrange / 4));
     const gridValues: number[] = [];
@@ -78,7 +84,7 @@ export default function ConsumptionChart({ segments, options }: ConsumptionChart
     };
   }, [filtered, width]);
 
-  if (!segments.length) {
+  if (!filtered.length) {
     return <div className="text-sm text-gray-500">No consumption data yet.</div>;
   }
 
