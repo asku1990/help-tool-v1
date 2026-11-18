@@ -1,8 +1,8 @@
 'use client';
 
-import { useMemo, useRef, useState } from 'react';
+import { useId, useMemo, useRef, useState } from 'react';
 import { useInfiniteExpenses, useUpdateExpense, useDeleteExpense } from '@/hooks';
-import { Button, Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui';
+import { Button } from '@/components/ui';
 import { ExpenseListSkeleton } from '@/components/car';
 import { useUiStore } from '@/stores/ui';
 import { formatDateFi } from '@/utils';
@@ -10,6 +10,7 @@ import { toast } from 'sonner';
 import { getUiErrorMessage } from '@/lib/api/client-errors';
 import RecordAttachments from './attachments/RecordAttachments';
 import { RecordActions, RecordDetailsButton } from './records';
+import RecordEditDialog from './records/RecordEditDialog';
 
 export default function ExpenseList({ vehicleId }: { vehicleId: string }) {
   const { data, isLoading, isError, error, hasNextPage, fetchNextPage, isFetchingNextPage } =
@@ -139,17 +140,21 @@ function EditExpenseButton({
   };
 }) {
   const [open, setOpen] = useState(false);
+  const formId = useId();
   const returnFocus = useRef<HTMLElement | null>(null);
   const [uploading, setUploading] = useState(false);
-  const [state, setState] = useState({
+  const savedState = {
     date: item.date.slice(0, 10),
     category: item.category as string,
     amount: String(item.amount),
     vendor: item.vendor || '',
-    odometerKm: item.odometerKm ? String(item.odometerKm) : '',
-    liters: item.liters ? String(item.liters) : '',
+    odometerKm: item.odometerKm != null ? String(item.odometerKm) : '',
+    liters: item.liters != null ? String(item.liters) : '',
     notes: item.notes || '',
-  });
+  };
+  const [state, setState] = useState(savedState);
+  const [openingState, setOpeningState] = useState(savedState);
+  const hasChanges = JSON.stringify(state) !== JSON.stringify(openingState);
   const update = useUpdateExpense(vehicleId, item.id);
   return (
     <>
@@ -159,174 +164,157 @@ function EditExpenseButton({
         onClick={event => {
           returnFocus.current =
             event.currentTarget.closest('details')?.querySelector('summary') ?? event.currentTarget;
+          setOpeningState(savedState);
+          setState(savedState);
           setOpen(true);
         }}
       >
         Edit
       </button>
-      <Dialog
+      <RecordEditDialog
+        title="Edit expense"
         open={open}
-        onOpenChange={next => {
-          if (!uploading) setOpen(next);
-        }}
+        onClose={() => setOpen(false)}
+        restoreFocus={() => returnFocus.current?.focus()}
+        formId={formId}
+        hasChanges={hasChanges}
+        saving={update.isPending}
+        attachmentBusy={uploading}
       >
-        <DialogContent
-          aria-label="Edit expense"
-          className="max-h-[90dvh] overflow-y-auto"
-          onCloseAutoFocus={event => {
-            event.preventDefault();
-            returnFocus.current?.focus();
+        <form
+          id={formId}
+          className="space-y-4"
+          onSubmit={async e => {
+            e.preventDefault();
+            if (uploading || update.isPending || !hasChanges) return;
+            try {
+              await update.mutateAsync({
+                date: state.date,
+                category: state.category as
+                  | 'FUEL'
+                  | 'MAINTENANCE'
+                  | 'INSURANCE'
+                  | 'TAX'
+                  | 'PARKING'
+                  | 'TOLL'
+                  | 'OIL_CHANGE'
+                  | 'OIL_TOP_UP'
+                  | 'INSPECTION'
+                  | 'TIRES'
+                  | 'OTHER',
+                amount: parseFloat(state.amount.replace(',', '.')),
+                vendor: state.vendor || null,
+                odometerKm: state.odometerKm ? parseInt(state.odometerKm, 10) : null,
+                liters: state.liters ? parseFloat(state.liters.replace(',', '.')) : null,
+                notes: state.notes || null,
+              });
+              toast.success('Expense updated');
+              setOpen(false);
+            } catch (error) {
+              toast.error(getUiErrorMessage(error, 'Failed to update expense'));
+            }
           }}
         >
-          <DialogHeader>
-            <DialogTitle>Edit expense</DialogTitle>
-          </DialogHeader>
-          <form
-            className="space-y-4"
-            onSubmit={async e => {
-              e.preventDefault();
-              if (uploading) return;
-              try {
-                await update.mutateAsync({
-                  date: state.date,
-                  category: state.category as
-                    | 'FUEL'
-                    | 'MAINTENANCE'
-                    | 'INSURANCE'
-                    | 'TAX'
-                    | 'PARKING'
-                    | 'TOLL'
-                    | 'OIL_CHANGE'
-                    | 'OIL_TOP_UP'
-                    | 'INSPECTION'
-                    | 'TIRES'
-                    | 'OTHER',
-                  amount: parseFloat(state.amount.replace(',', '.')),
-                  vendor: state.vendor || null,
-                  odometerKm: state.odometerKm ? parseInt(state.odometerKm, 10) : null,
-                  liters: state.liters ? parseFloat(state.liters.replace(',', '.')) : null,
-                  notes: state.notes || null,
-                });
-                toast.success('Expense updated');
-                setOpen(false);
-              } catch (error) {
-                toast.error(getUiErrorMessage(error, 'Failed to update expense'));
-              }
-            }}
-          >
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <label className="flex flex-col gap-1">
-                <span className="text-sm">Date</span>
-                <input
-                  type="date"
-                  className="border rounded-md px-3 py-2"
-                  value={state.date}
-                  onChange={e => setState(s => ({ ...s, date: e.target.value }))}
-                  required
-                />
-              </label>
-              <label className="flex flex-col gap-1">
-                <span className="text-sm">Category</span>
-                <select
-                  className="border rounded-md px-3 py-2"
-                  value={state.category}
-                  onChange={e => setState(s => ({ ...s, category: e.target.value }))}
-                >
-                  {[
-                    'FUEL',
-                    'MAINTENANCE',
-                    'INSURANCE',
-                    'TAX',
-                    'PARKING',
-                    'TOLL',
-                    'OIL_CHANGE',
-                    'OIL_TOP_UP',
-                    'INSPECTION',
-                    'TIRES',
-                    'OTHER',
-                  ].map(c => (
-                    <option key={c} value={c}>
-                      {c}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="flex flex-col gap-1">
-                <span className="text-sm">Amount</span>
-                <input
-                  type="text"
-                  inputMode="decimal"
-                  pattern="^[0-9]*[.,]?[0-9]*$"
-                  className="border rounded-md px-3 py-2"
-                  value={state.amount}
-                  onChange={e => setState(s => ({ ...s, amount: e.target.value }))}
-                  required
-                />
-              </label>
-              <label className="flex flex-col gap-1">
-                <span className="text-sm">Vendor</span>
-                <input
-                  className="border rounded-md px-3 py-2"
-                  value={state.vendor}
-                  onChange={e => setState(s => ({ ...s, vendor: e.target.value }))}
-                />
-              </label>
-              <label className="flex flex-col gap-1">
-                <span className="text-sm">Odometer km</span>
-                <input
-                  type="number"
-                  inputMode="numeric"
-                  className="border rounded-md px-3 py-2"
-                  value={state.odometerKm}
-                  onChange={e => setState(s => ({ ...s, odometerKm: e.target.value }))}
-                />
-              </label>
-              <label className="flex flex-col gap-1">
-                <span className="text-sm">Liters</span>
-                <input
-                  type="text"
-                  inputMode="decimal"
-                  className="border rounded-md px-3 py-2"
-                  value={state.liters}
-                  onChange={e => setState(s => ({ ...s, liters: e.target.value }))}
-                  placeholder="For oil/fluid"
-                />
-              </label>
-              <label className="flex flex-col gap-1 sm:col-span-2">
-                <span className="text-sm">Notes</span>
-                <textarea
-                  className="border rounded-md px-3 py-2"
-                  rows={3}
-                  value={state.notes}
-                  onChange={e => setState(s => ({ ...s, notes: e.target.value }))}
-                />
-              </label>
-            </div>
-            <div className="flex justify-end gap-2 pt-2">
-              <Button
-                type="button"
-                variant="outline"
-                disabled={uploading}
-                onClick={() => setOpen(false)}
+          <fieldset disabled={update.isPending} className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <label className="flex flex-col gap-1">
+              <span className="text-sm">Date</span>
+              <input
+                type="date"
+                className="border rounded-md px-3 py-2"
+                value={state.date}
+                onChange={e => setState(s => ({ ...s, date: e.target.value }))}
+                required
+              />
+            </label>
+            <label className="flex flex-col gap-1">
+              <span className="text-sm">Category</span>
+              <select
+                className="border rounded-md px-3 py-2"
+                value={state.category}
+                onChange={e => setState(s => ({ ...s, category: e.target.value }))}
               >
-                Cancel
-              </Button>
-              <Button type="submit" disabled={update.isPending || uploading}>
-                {update.isPending ? 'Saving…' : 'Save expense'}
-              </Button>
-            </div>
-          </form>
-          {open ? (
-            <RecordAttachments
-              key={item.id}
-              vehicleId={vehicleId}
-              record={{ type: 'expense', id: item.id }}
-              onUploadingChange={setUploading}
-              disabled={update.isPending}
-            />
-          ) : null}
-        </DialogContent>
-      </Dialog>
+                {[
+                  'FUEL',
+                  'MAINTENANCE',
+                  'INSURANCE',
+                  'TAX',
+                  'PARKING',
+                  'TOLL',
+                  'OIL_CHANGE',
+                  'OIL_TOP_UP',
+                  'INSPECTION',
+                  'TIRES',
+                  'OTHER',
+                ].map(c => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="flex flex-col gap-1">
+              <span className="text-sm">Amount</span>
+              <input
+                type="text"
+                inputMode="decimal"
+                pattern="^[0-9]*[.,]?[0-9]*$"
+                className="border rounded-md px-3 py-2"
+                value={state.amount}
+                onChange={e => setState(s => ({ ...s, amount: e.target.value }))}
+                required
+              />
+            </label>
+            <label className="flex flex-col gap-1">
+              <span className="text-sm">Vendor</span>
+              <input
+                className="border rounded-md px-3 py-2"
+                value={state.vendor}
+                onChange={e => setState(s => ({ ...s, vendor: e.target.value }))}
+              />
+            </label>
+            <label className="flex flex-col gap-1">
+              <span className="text-sm">Odometer km</span>
+              <input
+                type="number"
+                inputMode="numeric"
+                className="border rounded-md px-3 py-2"
+                value={state.odometerKm}
+                onChange={e => setState(s => ({ ...s, odometerKm: e.target.value }))}
+              />
+            </label>
+            <label className="flex flex-col gap-1">
+              <span className="text-sm">Liters</span>
+              <input
+                type="text"
+                inputMode="decimal"
+                className="border rounded-md px-3 py-2"
+                value={state.liters}
+                onChange={e => setState(s => ({ ...s, liters: e.target.value }))}
+                placeholder="For oil/fluid"
+              />
+            </label>
+            <label className="flex flex-col gap-1 sm:col-span-2">
+              <span className="text-sm">Notes</span>
+              <textarea
+                className="border rounded-md px-3 py-2"
+                rows={3}
+                value={state.notes}
+                onChange={e => setState(s => ({ ...s, notes: e.target.value }))}
+              />
+            </label>
+          </fieldset>
+        </form>
+        {open ? (
+          <RecordAttachments
+            key={item.id}
+            vehicleId={vehicleId}
+            record={{ type: 'expense', id: item.id }}
+            uploadFirst
+            onUploadingChange={setUploading}
+            disabled={update.isPending}
+          />
+        ) : null}
+      </RecordEditDialog>
     </>
   );
 }

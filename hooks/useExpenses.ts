@@ -1,4 +1,10 @@
-import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import {
+  useInfiniteQuery,
+  useMutation,
+  useQuery,
+  useQueryClient,
+  type InfiniteData,
+} from '@tanstack/react-query';
 import { expenseKeys, vehicleSummaryKeys } from '@/queries/keys';
 import {
   createExpense,
@@ -96,9 +102,38 @@ export function useUpdateExpense(vehicleId: string, expenseId: string) {
         notes: string | null;
       }>
     ) => updateExpense(vehicleId, expenseId, payload),
-    onSuccess: () => {
+    onSuccess: async (_result, payload) => {
+      const key = expenseKeys.infiniteByVehicle(vehicleId);
+      await qc.cancelQueries({ queryKey: key });
+      qc.setQueryData<InfiniteData<Awaited<ReturnType<typeof listExpenses>>>>(
+        key,
+        cached =>
+          cached && {
+            ...cached,
+            pages: cached.pages.map(page => ({
+              ...page,
+              expenses: page.expenses.map(expense =>
+                expense.id === expenseId
+                  ? {
+                      ...expense,
+                      ...payload,
+                      vendor:
+                        payload.vendor === null ? undefined : (payload.vendor ?? expense.vendor),
+                      odometerKm:
+                        payload.odometerKm === null
+                          ? undefined
+                          : (payload.odometerKm ?? expense.odometerKm),
+                      liters:
+                        payload.liters === null ? undefined : (payload.liters ?? expense.liters),
+                      notes: payload.notes === null ? undefined : (payload.notes ?? expense.notes),
+                    }
+                  : expense
+              ),
+            })),
+          }
+      );
       qc.invalidateQueries({ queryKey: expenseKeys.byVehicle(vehicleId) });
-      qc.invalidateQueries({ queryKey: expenseKeys.infiniteByVehicle(vehicleId) });
+      qc.invalidateQueries({ queryKey: key });
       qc.invalidateQueries({ queryKey: vehicleSummaryKeys.byVehicle(vehicleId) });
     },
   });

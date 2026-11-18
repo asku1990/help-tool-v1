@@ -1,4 +1,10 @@
-import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import {
+  useInfiniteQuery,
+  useMutation,
+  useQuery,
+  useQueryClient,
+  type InfiniteData,
+} from '@tanstack/react-query';
 import { fillUpKeys, vehicleSummaryKeys } from '@/queries/keys';
 import {
   createFillUp,
@@ -84,9 +90,26 @@ export function useUpdateFillUp(vehicleId: string, fillUpId: string) {
   return useMutation({
     mutationFn: (payload: Partial<Omit<FillUpDto, 'id'>>) =>
       updateFillUp(vehicleId, fillUpId, payload),
-    onSuccess: () => {
+    onSuccess: async (_result, payload) => {
+      const key = fillUpKeys.infiniteByVehicle(vehicleId);
+      await qc.cancelQueries({ queryKey: key });
+      qc.setQueryData<InfiniteData<Awaited<ReturnType<typeof listFillUps>>>>(
+        key,
+        cached =>
+          cached && {
+            ...cached,
+            pages: cached.pages.map(page => ({
+              ...page,
+              fillUps: page.fillUps.map(fillUp =>
+                fillUp.id === fillUpId
+                  ? { ...fillUp, ...payload, notes: payload.notes ?? fillUp.notes }
+                  : fillUp
+              ),
+            })),
+          }
+      );
       qc.invalidateQueries({ queryKey: fillUpKeys.byVehicle(vehicleId) });
-      qc.invalidateQueries({ queryKey: fillUpKeys.infiniteByVehicle(vehicleId) });
+      qc.invalidateQueries({ queryKey: key });
       qc.invalidateQueries({ queryKey: vehicleSummaryKeys.byVehicle(vehicleId) });
     },
   });

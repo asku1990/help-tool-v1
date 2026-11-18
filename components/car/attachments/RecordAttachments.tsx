@@ -19,6 +19,7 @@ type Props = {
   onUploadingChange?: (_uploading: boolean) => void;
   disabled?: boolean;
   readOnly?: boolean;
+  uploadFirst?: boolean;
 };
 
 export default function RecordAttachments({
@@ -27,6 +28,7 @@ export default function RecordAttachments({
   onUploadingChange,
   disabled = false,
   readOnly = false,
+  uploadFirst = false,
 }: Props) {
   const list = useAttachments(vehicleId, record);
   const upload = useUploadAttachment(vehicleId, record);
@@ -167,6 +169,56 @@ export default function RecordAttachments({
   const busy = upload.isPending || deletion.isPending || rename.isPending;
   const canWrite = !readOnly && list.data?.canUpload;
   const canUpload = canWrite && !list.isError;
+  const uploadControls = canUpload ? (
+    <div className="space-y-2">
+      {full ? <p className="text-sm">This record has reached its five-attachment limit.</p> : null}
+      <div
+        className={
+          uploadFirst ? 'grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end' : 'space-y-2'
+        }
+      >
+        <label className="flex min-w-0 flex-col gap-1 text-sm">
+          <span>Attachment file</span>
+          <input
+            ref={input}
+            type="file"
+            accept=".pdf,.jpg,.jpeg,.png,.webp"
+            disabled={disabled || busy || full || list.isFetching}
+            onChange={event => selectFile(event.target.files?.[0] ?? null)}
+            className={`w-full min-w-0 rounded-md border px-3 py-2${uploadFirst ? ' min-h-11' : ''}`}
+            aria-invalid={Boolean(fileError)}
+          />
+        </label>
+        <Button
+          type="button"
+          variant="outline"
+          size={uploadFirst ? 'default' : 'sm'}
+          className={uploadFirst ? 'min-h-11' : undefined}
+          disabled={disabled || !file || Boolean(fileError) || busy || full || list.isFetching}
+          onClick={() => {
+            void submitUpload();
+          }}
+        >
+          {upload.isPending
+            ? 'Uploading…'
+            : uploadError
+              ? 'Retry upload'
+              : uploadFirst
+                ? 'Upload file'
+                : 'Upload'}
+        </Button>
+      </div>
+      {uploadFirst ? (
+        <p className="text-xs text-gray-500">Attachment changes are saved separately.</p>
+      ) : null}
+      {file ? <p className="break-all text-xs text-gray-500">Selected file: {file.name}</p> : null}
+      {fileError ? (
+        <p role="alert" className="text-sm text-red-600">
+          {fileError}
+        </p>
+      ) : null}
+    </div>
+  ) : null;
   return (
     <section className="space-y-3 border-t pt-4" aria-label="Attachments">
       <h3 className="text-sm font-medium">Attachments</h3>
@@ -202,6 +254,7 @@ export default function RecordAttachments({
               {list.data.remainingCapacity} of {list.data.maxAttachments} attachment slots remaining
             </p>
           ) : null}
+          {uploadFirst ? uploadControls : null}
           {list.data.attachments.length ? (
             <ul className="space-y-1 text-sm" aria-label="Saved attachments">
               {list.data.attachments.map(item => (
@@ -329,42 +382,7 @@ export default function RecordAttachments({
           ) : null}
         </>
       ) : null}
-      {canUpload ? (
-        <div className="space-y-2">
-          {full ? (
-            <p className="text-sm">This record has reached its five-attachment limit.</p>
-          ) : null}
-          <label className="flex flex-col gap-1 text-sm">
-            <span>Attachment file</span>
-            <input
-              ref={input}
-              type="file"
-              accept=".pdf,.jpg,.jpeg,.png,.webp"
-              disabled={disabled || busy || full || list.isFetching}
-              onChange={event => selectFile(event.target.files?.[0] ?? null)}
-              className="w-full rounded-md border px-3 py-2"
-              aria-invalid={Boolean(fileError)}
-            />
-          </label>
-          {file ? <p className="text-xs text-gray-500">Selected file: {file.name}</p> : null}
-          {fileError ? (
-            <p role="alert" className="text-sm text-red-600">
-              {fileError}
-            </p>
-          ) : null}
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            disabled={disabled || !file || Boolean(fileError) || busy || full || list.isFetching}
-            onClick={() => {
-              void submitUpload();
-            }}
-          >
-            {upload.isPending ? 'Uploading…' : uploadError ? 'Retry upload' : 'Upload'}
-          </Button>
-        </div>
-      ) : null}
+      {!uploadFirst ? uploadControls : null}
       {upload.isPending ? (
         <div className="space-y-1" role="status">
           <progress

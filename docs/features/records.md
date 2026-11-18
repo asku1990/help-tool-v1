@@ -40,6 +40,27 @@ are outside the note preview and remain visible. Expenses without odometer or oi
 values do not render an empty metrics row; numeric zero is still shown and amounts stay
 aligned on desktop. Attachment counts remain separate work.
 
+## Editing a Saved Record
+
+Fill-up and expense editors open with the focus on the heading, not an input. The native
+date picker remains available when the user activates the date field. The editor uses a
+single column on phones and a centered dialog on wider screens.
+
+**Cancel** and **Save changes** are below the attachment section. Save changes applies only
+to the record and is enabled after a field changes. Cancel, Close, and Escape ask before
+discarding unsaved form changes; tapping outside does not dismiss the editor. Reopening
+starts from the saved values. Attachment actions save separately and are not undone by
+discarding form changes. Saving or processing an attachment action blocks dismissal.
+
+The file picker and **Upload file** are above the saved files, side by side on wider
+screens and stacked on phones. Choosing a file does not upload it until **Upload file**
+is pressed.
+
+Manual check: on iPhone Safari and Android Chrome, open Edit without a calendar or
+keyboard appearing, then tap Date to open the picker. With the keyboard open, check that
+the fields and actions remain reachable by scrolling. On desktop, check keyboard
+navigation, Esc with unsaved changes, and focus returning to the row's action menu.
+
 ## Attachments After Creating a Record
 
 Both creation dialogs offer the existing **Save expense / Save fill-up** action and a
