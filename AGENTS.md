@@ -23,6 +23,8 @@
 ## Build, Test, and Development Commands
 
 - Follow [docs/commands.md](docs/commands.md) for the command reference and [docs/local-development.md](docs/local-development.md) for environment loading.
+- Run checks from the repository root. Use the `pnpm exec vitest run` and
+  `pnpm exec prettier` forms documented in the command reference for targeted runs.
 - Run targeted tests, lint, and type-check for changed code, then the coverage gate when appropriate.
 - Format only touched files for focused changes; repository-wide formatting commands can create unrelated diffs.
 - Verify the target environment before database commands and follow [docs/database.md](docs/database.md) for backup and restore safety.
