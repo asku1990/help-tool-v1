@@ -126,7 +126,10 @@ describe('FillUpList behavior', () => {
     expect(await screen.findByLabelText(/edit fill-up/i)).toBeInTheDocument();
   });
 
-  it('refreshes fill-up inputs and completed-trip figures together', async () => {
+  it.each([
+    { removed: false, scenario: 'refreshes inputs and completed-trip figures together' },
+    { removed: true, scenario: 'keeps focus on the list when the saved row disappears' },
+  ])('$scenario', async ({ removed }) => {
     const fillUp = {
       id: 'f1',
       date: '2026-11-17',
@@ -138,6 +141,7 @@ describe('FillUpList behavior', () => {
       segment: { distanceKm: 100, litersUsed: 5, lPer100: 5, fuelCost: 7.5, costPer100: 7.5 },
     };
     let saved = false;
+    const save = vi.fn();
     const refresh = vi.fn();
     let finishRefresh!: () => void;
     const pendingRefresh = new Promise<void>(resolve => {
@@ -151,28 +155,32 @@ describe('FillUpList behavior', () => {
         }
         return HttpResponse.json({
           data: {
-            fillUps: [
-              saved
-                ? {
-                    ...fillUp,
-                    liters: 8,
-                    totalCost: 12,
-                    segment: {
-                      ...fillUp.segment,
-                      litersUsed: 8,
-                      lPer100: 8,
-                      fuelCost: 12,
-                      costPer100: 12,
-                    },
-                  }
-                : fillUp,
-            ],
+            fillUps:
+              saved && removed
+                ? []
+                : [
+                    saved
+                      ? {
+                          ...fillUp,
+                          liters: 8,
+                          totalCost: 12,
+                          segment: {
+                            ...fillUp.segment,
+                            litersUsed: 8,
+                            lPer100: 8,
+                            fuelCost: 12,
+                            costPer100: 12,
+                          },
+                        }
+                      : fillUp,
+                  ],
             nextCursor: null,
             canWrite: true,
           },
         });
       }),
-      http.patch('/api/vehicles/vid/fillups/f1', () => {
+      http.patch('/api/vehicles/vid/fillups/f1', async ({ request }: { request: Request }) => {
+        save(await request.json());
         saved = true;
         return HttpResponse.json({ data: { id: fillUp.id } });
       }),
@@ -184,6 +192,7 @@ describe('FillUpList behavior', () => {
     );
 
     renderWithProviders(<FillUpList vehicleId="vid" />);
+    const list = (await screen.findByRole('list')).closest('[tabindex="-1"]')!;
     fireEvent.click(await screen.findByRole('button', { name: /actions for/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
     fireEvent.change(screen.getByLabelText('Liters'), { target: { value: '8' } });
@@ -194,10 +203,17 @@ describe('FillUpList behavior', () => {
       expect(screen.getByText(/5 L @/)).toBeInTheDocument();
       expect(screen.getByText('5.00 L/100km')).toBeInTheDocument();
       expect(screen.queryByText(/8 L @/)).not.toBeInTheDocument();
+      if (removed) await waitFor(() => expect(list).toHaveFocus());
     } finally {
       finishRefresh();
     }
-    expect(await screen.findByText(/8 L @/)).toBeInTheDocument();
-    expect(screen.getByText('8.00 L/100km')).toBeInTheDocument();
+    if (removed) {
+      expect(await screen.findByText(/No fill-ups yet/)).toBeInTheDocument();
+      expect(list).toHaveFocus();
+    } else {
+      expect(await screen.findByText(/8 L @/)).toBeInTheDocument();
+      expect(screen.getByText('8.00 L/100km')).toBeInTheDocument();
+    }
+    expect(save).toHaveBeenCalledExactlyOnceWith({ liters: 8 });
   });
 });

@@ -82,7 +82,7 @@ export function useCreateFillUp(vehicleId: string) {
 export function useUpdateFillUp(vehicleId: string, fillUpId: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (payload: Partial<Omit<FillUpDto, 'id'>>) =>
+    mutationFn: (payload: Parameters<typeof updateFillUp>[2]) =>
       updateFillUp(vehicleId, fillUpId, payload),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: fillUpKeys.byVehicle(vehicleId) });

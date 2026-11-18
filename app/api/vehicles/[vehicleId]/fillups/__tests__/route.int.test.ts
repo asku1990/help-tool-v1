@@ -9,6 +9,7 @@ let container: StartedPostgreSqlContainer | undefined;
 let prisma: PrismaClient;
 let GET: typeof import('../route').GET;
 let POST: typeof import('../route').POST;
+let PATCH: typeof import('../[fillUpId]/route').PATCH;
 const userEmail = 'fillup-int@example.com';
 let vehicleId: string;
 
@@ -27,6 +28,7 @@ beforeAll(async () => {
   // Initialize the route's shared client only after selecting the disposable database.
   prisma = (await import('@/lib/db')).default;
   ({ GET, POST } = await import('../route'));
+  ({ PATCH } = await import('../[fillUpId]/route'));
   const user = await prisma.user.create({
     data: { email: userEmail, username: 'tester', passwordHash: '', userType: 'REGULAR' },
   });
@@ -108,5 +110,28 @@ describe('GET fill-ups pagination', () => {
     const json = await res.json();
     expect(json.data.fillUps.length).toBe(2);
     expect(json.data.nextCursor === null || typeof json.data.nextCursor === 'string').toBe(true);
+  });
+});
+
+describe.skipIf(!process.env.RUN_INTEGRATION)('PATCH fill-up', () => {
+  it('preserves an independently updated price and uses it to recalculate cost', async () => {
+    const { id } = await prisma.fuelFillUp.create({
+      data: { vehicleId, odometerKm: 3000, liters: 10, pricePerLiter: 1.85, totalCost: 18.5 },
+    });
+    await prisma.fuelFillUp.update({
+      where: { id },
+      data: { pricePerLiter: 1.95, totalCost: 19.5 },
+    });
+
+    const req = new NextRequest(`http://localhost/api/vehicles/${vehicleId}/fillups/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ liters: 12.5 }),
+    });
+    const res = await PATCH(req, { params: Promise.resolve({ vehicleId, fillUpId: id }) });
+
+    expect(res.status).toBe(200);
+    const updated = await prisma.fuelFillUp.findUniqueOrThrow({ where: { id } });
+    expect(updated.pricePerLiter.toString()).toBe('1.95');
+    expect(updated.totalCost.toString()).toBe('24.38');
   });
 });

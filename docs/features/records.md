@@ -15,8 +15,8 @@ Each row has a touch-friendly **⋯** disclosure containing **Details**, followe
 **Edit** and **Delete** for owners and editors. Viewers get **Details** only.
 It closes after selection, on an outside pointer press, or on
 Escape. Keyboard users can activate the native disclosure, Tab through its buttons,
-and press Escape to close it and return focus to the trigger. Closing Edit also returns
-focus to the trigger. Delete retains its existing confirmation.
+and press Escape to close it and return focus to the trigger. Delete retains its existing
+confirmation.
 
 The existing list responses include a server-derived `canWrite` flag. Viewers and callers
 without a confirmed write capability see only Details in the disclosure and no empty-list creation action.
@@ -47,15 +47,18 @@ date picker remains available when the user activates the date field. The editor
 single column on phones and a centered dialog on wider screens.
 
 **Cancel** and **Save changes** are below the attachment section. Save changes applies only
-to the record and is enabled after a field changes. Cancel, Close, and Escape ask before
+to changed record fields and is enabled after a field changes. The server recalculates the
+fill-up total when liters or price changes. Cancel, Close, and Escape ask before
 discarding unsaved form changes; tapping outside does not dismiss the editor. Reopening
 starts from the saved values. Attachment actions save separately and are not undone by
 discarding form changes. Saving or processing an attachment action blocks dismissal.
 
 The editor closes once the server confirms the save. **Edit** and **Load more** wait for the
 list refresh, which reloads saved fields and derived figures together. If the refresh fails,
-use **Retry** on the list; the record save does not need to be repeated. A list refresh does
-not discard an open draft, even if its row moves outside the loaded pages.
+use **Retry** on the list; the record save does not need to be repeated. If **Load more**
+fails, **Retry** requests that page again. A list refresh does not discard an open draft,
+even if its row moves outside the loaded pages. After Save, focus goes to the list; after
+Cancel, focus returns to the row's action menu if it is still available.
 
 The file picker and **Upload file** are above the saved files, side by side on wider
 screens and stacked on phones. Choosing a file does not upload it until **Upload file**

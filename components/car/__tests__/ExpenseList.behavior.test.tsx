@@ -79,6 +79,31 @@ describe('ExpenseList behavior', () => {
     fireEvent.click(retry);
   });
 
+  it('retries the failed next page without refetching the first page', async () => {
+    const cursors: (string | null)[] = [];
+    server.use(
+      http.get('/api/vehicles/vid/expenses', ({ request }: { request: Request }) => {
+        const cursor = new URL(request.url).searchParams.get('cursor');
+        cursors.push(cursor);
+        if (cursor && cursors.length === 2) return HttpResponse.json({}, { status: 500 });
+        return HttpResponse.json({
+          data: {
+            expenses: [
+              { id: cursor ? 'e2' : 'e1', date: '2026-11-17', category: 'OTHER', amount: 10 },
+            ],
+            expensesTotal: 20,
+            nextCursor: cursor ? null : 'e1',
+          },
+        });
+      })
+    );
+    renderWithProviders(<ExpenseList vehicleId="vid" />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Load more' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Retry' }));
+    await waitFor(() => expect(cursors).toEqual([null, 'e1', 'e1']));
+    expect(await screen.findAllByRole('listitem')).toHaveLength(2);
+  });
+
   it('deletes an expense when confirmed', async () => {
     server.use(
       http.get('/api/vehicles/:vehicleId/expenses', () =>
@@ -185,6 +210,9 @@ describe('ExpenseList behavior', () => {
     try {
       await waitFor(() => expect(refresh).toHaveBeenCalled());
       await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+      await waitFor(() =>
+        expect(screen.getByRole('list').closest('[tabindex="-1"]')).toHaveFocus()
+      );
       fireEvent.click(screen.getByRole('button', { name: /actions for/ }));
       expect(screen.getByRole('button', { name: 'Edit' })).toBeDisabled();
       expect(screen.getByRole('button', { name: 'Load more' })).toBeDisabled();
@@ -212,6 +240,7 @@ describe('ExpenseList behavior', () => {
 
   it('keeps a second draft when a later refresh removes its row', async () => {
     const expense = { id: 'e1', date: '2026-11-17', category: 'MAINTENANCE', amount: 10 };
+    const save = vi.fn();
     const otherExpenses = Array.from({ length: 5 }, (_, index) => ({
       ...expense,
       id: `other-${index}`,
@@ -230,9 +259,12 @@ describe('ExpenseList behavior', () => {
           },
         })
       ),
-      http.patch('/api/vehicles/vid/expenses/e1', () =>
-        HttpResponse.json({ data: { id: expense.id } })
-      ),
+      http.patch('/api/vehicles/vid/expenses/e1', async ({ request }: { request: Request }) => {
+        const patch = (await request.json()) as Partial<typeof expense>;
+        save(patch);
+        Object.assign(expense, patch);
+        return HttpResponse.json({ data: { id: expense.id } });
+      }),
       http.get('/api/vehicles/vid/expenses/e1/attachments', () =>
         HttpResponse.json({
           data: { attachments: [], maxAttachments: 5, remainingCapacity: 5, canUpload: true },
@@ -256,10 +288,14 @@ describe('ExpenseList behavior', () => {
 
     openEdit();
     fireEvent.change(screen.getByLabelText('Notes'), { target: { value: 'Second unsaved edit' } });
+    expense.date = '2026-11-15'; // A concurrent edit moved this record behind the loaded page.
     loadedExpenses = otherExpenses;
     await act(() => qc.invalidateQueries({ queryKey: expenseKeys.infiniteByVehicle('vid') }));
     await waitFor(() => expect(row).not.toBeInTheDocument());
     expect(screen.getByLabelText('Notes')).toHaveValue('Second unsaved edit');
-    expect(screen.getByRole('button', { name: 'Save changes' })).toBeEnabled();
+    fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(save).toHaveBeenLastCalledWith({ notes: 'Second unsaved edit' });
+    expect(expense.date).toBe('2026-11-15');
   });
 });

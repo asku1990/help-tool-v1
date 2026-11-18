@@ -25,6 +25,7 @@ function VehicleExpenseList({ vehicleId }: { vehicleId: string }) {
     error,
     hasNextPage,
     fetchNextPage,
+    isFetchNextPageError,
     isFetchingNextPage,
     fetchStatus,
     refetch,
@@ -48,7 +49,9 @@ function VehicleExpenseList({ vehicleId }: { vehicleId: string }) {
             vehicleId={vehicleId}
             item={edit.item}
             onClose={() => setEdit(null)}
-            restoreFocus={() => (edit.trigger.isConnected ? edit.trigger : list.current)?.focus()}
+            restoreFocus={saved =>
+              (!saved && edit.trigger.isConnected ? edit.trigger : list.current)?.focus()
+            }
           />
         ) : null}
       </>
@@ -63,7 +66,10 @@ function VehicleExpenseList({ vehicleId }: { vehicleId: string }) {
         <button
           type="button"
           className="text-sm px-3 py-1.5 rounded border"
-          onClick={() => refetch()}
+          disabled={fetchStatus !== 'idle'}
+          onClick={() =>
+            isFetchNextPageError ? fetchNextPage({ cancelRefetch: false }) : refetch()
+          }
         >
           Retry
         </button>
@@ -169,13 +175,14 @@ function ExpenseEditor({
   vehicleId: string;
   item: ExpenseDto;
   onClose: () => void;
-  restoreFocus: () => void;
+  restoreFocus: (_saved: boolean) => void;
 }) {
   const formId = useId();
+  const saved = useRef(false);
   const [uploading, setUploading] = useState(false);
   const openingState = {
     date: item.date.slice(0, 10),
-    category: item.category as string,
+    category: item.category,
     amount: String(item.amount),
     vendor: item.vendor || '',
     odometerKm: item.odometerKm != null ? String(item.odometerKm) : '',
@@ -183,14 +190,32 @@ function ExpenseEditor({
     notes: item.notes || '',
   };
   const [state, setState] = useState(openingState);
-  const hasChanges = JSON.stringify(state) !== JSON.stringify(openingState);
+  const changed = (field: keyof typeof state) => state[field] !== openingState[field];
+  const patch = {
+    date: changed('date') ? state.date : undefined,
+    category: changed('category') ? state.category : undefined,
+    amount: changed('amount') ? parseFloat(state.amount.replace(',', '.')) : undefined,
+    vendor: changed('vendor') ? state.vendor || null : undefined,
+    odometerKm: changed('odometerKm')
+      ? state.odometerKm
+        ? parseInt(state.odometerKm, 10)
+        : null
+      : undefined,
+    liters: changed('liters')
+      ? state.liters
+        ? parseFloat(state.liters.replace(',', '.'))
+        : null
+      : undefined,
+    notes: changed('notes') ? state.notes || null : undefined,
+  };
+  const hasChanges = Object.values(patch).some(value => value !== undefined);
   const update = useUpdateExpense(vehicleId, item.id);
   return (
     <RecordEditDialog
       title="Edit expense"
       open
       onClose={onClose}
-      restoreFocus={restoreFocus}
+      restoreFocus={() => restoreFocus(saved.current)}
       formId={formId}
       hasChanges={hasChanges}
       saving={update.isPending}
@@ -203,26 +228,8 @@ function ExpenseEditor({
           e.preventDefault();
           if (uploading || update.isPending || !hasChanges) return;
           try {
-            await update.mutateAsync({
-              date: state.date,
-              category: state.category as
-                | 'FUEL'
-                | 'MAINTENANCE'
-                | 'INSURANCE'
-                | 'TAX'
-                | 'PARKING'
-                | 'TOLL'
-                | 'OIL_CHANGE'
-                | 'OIL_TOP_UP'
-                | 'INSPECTION'
-                | 'TIRES'
-                | 'OTHER',
-              amount: parseFloat(state.amount.replace(',', '.')),
-              vendor: state.vendor || null,
-              odometerKm: state.odometerKm ? parseInt(state.odometerKm, 10) : null,
-              liters: state.liters ? parseFloat(state.liters.replace(',', '.')) : null,
-              notes: state.notes || null,
-            });
+            await update.mutateAsync(patch);
+            saved.current = true;
             toast.success('Expense updated');
             onClose();
           } catch (error) {
@@ -246,7 +253,9 @@ function ExpenseEditor({
             <select
               className="border rounded-md px-3 py-2"
               value={state.category}
-              onChange={e => setState(s => ({ ...s, category: e.target.value }))}
+              onChange={e =>
+                setState(s => ({ ...s, category: e.target.value as ExpenseDto['category'] }))
+              }
             >
               {[
                 'FUEL',

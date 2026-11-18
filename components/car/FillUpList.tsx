@@ -25,6 +25,7 @@ function VehicleFillUpList({ vehicleId }: { vehicleId: string }) {
     error,
     hasNextPage,
     fetchNextPage,
+    isFetchNextPageError,
     isFetchingNextPage,
     fetchStatus,
     refetch,
@@ -51,7 +52,9 @@ function VehicleFillUpList({ vehicleId }: { vehicleId: string }) {
             vehicleId={vehicleId}
             item={edit.item}
             onClose={() => setEdit(null)}
-            restoreFocus={() => (edit.trigger.isConnected ? edit.trigger : list.current)?.focus()}
+            restoreFocus={saved =>
+              (!saved && edit.trigger.isConnected ? edit.trigger : list.current)?.focus()
+            }
           />
         ) : null}
       </>
@@ -66,7 +69,10 @@ function VehicleFillUpList({ vehicleId }: { vehicleId: string }) {
         <button
           type="button"
           className="text-sm px-3 py-1.5 rounded border"
-          onClick={() => refetch()}
+          disabled={fetchStatus !== 'idle'}
+          onClick={() =>
+            isFetchNextPageError ? fetchNextPage({ cancelRefetch: false }) : refetch()
+          }
         >
           Retry
         </button>
@@ -224,9 +230,10 @@ function FillUpEditor({
   vehicleId: string;
   item: FillUpDto;
   onClose: () => void;
-  restoreFocus: () => void;
+  restoreFocus: (_saved: boolean) => void;
 }) {
   const formId = useId();
+  const saved = useRef(false);
   const [uploading, setUploading] = useState(false);
   const openingState = {
     date: item.date.slice(0, 10),
@@ -237,7 +244,18 @@ function FillUpEditor({
     notes: item.notes || '',
   };
   const [state, setState] = useState(openingState);
-  const hasChanges = JSON.stringify(state) !== JSON.stringify(openingState);
+  const changed = (field: keyof typeof state) => state[field] !== openingState[field];
+  const patch = {
+    date: changed('date') ? state.date : undefined,
+    odometerKm: changed('odometerKm') ? parseInt(state.odometerKm, 10) : undefined,
+    liters: changed('liters') ? parseFloat(state.liters.replace(',', '.')) : undefined,
+    pricePerLiter: changed('pricePerLiter')
+      ? parseFloat(state.pricePerLiter.replace(',', '.'))
+      : undefined,
+    isFull: changed('isFull') ? state.isFull : undefined,
+    notes: changed('notes') ? state.notes || null : undefined,
+  };
+  const hasChanges = Object.values(patch).some(value => value !== undefined);
   const update = useUpdateFillUp(vehicleId, item.id);
   const total = (() => {
     const l = parseFloat((state.liters || '0').replace(',', '.'));
@@ -250,7 +268,7 @@ function FillUpEditor({
       title="Edit fill-up"
       open
       onClose={onClose}
-      restoreFocus={restoreFocus}
+      restoreFocus={() => restoreFocus(saved.current)}
       formId={formId}
       hasChanges={hasChanges}
       saving={update.isPending}
@@ -263,15 +281,8 @@ function FillUpEditor({
           e.preventDefault();
           if (uploading || update.isPending || !hasChanges) return;
           try {
-            await update.mutateAsync({
-              date: state.date,
-              odometerKm: parseInt(state.odometerKm, 10),
-              liters: parseFloat(state.liters.replace(',', '.')),
-              pricePerLiter: parseFloat(state.pricePerLiter.replace(',', '.')),
-              totalCost: parseFloat(total),
-              isFull: state.isFull,
-              notes: state.notes || undefined,
-            });
+            await update.mutateAsync(patch);
+            saved.current = true;
             toast.success('Fill-up updated');
             onClose();
           } catch (error) {
