@@ -1,0 +1,14 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "permissions": [
+    { "action": "shell", "resource": "pnpm test", "effect": "allow" },
+    { "action": "shell", "resource": "pnpm test:changed", "effect": "allow" },
+    { "action": "shell", "resource": "pnpm exec vitest run *", "effect": "allow" },
+    { "action": "shell", "resource": "pnpm type-check", "effect": "allow" },
+    { "action": "shell", "resource": "pnpm lint", "effect": "allow" },
+    { "action": "shell", "resource": "pnpm exec prettier --check *", "effect": "allow" },
+    { "action": "shell", "resource": "pnpm exec prettier --write *", "effect": "allow" },
+    { "action": "shell", "resource": "pnpm format", "effect": "allow" },
+    { "action": "shell", "resource": "pnpm check", "effect": "allow" },
+  ],
+}

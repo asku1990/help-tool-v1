@@ -62,7 +62,7 @@ pass-cli run --env-file .env.local -- pnpm dev
 ```
 
 Sign in as an owner/editor. Open **Edit** on an existing expense or fuel fill-up,
-select a supported file of at most **4,000,000 bytes**, and press **Upload**.
+select a supported file of at most **4,000,000 bytes**, and press **Upload file**.
 Saving record edits is not required. Reopen the record to confirm the filename and
 remaining capacity persist. In the R2 dashboard, a new object should appear under
 `attachments/` with a random key, not the original filename.
