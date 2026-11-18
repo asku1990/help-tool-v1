@@ -1,9 +1,9 @@
 'use client';
 
-import { useMemo, useRef, useState } from 'react';
+import { useId, useMemo, useRef, useState } from 'react';
 import { useInfiniteFillUps, useUpdateFillUp, useDeleteFillUp } from '@/hooks';
 import type { FillUpWithSegmentDto } from '@/queries/fillups';
-import { Button, Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui';
+import { Button } from '@/components/ui';
 import { FillUpListSkeleton } from '@/components/car';
 import { useUiStore } from '@/stores/ui';
 import { formatDateFi } from '@/utils';
@@ -11,6 +11,7 @@ import { toast } from 'sonner';
 import { getUiErrorMessage } from '@/lib/api/client-errors';
 import RecordAttachments from './attachments/RecordAttachments';
 import { RecordActions, RecordDetailsButton } from './records';
+import RecordEditDialog from './records/RecordEditDialog';
 
 export default function FillUpList({ vehicleId }: { vehicleId: string }) {
   const { data, isLoading, isError, error, hasNextPage, fetchNextPage, isFetchingNextPage } =
@@ -195,16 +196,20 @@ function EditFillUpButton({
   };
 }) {
   const [open, setOpen] = useState(false);
+  const formId = useId();
   const returnFocus = useRef<HTMLElement | null>(null);
   const [uploading, setUploading] = useState(false);
-  const [state, setState] = useState({
+  const savedState = {
     date: item.date.slice(0, 10),
     odometerKm: String(item.odometerKm),
     liters: String(item.liters),
     pricePerLiter: item.pricePerLiter.toFixed(3),
     isFull: item.isFull,
     notes: item.notes || '',
-  });
+  };
+  const [state, setState] = useState(savedState);
+  const [openingState, setOpeningState] = useState(savedState);
+  const hasChanges = JSON.stringify(state) !== JSON.stringify(openingState);
   const update = useUpdateFillUp(vehicleId, item.id);
   const total = (() => {
     const l = parseFloat((state.liters || '0').replace(',', '.'));
@@ -220,146 +225,127 @@ function EditFillUpButton({
         onClick={event => {
           returnFocus.current =
             event.currentTarget.closest('details')?.querySelector('summary') ?? event.currentTarget;
+          setOpeningState(savedState);
+          setState(savedState);
           setOpen(true);
         }}
       >
         Edit
       </button>
-      <Dialog
+      <RecordEditDialog
+        title="Edit fill-up"
         open={open}
-        onOpenChange={next => {
-          if (!uploading) setOpen(next);
-        }}
+        onClose={() => setOpen(false)}
+        restoreFocus={() => returnFocus.current?.focus()}
+        formId={formId}
+        hasChanges={hasChanges}
+        saving={update.isPending}
+        attachmentBusy={uploading}
       >
-        <DialogContent
-          aria-label="Edit fill-up"
-          className="max-h-[90dvh] overflow-y-auto"
-          onCloseAutoFocus={event => {
-            event.preventDefault();
-            returnFocus.current?.focus();
+        <form
+          id={formId}
+          className="space-y-4"
+          onSubmit={async e => {
+            e.preventDefault();
+            if (uploading || update.isPending || !hasChanges) return;
+            try {
+              await update.mutateAsync({
+                date: state.date,
+                odometerKm: parseInt(state.odometerKm, 10),
+                liters: parseFloat(state.liters.replace(',', '.')),
+                pricePerLiter: parseFloat(state.pricePerLiter.replace(',', '.')),
+                totalCost: parseFloat(total),
+                isFull: state.isFull,
+                notes: state.notes || undefined,
+              });
+              toast.success('Fill-up updated');
+              setOpen(false);
+            } catch (error) {
+              toast.error(getUiErrorMessage(error, 'Failed to update fill-up'));
+            }
           }}
         >
-          <DialogHeader>
-            <DialogTitle>Edit fill-up</DialogTitle>
-          </DialogHeader>
-          <form
-            className="space-y-4"
-            onSubmit={async e => {
-              e.preventDefault();
-              if (uploading) return;
-              try {
-                await update.mutateAsync({
-                  date: state.date,
-                  odometerKm: parseInt(state.odometerKm, 10),
-                  liters: parseFloat(state.liters.replace(',', '.')),
-                  pricePerLiter: parseFloat(state.pricePerLiter.replace(',', '.')),
-                  totalCost: parseFloat(total),
-                  isFull: state.isFull,
-                  notes: state.notes || undefined,
-                });
-                toast.success('Fill-up updated');
-                setOpen(false);
-              } catch (error) {
-                toast.error(getUiErrorMessage(error, 'Failed to update fill-up'));
-              }
-            }}
-          >
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <label className="flex flex-col gap-1">
-                <span className="text-sm">Date</span>
-                <input
-                  type="date"
-                  className="border rounded-md px-3 py-2"
-                  value={state.date}
-                  onChange={e => setState(s => ({ ...s, date: e.target.value }))}
-                  required
-                />
-              </label>
-              <label className="flex flex-col gap-1">
-                <span className="text-sm">Odometer km</span>
-                <input
-                  type="number"
-                  inputMode="numeric"
-                  className="border rounded-md px-3 py-2"
-                  value={state.odometerKm}
-                  onChange={e => setState(s => ({ ...s, odometerKm: e.target.value }))}
-                  required
-                />
-              </label>
-              <label className="flex flex-col gap-1">
-                <span className="text-sm">Liters</span>
-                <input
-                  type="number"
-                  inputMode="decimal"
-                  step="0.01"
-                  className="border rounded-md px-3 py-2"
-                  value={state.liters}
-                  onChange={e => setState(s => ({ ...s, liters: e.target.value }))}
-                  required
-                />
-              </label>
-              <label className="flex flex-col gap-1">
-                <span className="text-sm">Price per liter</span>
-                <input
-                  type="number"
-                  inputMode="decimal"
-                  step="0.001"
-                  className="border rounded-md px-3 py-2"
-                  value={state.pricePerLiter}
-                  onChange={e => setState(s => ({ ...s, pricePerLiter: e.target.value }))}
-                  required
-                />
-              </label>
-              <div className="flex items-center gap-2">
-                <input
-                  id={`isFull-${item.id}`}
-                  type="checkbox"
-                  className="h-4 w-4"
-                  checked={state.isFull}
-                  onChange={e => setState(s => ({ ...s, isFull: e.target.checked }))}
-                />
-                <label htmlFor={`isFull-${item.id}`} className="text-sm">
-                  Full tank?
-                </label>
-              </div>
-              <label className="flex flex-col gap-1 sm:col-span-2">
-                <span className="text-sm">Notes</span>
-                <textarea
-                  className="border rounded-md px-3 py-2"
-                  rows={3}
-                  value={state.notes}
-                  onChange={e => setState(s => ({ ...s, notes: e.target.value }))}
-                />
+          <fieldset disabled={update.isPending} className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <label className="flex flex-col gap-1">
+              <span className="text-sm">Date</span>
+              <input
+                type="date"
+                className="border rounded-md px-3 py-2"
+                value={state.date}
+                onChange={e => setState(s => ({ ...s, date: e.target.value }))}
+                required
+              />
+            </label>
+            <label className="flex flex-col gap-1">
+              <span className="text-sm">Odometer km</span>
+              <input
+                type="number"
+                inputMode="numeric"
+                className="border rounded-md px-3 py-2"
+                value={state.odometerKm}
+                onChange={e => setState(s => ({ ...s, odometerKm: e.target.value }))}
+                required
+              />
+            </label>
+            <label className="flex flex-col gap-1">
+              <span className="text-sm">Liters</span>
+              <input
+                type="number"
+                inputMode="decimal"
+                step="0.01"
+                className="border rounded-md px-3 py-2"
+                value={state.liters}
+                onChange={e => setState(s => ({ ...s, liters: e.target.value }))}
+                required
+              />
+            </label>
+            <label className="flex flex-col gap-1">
+              <span className="text-sm">Price per liter</span>
+              <input
+                type="number"
+                inputMode="decimal"
+                step="0.001"
+                className="border rounded-md px-3 py-2"
+                value={state.pricePerLiter}
+                onChange={e => setState(s => ({ ...s, pricePerLiter: e.target.value }))}
+                required
+              />
+            </label>
+            <div className="flex items-center gap-2">
+              <input
+                id={`isFull-${item.id}`}
+                type="checkbox"
+                className="h-4 w-4"
+                checked={state.isFull}
+                onChange={e => setState(s => ({ ...s, isFull: e.target.checked }))}
+              />
+              <label htmlFor={`isFull-${item.id}`} className="text-sm">
+                Full tank?
               </label>
             </div>
-            <div className="flex items-center justify-between pt-2">
-              <div className="text-sm text-gray-500">Total: {total}</div>
-              <div className="flex gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  disabled={uploading}
-                  onClick={() => setOpen(false)}
-                >
-                  Cancel
-                </Button>
-                <Button type="submit" disabled={update.isPending || uploading}>
-                  {update.isPending ? 'Saving…' : 'Save'}
-                </Button>
-              </div>
-            </div>
-          </form>
-          {open ? (
-            <RecordAttachments
-              key={item.id}
-              vehicleId={vehicleId}
-              record={{ type: 'fillup', id: item.id }}
-              onUploadingChange={setUploading}
-              disabled={update.isPending}
-            />
-          ) : null}
-        </DialogContent>
-      </Dialog>
+            <label className="flex flex-col gap-1 sm:col-span-2">
+              <span className="text-sm">Notes</span>
+              <textarea
+                className="border rounded-md px-3 py-2"
+                rows={3}
+                value={state.notes}
+                onChange={e => setState(s => ({ ...s, notes: e.target.value }))}
+              />
+            </label>
+          </fieldset>
+          <p className="text-sm text-gray-500">Total: {total}</p>
+        </form>
+        {open ? (
+          <RecordAttachments
+            key={item.id}
+            vehicleId={vehicleId}
+            record={{ type: 'fillup', id: item.id }}
+            uploadFirst
+            onUploadingChange={setUploading}
+            disabled={update.isPending}
+          />
+        ) : null}
+      </RecordEditDialog>
     </>
   );
 }

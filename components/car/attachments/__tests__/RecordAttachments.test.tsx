@@ -45,6 +45,7 @@ function renderPanel(record: AttachmentRecord = { type: 'expense', id: 'e1' }, r
         record={record}
         onUploadingChange={onUploadingChange}
         readOnly={readOnly}
+        uploadFirst
       />
     </QueryClientProvider>
   );
@@ -75,12 +76,27 @@ describe('Record attachments', () => {
     onlineManager.setOnline(true);
   });
 
+  it('places the file picker and explicit upload action before saved attachments', async () => {
+    vi.mocked(listAttachments).mockResolvedValue(metadata([receipt]));
+    renderPanel();
+
+    const saved = await screen.findByRole('list', { name: 'Saved attachments' });
+    const picker = screen.getByLabelText('Attachment file');
+    const upload = screen.getByRole('button', { name: 'Upload file' });
+    expect(picker.compareDocumentPosition(upload) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(upload.compareDocumentPosition(saved) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+
+    fireEvent.change(picker, { target: { files: [new File(['receipt'], 'new.pdf')] } });
+    expect(upload).toBeEnabled();
+    expect(uploadAttachment).not.toHaveBeenCalled();
+  });
+
   it('shows filenames, capacity, a safe Open link, and a separate delete button', async () => {
     vi.mocked(listAttachments).mockResolvedValue(metadata([receipt]));
     renderPanel();
     expect(await screen.findByText('receipt.pdf')).toBeInTheDocument();
     expect(screen.getByText('4 of 5 attachment slots remaining')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Upload' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Upload file' })).toBeDisabled();
     const open = screen.getByRole('link', { name: 'Open receipt.pdf in a new tab' });
     expect(open).toHaveAttribute('href', '/api/vehicles/car/expenses/e1/attachments/a1/open');
     expect(open).toHaveAttribute('target', '_blank');
@@ -197,7 +213,7 @@ describe('Record attachments', () => {
       expect(screen.getByText('receipt.pdf')).toBeInTheDocument();
       expect(screen.getByRole('button', { name: 'Delete receipt.pdf' })).toBeDisabled();
       expect(screen.getByRole('button', { name: 'Cancel rename' })).toBeDisabled();
-      expect(screen.getByRole('button', { name: 'Upload' })).toBeDisabled();
+      expect(screen.getByRole('button', { name: 'Upload file' })).toBeDisabled();
       expect(onUploadingChange).toHaveBeenCalledWith(true);
       vi.mocked(listAttachments).mockResolvedValue(
         metadata([{ ...receipt, filename: 'Service receipt.pdf' }])
@@ -298,7 +314,7 @@ describe('Record attachments', () => {
       expect(screen.getByRole('button', { name: 'Delete receipt.pdf' })).toBeDisabled();
       expect(screen.getByText('Deleting…')).toBeInTheDocument();
       expect(screen.getByLabelText('Attachment file')).toBeDisabled();
-      expect(screen.getByRole('button', { name: 'Upload' })).toBeDisabled();
+      expect(screen.getByRole('button', { name: 'Upload file' })).toBeDisabled();
       expect(screen.queryByRole('progressbar')).not.toBeInTheDocument();
       expect(onUploadingChange).toHaveBeenCalledWith(true);
       vi.mocked(listAttachments).mockResolvedValue(metadata());
@@ -356,7 +372,7 @@ describe('Record attachments', () => {
     renderPanel();
     const file = await select();
     expect(uploadAttachment).not.toHaveBeenCalled();
-    const button = screen.getByRole('button', { name: 'Upload' });
+    const button = screen.getByRole('button', { name: 'Upload file' });
     expect(button).toHaveAttribute('type', 'button');
     vi.mocked(listAttachments).mockResolvedValue(metadata([receipt]));
     fireEvent.click(button);
@@ -372,7 +388,7 @@ describe('Record attachments', () => {
     );
     expect(screen.getByText('receipt.pdf')).toBeInTheDocument();
     expect(screen.getByText('4 of 5 attachment slots remaining')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Upload' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Upload file' })).toBeDisabled();
   });
 
   it('shows real progress and waits for server confirmation before success', async () => {
@@ -386,7 +402,7 @@ describe('Record attachments', () => {
     });
     const { onUploadingChange } = renderPanel();
     await select();
-    fireEvent.click(screen.getByRole('button', { name: 'Upload' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Upload file' }));
     await waitFor(() => expect(uploadAttachment).toHaveBeenCalledOnce());
     act(() => progress(40));
     expect(screen.getByRole('progressbar')).toHaveAttribute('value', '40');
@@ -411,7 +427,7 @@ describe('Record attachments', () => {
     renderPanel();
     await select();
     vi.mocked(listAttachments).mockResolvedValue(metadata([receipt]));
-    fireEvent.click(screen.getByRole('button', { name: 'Upload' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Upload file' }));
     const retry = await screen.findByRole('button', { name: 'Retry upload' });
     expect(await screen.findByText('receipt.pdf')).toBeInTheDocument();
     expect(listAttachments).toHaveBeenCalledTimes(2);
@@ -428,7 +444,7 @@ describe('Record attachments', () => {
     renderPanel();
     await select();
     vi.mocked(listAttachments).mockRejectedValue(new Error('List unavailable.'));
-    fireEvent.click(screen.getByRole('button', { name: 'Upload' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Upload file' }));
     expect(await screen.findByRole('button', { name: 'Refresh attachments' })).toBeInTheDocument();
     await waitFor(() =>
       expect(screen.queryByRole('button', { name: 'Retry upload' })).not.toBeInTheDocument()
@@ -451,7 +467,7 @@ describe('Record attachments', () => {
       );
       vi.mocked(listAttachments).mockRejectedValueOnce(new Error('List unavailable.'));
 
-      fireEvent.click(screen.getByRole('button', { name: 'Upload' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Upload file' }));
 
       expect(
         await screen.findByRole('button', { name: 'Refresh attachments' })
@@ -471,7 +487,7 @@ describe('Record attachments', () => {
     renderPanel();
     await select();
     vi.mocked(listAttachments).mockRejectedValue(new Error('List unavailable.'));
-    fireEvent.click(screen.getByRole('button', { name: 'Upload' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Upload file' }));
     expect(await screen.findByText('Attachment uploaded.')).toBeInTheDocument();
     expect(screen.getByText('receipt.pdf')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Refresh attachments' })).toBeInTheDocument();
@@ -502,7 +518,7 @@ describe('Record attachments', () => {
     renderPanel();
     expect(await screen.findByText('0 of 5 attachment slots remaining')).toBeInTheDocument();
     expect(screen.getByLabelText('Attachment file')).toBeDisabled();
-    expect(screen.getByRole('button', { name: 'Upload' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Upload file' })).toBeDisabled();
   });
 
   it('refreshes capacity after a competing upload fills the last slot', async () => {
@@ -520,7 +536,7 @@ describe('Record attachments', () => {
         }))
       )
     );
-    fireEvent.click(screen.getByRole('button', { name: 'Upload' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Upload file' }));
     expect(await screen.findByRole('button', { name: 'Retry upload' })).toBeDisabled();
     expect(screen.getByText('0 of 5 attachment slots remaining')).toBeInTheDocument();
     expect(uploadAttachment).toHaveBeenCalledOnce();
@@ -534,7 +550,7 @@ describe('Record attachments', () => {
     renderPanel();
     await select(file);
     expect(screen.getByRole('alert')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Upload' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Upload file' })).toBeDisabled();
     expect(uploadAttachment).not.toHaveBeenCalled();
   });
 
@@ -577,7 +593,7 @@ describe('Record attachments', () => {
     });
     const { unmount } = renderPanel();
     await select();
-    fireEvent.click(screen.getByRole('button', { name: 'Upload' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Upload file' }));
     await waitFor(() => expect(uploadAttachment).toHaveBeenCalledOnce());
     unmount();
     expect(signal?.aborted).toBe(true);
