@@ -52,6 +52,11 @@ discarding unsaved form changes; tapping outside does not dismiss the editor. Re
 starts from the saved values. Attachment actions save separately and are not undone by
 discarding form changes. Saving or processing an attachment action blocks dismissal.
 
+The editor closes once the server confirms the save. **Edit** and **Load more** wait for the
+list refresh, which reloads saved fields and derived figures together. If the refresh fails,
+use **Retry** on the list; the record save does not need to be repeated. A list refresh does
+not discard an open draft, even if its row moves outside the loaded pages.
+
 The file picker and **Upload file** are above the saved files, side by side on wider
 screens and stacked on phones. Choosing a file does not upload it until **Upload file**
 is pressed.

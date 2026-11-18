@@ -36,6 +36,13 @@ pnpm exec prettier --write path/to/file.ts
 Avoid unrelated formatting diffs. Consult `.prettierrc` and `eslint.config.mjs` for actual
 configuration rather than relying on formatter defaults.
 
+## Git Hooks and CI
+
+The pre-commit hook runs `lint-staged` to lint and format staged files. There is no pre-push
+hook. [GitHub CI](../.github/workflows/ci.yml) runs coverage, integration and end-to-end
+tests, and a production build for pull requests targeting `develop` or `main`. Direct pushes
+do not trigger this workflow; run the relevant checks locally when working outside a PR.
+
 ## Tests
 
 - `pnpm test`: run Vitest with coverage and configured coverage thresholds.

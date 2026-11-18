@@ -151,7 +151,11 @@ describe.each([
       );
 
       fireEvent.click(screen.getByRole('button', { name: /actions for/ }));
-      fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
+      const reopen = screen.getByRole('button', { name: 'Edit' });
+      expect(reopen).toBeDisabled();
+      finishRefresh();
+      await waitFor(() => expect(reopen).toBeEnabled());
+      fireEvent.click(reopen);
       expect(screen.getByLabelText('Date')).toHaveValue('2026-11-18');
     } finally {
       finishRefresh();
