@@ -4,9 +4,11 @@ import { NextRequest } from 'next/server';
 import { GET, POST } from '../route';
 
 vi.mock('@/lib/db', () => {
+  const fuelFillUp = { findMany: vi.fn(), create: vi.fn() };
   const mock = {
     vehicle: { findFirst: vi.fn() },
-    fuelFillUp: { findMany: vi.fn(), create: vi.fn() },
+    fuelFillUp,
+    $transaction: (run: (_tx: { fuelFillUp: typeof fuelFillUp }) => unknown) => run({ fuelFillUp }),
   };
   return { default: mock };
 });

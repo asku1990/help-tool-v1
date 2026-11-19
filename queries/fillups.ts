@@ -56,7 +56,6 @@ export function updateFillUp(
     odometerKm: number;
     liters: number;
     pricePerLiter: number;
-    totalCost: number;
     isFull: boolean;
     notes: string | null;
   }>

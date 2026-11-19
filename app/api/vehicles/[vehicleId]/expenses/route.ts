@@ -6,6 +6,7 @@ import { ok, created, unauthorized, notFound, badRequest, serverError } from '@/
 import { checkRateLimit, rateLimitHeaders, rateLimitKey } from '@/lib/api/rate-limit';
 import { logger } from '@/lib/logger';
 import { decimalToNumber } from '@/lib/prisma/decimal';
+import { calculateOilConsumption } from '@/lib/oil-consumption';
 import { getSessionUserId, getVehicleAccess, hasPermission } from '@/lib/api/vehicle-access';
 
 export async function GET(req: NextRequest, context: { params: Promise<{ vehicleId: string }> }) {
@@ -129,19 +130,16 @@ export async function POST(req: NextRequest, context: { params: Promise<{ vehicl
     if (!access || !hasPermission(access.role, 'write')) return notFound();
     const vehicle = access.vehicle;
 
-    // Calculate oilConsumption for OIL_TOP_UP expenses
-    let oilConsumption: number | undefined;
+    const expenseDate = new Date(date);
+    let oilConsumption: number | null = null;
     if (category === 'OIL_TOP_UP' && typeof odometerKm === 'number' && typeof liters === 'number') {
-      // Find the last oil change
       const lastOilChange = await prisma.expense.findFirst({
         where: { vehicleId: vehicle.id, category: 'OIL_CHANGE' },
         orderBy: { date: 'desc' },
+        select: { date: true, odometerKm: true },
       });
 
-      if (lastOilChange?.odometerKm !== null && lastOilChange?.odometerKm !== undefined) {
-        // Get all top-ups since last oil change, up to and including this expense's date
-        // Include same-day entries with lower odometer (earlier in the day)
-        const expenseDate = new Date(date);
+      if (lastOilChange?.odometerKm != null) {
         const topUpsSince = await prisma.expense.findMany({
           where: {
             vehicleId: vehicle.id,
@@ -151,39 +149,27 @@ export async function POST(req: NextRequest, context: { params: Promise<{ vehicl
           select: { date: true, odometerKm: true, liters: true },
         });
 
-        // Filter to include only entries before this one (by date, then by odometer for same day)
-        const previousTopUps = topUpsSince.filter(e => {
-          if (!e.odometerKm) return true; // Include if no odometer (can't compare)
-          const entryDate = e.date.getTime();
-          const currentDate = expenseDate.getTime();
-          if (entryDate < currentDate) return true; // Earlier day - include
-          if (entryDate === currentDate && e.odometerKm < odometerKm) return true; // Same day, lower odometer
-          return false;
-        });
-
-        const previousTopUpLiters = previousTopUps.reduce(
-          (sum, e) => sum + (e.liters ? decimalToNumber(e.liters) : 0),
-          0
+        oilConsumption = calculateOilConsumption(
+          { date: expenseDate, odometerKm, liters },
+          lastOilChange.odometerKm,
+          topUpsSince.map(e => ({
+            ...e,
+            liters: e.liters === null ? null : decimalToNumber(e.liters),
+          }))
         );
-        const totalLiters = previousTopUpLiters + liters;
-        const distance = odometerKm - lastOilChange.odometerKm;
-
-        if (distance > 0 && totalLiters > 0) {
-          oilConsumption = (totalLiters / distance) * 10000; // L per 10,000 km
-        }
       }
     }
 
     const createdExpense = await prisma.expense.create({
       data: {
         vehicleId: vehicle.id,
-        date: new Date(date),
+        date: expenseDate,
         category,
         amount,
         vendor: vendor || undefined,
         odometerKm: typeof odometerKm === 'number' ? odometerKm : undefined,
         liters: typeof liters === 'number' ? liters : undefined,
-        oilConsumption,
+        oilConsumption: oilConsumption ?? undefined,
         notes: notes || undefined,
       },
       select: { id: true },
