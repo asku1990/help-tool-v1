@@ -58,7 +58,8 @@ starts from the saved values. Attachment actions save separately and are not und
 discarding form changes. Saving or processing an attachment action blocks dismissal.
 
 The editor closes once the server confirms the save. **Edit** and **Load more** wait for the
-list refresh, which reloads saved fields and derived figures together. If the refresh fails,
+list refresh, which reloads saved fields and derived figures together. Fill-up rows and their
+trip figures are read from the same database snapshot. If the refresh fails,
 use **Retry** on the list; the record save does not need to be repeated. If **Load more**
 fails, **Retry** requests that page again. A list refresh does not discard an open draft,
 even if its row moves outside the loaded pages. After Save, focus goes to the list; after
