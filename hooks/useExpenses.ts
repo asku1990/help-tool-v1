@@ -1,5 +1,6 @@
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { expenseKeys, vehicleSummaryKeys } from '@/queries/keys';
+import type { CreateExpenseInput, UpdateExpenseInput } from '@/lib/expenses';
 import {
   createExpense,
   listExpenses,
@@ -32,8 +33,7 @@ export function useInfiniteExpenses(vehicleId: string, pageSize = 5) {
 export function useCreateExpense(vehicleId: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (payload: Omit<ExpenseDto, 'id' | 'date'> & { date: string }) =>
-      createExpense(vehicleId, payload),
+    mutationFn: (payload: CreateExpenseInput) => createExpense(vehicleId, payload),
     onMutate: async payload => {
       await qc.cancelQueries({ queryKey: expenseKeys.byVehicle(vehicleId) });
       const previous = qc.getQueryData<{
@@ -85,17 +85,7 @@ export type { ExpenseDto };
 export function useUpdateExpense(vehicleId: string, expenseId: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (
-      payload: Partial<{
-        date: string;
-        category: ExpenseDto['category'];
-        amount: number;
-        vendor: string | null;
-        odometerKm: number | null;
-        liters: number | null;
-        notes: string | null;
-      }>
-    ) => updateExpense(vehicleId, expenseId, payload),
+    mutationFn: (payload: UpdateExpenseInput) => updateExpense(vehicleId, expenseId, payload),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: expenseKeys.byVehicle(vehicleId) });
       qc.invalidateQueries({ queryKey: vehicleSummaryKeys.byVehicle(vehicleId) });
@@ -117,21 +107,15 @@ export function useDeleteExpense(vehicleId: string, expenseId: string) {
   });
 }
 
+type ExpenseImportRow = Omit<CreateExpenseInput, 'category'> & {
+  category?: ExpenseDto['category'];
+  oilConsumption?: number;
+};
+
 export function useImportExpenses(vehicleId: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (
-      rows: Array<{
-        date: string;
-        amount: number;
-        notes?: string;
-        odometerKm?: number;
-        category?: ExpenseDto['category'];
-        vendor?: string;
-        liters?: number;
-        oilConsumption?: number;
-      }>
-    ) => {
+    mutationFn: async (rows: ExpenseImportRow[]) => {
       const results = await Promise.allSettled(
         rows.map(r =>
           createExpense(vehicleId, {
@@ -164,19 +148,7 @@ export function useImportExpenses(vehicleId: string) {
 export function useImportExpensesToVehicle() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (input: {
-      vehicleId: string;
-      rows: Array<{
-        date: string;
-        amount: number;
-        notes?: string;
-        odometerKm?: number;
-        category?: ExpenseDto['category'];
-        vendor?: string;
-        liters?: number;
-        oilConsumption?: number;
-      }>;
-    }) => {
+    mutationFn: async (input: { vehicleId: string; rows: ExpenseImportRow[] }) => {
       if (!input.vehicleId) {
         throw new Error('Vehicle ID is required to import expenses');
       }

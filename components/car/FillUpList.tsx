@@ -11,8 +11,7 @@ import { toast } from 'sonner';
 import { getUiErrorMessage } from '@/lib/api/client-errors';
 import RecordAttachments from './attachments/RecordAttachments';
 import { RecordActions, RecordDetailsButton } from './records';
-import { parseRecordDecimal } from './records/parseRecordDecimal';
-import { parseRecordOdometer } from './records/parseRecordOdometer';
+import { getFillUpDraftChanges, toFillUpDraft } from './fillups/fillUpDraft';
 import RecordEditDialog from './records/RecordEditDialog';
 
 export default function FillUpList({ vehicleId }: { vehicleId: string }) {
@@ -237,31 +236,9 @@ function FillUpEditor({
   const formId = useId();
   const saved = useRef(false);
   const [uploading, setUploading] = useState(false);
-  const openingState = {
-    date: item.date.slice(0, 10),
-    odometerKm: String(item.odometerKm),
-    liters: String(item.liters),
-    pricePerLiter: item.pricePerLiter.toFixed(3),
-    isFull: item.isFull,
-    notes: item.notes || '',
-  };
-  const [state, setState] = useState(openingState);
-  const changed = (field: keyof typeof state) => state[field] !== openingState[field];
-  const odometerKm = parseRecordOdometer(state.odometerKm) ?? undefined;
-  const invalidOdometer = odometerKm === undefined;
-  const liters = parseRecordDecimal(state.liters);
-  const pricePerLiter = parseRecordDecimal(state.pricePerLiter);
-  const patch = {
-    date: changed('date') ? state.date : undefined,
-    odometerKm: odometerKm !== item.odometerKm ? odometerKm : undefined,
-    liters: liters !== item.liters ? liters : undefined,
-    pricePerLiter: pricePerLiter !== item.pricePerLiter ? pricePerLiter : undefined,
-    isFull: changed('isFull') ? state.isFull : undefined,
-    notes: changed('notes') ? state.notes || null : undefined,
-  };
-  const hasChanges = invalidOdometer || Object.values(patch).some(value => value !== undefined);
+  const [state, setState] = useState(() => toFillUpDraft(item));
+  const { patch, invalidOdometer, hasChanges, total } = getFillUpDraftChanges(item, state);
   const update = useUpdateFillUp(vehicleId, item.id);
-  const total = liters * pricePerLiter;
   return (
     <RecordEditDialog
       title="Edit fill-up"

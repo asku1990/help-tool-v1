@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server';
 import { auth } from '@/auth';
 import prisma from '@/lib/db';
-import { z } from 'zod';
+import { createExpenseSchema } from '@/lib/expenses';
 import { ok, created, unauthorized, notFound, badRequest, serverError } from '@/lib/api/response';
 import { checkRateLimit, rateLimitHeaders, rateLimitKey } from '@/lib/api/rate-limit';
 import { logger } from '@/lib/logger';
@@ -81,28 +81,6 @@ export async function GET(req: NextRequest, context: { params: Promise<{ vehicle
   }
 }
 
-const CreateExpenseSchema = z.object({
-  date: z.string().min(1),
-  category: z.enum([
-    'FUEL',
-    'MAINTENANCE',
-    'INSURANCE',
-    'TAX',
-    'PARKING',
-    'TOLL',
-    'OIL_CHANGE',
-    'OIL_TOP_UP',
-    'INSPECTION',
-    'TIRES',
-    'OTHER',
-  ]),
-  amount: z.number(),
-  vendor: z.string().optional(),
-  odometerKm: z.number().int().optional(),
-  liters: z.number().optional(),
-  notes: z.string().optional(),
-});
-
 export async function POST(req: NextRequest, context: { params: Promise<{ vehicleId: string }> }) {
   try {
     // Basic rate limiting per IP+path
@@ -118,7 +96,7 @@ export async function POST(req: NextRequest, context: { params: Promise<{ vehicl
       return unauthorized();
     }
 
-    const parsed = CreateExpenseSchema.safeParse(await req.json());
+    const parsed = createExpenseSchema.safeParse(await req.json());
     if (!parsed.success) {
       return badRequest('VALIDATION_ERROR', 'Invalid request body', parsed.error.flatten());
     }

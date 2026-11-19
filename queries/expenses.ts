@@ -1,20 +1,11 @@
 import { apiGet, apiPost, apiPatch, apiDelete } from '@/lib/api/client';
+import type { CreateExpenseInput, UpdateExpenseInput } from '@/lib/expenses';
+import type { ExpenseCategory } from '@/utils/expenses';
 
 export type ExpenseDto = {
   id: string;
   date: string;
-  category:
-    | 'FUEL'
-    | 'MAINTENANCE'
-    | 'INSURANCE'
-    | 'TAX'
-    | 'PARKING'
-    | 'TOLL'
-    | 'OIL_CHANGE'
-    | 'OIL_TOP_UP'
-    | 'INSPECTION'
-    | 'TIRES'
-    | 'OTHER';
+  category: ExpenseCategory;
   amount: number;
   vendor?: string;
   odometerKm?: number;
@@ -41,24 +32,13 @@ export function listExpenses(vehicleId: string, params?: { cursor?: string; limi
 
 export function createExpense(
   vehicleId: string,
-  payload: Omit<ExpenseDto, 'id' | 'date'> & { date: string }
+  // Legacy imports still send this field; the server derives the figure independently.
+  payload: CreateExpenseInput & { oilConsumption?: number }
 ) {
   return apiPost<{ id: string }>(`/api/vehicles/${vehicleId}/expenses`, payload);
 }
 
-export function updateExpense(
-  vehicleId: string,
-  expenseId: string,
-  payload: Partial<{
-    date: string;
-    category: ExpenseDto['category'];
-    amount: number;
-    vendor: string | null;
-    odometerKm: number | null;
-    liters: number | null;
-    notes: string | null;
-  }>
-) {
+export function updateExpense(vehicleId: string, expenseId: string, payload: UpdateExpenseInput) {
   return apiPatch<{ id: string }>(`/api/vehicles/${vehicleId}/expenses/${expenseId}`, payload);
 }
 

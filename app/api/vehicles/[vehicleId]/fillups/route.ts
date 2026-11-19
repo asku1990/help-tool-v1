@@ -1,7 +1,6 @@
 import { NextRequest } from 'next/server';
 import { auth } from '@/auth';
 import prisma from '@/lib/db';
-import { z } from 'zod';
 import type { Prisma } from '@/generated/prisma';
 import { ok, created, unauthorized, notFound, badRequest, serverError } from '@/lib/api/response';
 import { checkRateLimit, rateLimitHeaders, rateLimitKey } from '@/lib/api/rate-limit';
@@ -9,6 +8,7 @@ import { logger } from '@/lib/logger';
 import { decimalToNumber } from '@/lib/prisma/decimal';
 import { getSessionUserId, getVehicleAccess, hasPermission } from '@/lib/api/vehicle-access';
 import { buildConsumptionSegments } from '@/lib/consumption';
+import { createFillUpSchema } from '@/lib/fillups';
 
 export async function GET(req: NextRequest, context: { params: Promise<{ vehicleId: string }> }) {
   try {
@@ -136,16 +136,6 @@ export async function GET(req: NextRequest, context: { params: Promise<{ vehicle
   }
 }
 
-const CreateFillUpSchema = z.object({
-  date: z.string().min(1),
-  odometerKm: z.number().int(),
-  liters: z.number(),
-  pricePerLiter: z.number(),
-  totalCost: z.number(),
-  isFull: z.boolean().optional(),
-  notes: z.string().optional(),
-});
-
 export async function POST(req: NextRequest, context: { params: Promise<{ vehicleId: string }> }) {
   try {
     // Basic rate limiting per IP+path
@@ -161,7 +151,7 @@ export async function POST(req: NextRequest, context: { params: Promise<{ vehicl
       return unauthorized();
     }
 
-    const parsed = CreateFillUpSchema.safeParse(await req.json());
+    const parsed = createFillUpSchema.safeParse(await req.json());
     if (!parsed.success) {
       return badRequest('VALIDATION_ERROR', 'Invalid request body', parsed.error.flatten());
     }

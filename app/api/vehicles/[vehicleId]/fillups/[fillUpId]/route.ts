@@ -1,20 +1,11 @@
 import { NextRequest } from 'next/server';
 import { auth } from '@/auth';
 import prisma from '@/lib/db';
-import { z } from 'zod';
 import { ok, unauthorized, notFound, badRequest, serverError } from '@/lib/api/response';
 import { logger } from '@/lib/logger';
 import { getSessionUserId, canAccessVehicle } from '@/lib/api/vehicle-access';
 import { checkRateLimit, rateLimitHeaders, recordEditRateLimitKey } from '@/lib/api/rate-limit';
-
-const UpdateSchema = z.object({
-  date: z.string().min(1, 'Date cannot be empty').optional(),
-  odometerKm: z.int32().optional(),
-  liters: z.number().optional(),
-  pricePerLiter: z.number().optional(),
-  isFull: z.boolean().optional(),
-  notes: z.string().nullable().optional(),
-});
+import { updateFillUpSchema } from '@/lib/fillups';
 
 export async function PATCH(
   req: NextRequest,
@@ -25,7 +16,7 @@ export async function PATCH(
     const userId = await getSessionUserId(session);
     if (!userId) return unauthorized();
     const { vehicleId, fillUpId } = await context.params;
-    const parsed = UpdateSchema.safeParse(await req.json());
+    const parsed = updateFillUpSchema.safeParse(await req.json());
     if (!parsed.success)
       return badRequest('VALIDATION_ERROR', 'Invalid request body', parsed.error.flatten());
 
