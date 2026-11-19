@@ -3,7 +3,15 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { MoreHorizontal } from 'lucide-react';
 
-export default function RecordActions({ label, children }: { label: string; children: ReactNode }) {
+export default function RecordActions({
+  label,
+  children,
+  placement = 'row',
+}: {
+  label: string;
+  children: ReactNode;
+  placement?: 'row' | 'card';
+}) {
   const details = useRef<HTMLDetailsElement>(null);
   const [open, setOpen] = useState(false);
 
@@ -34,7 +42,11 @@ export default function RecordActions({ label, children }: { label: string; chil
       ref={details}
       open={open}
       onToggle={event => setOpen(event.currentTarget.open)}
-      className="relative col-start-2 row-start-1 justify-self-end sm:col-start-5"
+      className={
+        placement === 'row'
+          ? 'relative col-start-2 row-start-1 justify-self-end sm:col-start-5'
+          : 'relative shrink-0'
+      }
       onClick={event => {
         const button = event.target instanceof Element ? event.target.closest('button') : null;
         // Dialogs are portaled: their button events must not be treated as menu selections.

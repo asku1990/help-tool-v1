@@ -1,19 +1,12 @@
 'use client';
 
 import { useRef, useState } from 'react';
-import {
-  Button,
-  Dialog,
-  DialogClose,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '@/components/ui';
+import { Dialog, DialogTrigger } from '@/components/ui';
 import type { ExpenseDto } from '@/queries/expenses';
 import type { FillUpWithSegmentDto } from '@/queries/fillups';
 import { formatDateFi } from '@/utils';
 import RecordAttachments from '../attachments/RecordAttachments';
+import DetailsDialogContent from './DetailsDialogContent';
 
 type Props = { vehicleId: string; variant?: 'summary' | 'menu' } & (
   | { type: 'expense'; item: ExpenseDto }
@@ -109,9 +102,9 @@ export default function RecordDetailsButton(props: Props) {
           )}
         </button>
       </DialogTrigger>
-      <DialogContent
-        aria-label={title}
-        aria-describedby={undefined}
+      <DetailsDialogContent
+        title={title}
+        fields={fields}
         onCloseAutoFocus={event => {
           if (menu) {
             event.preventDefault();
@@ -119,17 +112,6 @@ export default function RecordDetailsButton(props: Props) {
           }
         }}
       >
-        <DialogHeader>
-          <DialogTitle>{title}</DialogTitle>
-        </DialogHeader>
-        <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-2 text-sm">
-          {fields.map(([label, value]) => (
-            <div key={label} className="contents">
-              <dt className="text-gray-500">{label}</dt>
-              <dd className="whitespace-pre-wrap break-words">{value}</dd>
-            </div>
-          ))}
-        </dl>
         {open ? (
           <RecordAttachments
             vehicleId={props.vehicleId}
@@ -137,14 +119,7 @@ export default function RecordDetailsButton(props: Props) {
             readOnly
           />
         ) : null}
-        <div className="flex justify-end">
-          <DialogClose asChild>
-            <Button type="button" variant="outline" className="cursor-pointer">
-              Close
-            </Button>
-          </DialogClose>
-        </div>
-      </DialogContent>
+      </DetailsDialogContent>
     </Dialog>
   );
 }

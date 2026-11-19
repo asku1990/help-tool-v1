@@ -16,7 +16,7 @@ export default function ChartToolbar({
       </label>
       <select
         id="chart-range"
-        className="border rounded px-2 py-1 text-sm"
+        className="cursor-pointer rounded border px-2 py-1 text-sm hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         value={options.rangeDays}
         onChange={e =>
           onChange({ ...options, rangeDays: Number(e.target.value) as ChartOptions['rangeDays'] })

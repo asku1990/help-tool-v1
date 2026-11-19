@@ -14,7 +14,7 @@ import {
   CardContent,
   Toaster,
 } from '@/components/ui';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type MouseEvent } from 'react';
 import FillUpForm from '@/components/car/FillUpForm';
 import ExpenseForm from '@/components/car/ExpenseForm';
 import CostSummary from '@/components/car/CostSummary';
@@ -42,6 +42,8 @@ import { toast } from 'sonner';
 import { getUiErrorMessage } from '@/lib/api/client-errors';
 
 import PageHeader from '@/components/layout/PageHeader';
+import { RecordActions } from '@/components/car/records';
+import VehicleDetailsDialog from './VehicleDetailsDialog';
 
 export default function VehiclePage() {
   const { status } = useSession();
@@ -63,6 +65,7 @@ export default function VehiclePage() {
 
   // Server state via TanStack Query, derived locally with useMemo (no duplication to local state)
   const vehicleQuery = useVehicle(vehicleId);
+  const vehicle = vehicleQuery.data?.vehicle;
   const vehicleName = useMemo(() => vehicleQuery.data?.vehicle?.name || '', [vehicleQuery.data]);
   const licensePlate = useMemo(
     () => vehicleQuery.data?.vehicle?.licensePlate || null,
@@ -82,6 +85,8 @@ export default function VehiclePage() {
   const updateVehicleMutation = useUpdateVehicle(vehicleId || '');
   const deleteVehicleMutation = useDeleteVehicle(vehicleId || '');
   const [isEditOpen, setEditOpen] = useState(false);
+  const [isDetailsOpen, setDetailsOpen] = useState(false);
+  const vehicleDialogTrigger = useRef<HTMLElement | null>(null);
   const [isDeleteOpen, setDeleteOpen] = useState(false);
   const [editForm, setEditForm] = useState({
     name: '',
@@ -170,6 +175,20 @@ export default function VehiclePage() {
   if (status === 'loading' && !isDemo) {
     return <div className="p-6">Loading...</div>;
   }
+
+  function openVehicleDialog(event: MouseEvent<HTMLButtonElement>, open: () => void) {
+    vehicleDialogTrigger.current =
+      event.currentTarget.closest('details')?.querySelector('summary') ?? null;
+    open();
+  }
+
+  function restoreVehicleDialogFocus(event: Event) {
+    event.preventDefault();
+    vehicleDialogTrigger.current?.focus();
+  }
+
+  const actionClass =
+    'block min-h-11 w-full cursor-pointer rounded px-3 py-2 text-left text-sm hover:bg-gray-100';
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
@@ -264,9 +283,21 @@ export default function VehiclePage() {
           <CardContent className="!p-4 sm:!p-6">
             <div className="flex items-center justify-between flex-wrap gap-3">
               <div className="min-w-0">
-                <div className="text-lg font-semibold truncate">
-                  {vehicleName || `Vehicle ${vehicleId}`}
-                </div>
+                {vehicle ? (
+                  <button
+                    type="button"
+                    className="block max-w-full cursor-pointer truncate rounded-sm text-left text-lg font-semibold underline decoration-dotted underline-offset-4 hover:text-blue-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
+                    aria-label={`View vehicle details for ${vehicle.name}`}
+                    onClick={event => {
+                      vehicleDialogTrigger.current = event.currentTarget;
+                      setDetailsOpen(true);
+                    }}
+                  >
+                    {vehicle.name}
+                  </button>
+                ) : (
+                  <div className="truncate text-lg font-semibold">{`Vehicle ${vehicleId}`}</div>
+                )}
                 <div className="mt-1 flex items-center gap-3">
                   <LicensePlate value={licensePlate} />
                   <InspectionBadge
@@ -292,13 +323,26 @@ export default function VehiclePage() {
                   ) : null}
                 </div>
               </div>
-              <button
-                type="button"
-                className="text-sm px-3 py-1.5 rounded border"
-                onClick={() => setEditOpen(true)}
-              >
-                Edit
-              </button>
+              {vehicle ? (
+                <RecordActions label="Vehicle actions" placement="card">
+                  <button
+                    type="button"
+                    className={actionClass}
+                    onClick={event => openVehicleDialog(event, () => setDetailsOpen(true))}
+                  >
+                    Details
+                  </button>
+                  {vehicle.canEdit ? (
+                    <button
+                      type="button"
+                      className={actionClass}
+                      onClick={event => openVehicleDialog(event, () => setEditOpen(true))}
+                    >
+                      Edit
+                    </button>
+                  ) : null}
+                </RecordActions>
+              ) : null}
             </div>
           </CardContent>
         </Card>
@@ -384,8 +428,20 @@ export default function VehiclePage() {
           </div>
         </div>
       </main>
+      {vehicle ? (
+        <VehicleDetailsDialog
+          vehicle={vehicle}
+          open={isDetailsOpen}
+          onOpenChange={setDetailsOpen}
+          onCloseAutoFocus={restoreVehicleDialogFocus}
+        />
+      ) : null}
       <Dialog open={isEditOpen} onOpenChange={setEditOpen}>
-        <DialogContent aria-label="Edit vehicle dialog">
+        <DialogContent
+          aria-label="Edit vehicle dialog"
+          aria-describedby={undefined}
+          onCloseAutoFocus={restoreVehicleDialogFocus}
+        >
           <DialogHeader>
             <DialogTitle>Edit vehicle</DialogTitle>
           </DialogHeader>
@@ -535,21 +591,20 @@ function FillUpsTabs({
   });
   return (
     <div>
-      <div className="mb-3 flex items-center gap-3">
-        <button
-          type="button"
-          className={`text-sm px-3 py-1.5 rounded border ${tab === 'list' ? 'bg-gray-100' : ''}`}
-          onClick={() => setTab('list')}
-        >
-          List
-        </button>
-        <button
-          type="button"
-          className={`text-sm px-3 py-1.5 rounded border ${tab === 'chart' ? 'bg-gray-100' : ''}`}
-          onClick={() => setTab('chart')}
-        >
-          Chart
-        </button>
+      <div role="group" aria-label="Fill-up view" className="mb-3 flex items-center gap-3">
+        {(['list', 'chart'] as const).map(view => (
+          <Button
+            key={view}
+            type="button"
+            variant="outline"
+            size="sm"
+            className="min-h-11 cursor-pointer aria-pressed:bg-muted"
+            aria-pressed={tab === view}
+            onClick={() => setTab(view)}
+          >
+            {view === 'list' ? 'List' : 'Chart'}
+          </Button>
+        ))}
       </div>
       {tab === 'list' ? (
         <FillUpList vehicleId={vehicleId} />
