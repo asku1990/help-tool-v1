@@ -4,9 +4,11 @@ import { NextRequest } from 'next/server';
 import { PATCH, DELETE } from '../route';
 
 vi.mock('@/lib/db', () => {
+  const expense = { findFirst: vi.fn(), findMany: vi.fn(), update: vi.fn(), deleteMany: vi.fn() };
   const mock = {
     vehicle: { findFirst: vi.fn() },
-    expense: { findFirst: vi.fn(), findMany: vi.fn(), update: vi.fn(), deleteMany: vi.fn() },
+    expense,
+    $transaction: vi.fn((run: (_tx: { expense: typeof expense }) => unknown) => run({ expense })),
   };
   return { default: mock };
 });
@@ -34,11 +36,17 @@ describe('api/vehicles/[vehicleId]/expenses/[expenseId] route (unit)', () => {
   it('PATCH returns 404 when expense is not found for vehicle', async () => {
     const prisma = (await import('@/lib/db')).default as unknown as PrismaMock;
     prisma.vehicle.findFirst.mockResolvedValueOnce({ id: 'v' });
-    prisma.expense.findFirst.mockResolvedValueOnce(null);
-    const base = new Request('http://localhost/x', { method: 'PATCH', body: JSON.stringify({}) });
+    prisma.expense.update.mockRejectedValueOnce(Object.assign(new Error(), { code: 'P2025' }));
+    const base = new Request('http://localhost/x', {
+      method: 'PATCH',
+      body: JSON.stringify({ liters: 2 }),
+    });
     const req = new NextRequest(base);
     const res = await PATCH(req, { params: Promise.resolve({ vehicleId: 'v', expenseId: 'e' }) });
     expect(res.status).toBe(404);
+    expect(prisma.expense.update).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({ where: { id: 'e', vehicleId: 'v' } })
+    );
   });
 
   it('DELETE returns 404 when not owner', async () => {
@@ -50,45 +58,44 @@ describe('api/vehicles/[vehicleId]/expenses/[expenseId] route (unit)', () => {
     expect(res.status).toBe(404);
   });
 
-  it('PATCH updates and returns 200', async () => {
+  it('PATCH leaves oil consumption untouched when updating only the amount and notes', async () => {
     const prisma = (await import('@/lib/db')).default as unknown as PrismaMock;
     prisma.vehicle.findFirst.mockResolvedValueOnce({ id: 'v' });
-    prisma.expense.findFirst.mockResolvedValueOnce({
-      id: 'e',
-      date: new Date('2024-01-01'),
-      category: 'OTHER',
-      vendor: null,
-      odometerKm: null,
-      liters: null,
-    });
     prisma.expense.update.mockResolvedValueOnce({ id: 'e' });
     const base = new Request('http://localhost/x', {
       method: 'PATCH',
-      body: JSON.stringify({ amount: 5 }),
+      body: JSON.stringify({ amount: 5, notes: 'Receipt checked' }),
     });
     const req = new NextRequest(base);
     const res = await PATCH(req, { params: Promise.resolve({ vehicleId: 'v', expenseId: 'e' }) });
     expect(res.status).toBe(200);
+    expect(prisma.expense.update).toHaveBeenCalledExactlyOnceWith({
+      where: { id: 'e', vehicleId: 'v' },
+      data: expect.objectContaining({ amount: 5, notes: 'Receipt checked' }),
+      select: { id: true },
+    });
+    expect(prisma.expense.update.mock.calls[0]?.[0].data).not.toHaveProperty('oilConsumption');
+    expect(prisma.expense.findFirst).not.toHaveBeenCalled();
   });
 
   it('PATCH recalculates oilConsumption for OIL_TOP_UP when edited', async () => {
     const prisma = (await import('@/lib/db')).default as unknown as PrismaMock;
     prisma.vehicle.findFirst.mockResolvedValueOnce({ id: 'v' });
-    prisma.expense.findFirst
+    prisma.expense.update
       .mockResolvedValueOnce({
-        id: 'e',
         date: new Date('2024-02-01'),
         category: 'OIL_TOP_UP',
-        vendor: null,
-        odometerKm: 12000,
-        liters: 1,
+        odometerKm: 13000,
+        liters: 1.5,
       })
-      .mockResolvedValueOnce({
-        date: new Date('2024-01-15'),
-        odometerKm: 10000,
-      });
-    prisma.expense.findMany.mockResolvedValueOnce([{ liters: 0.5 }]);
-    prisma.expense.update.mockResolvedValueOnce({ id: 'e' });
+      .mockResolvedValueOnce({ id: 'e' });
+    prisma.expense.findFirst.mockResolvedValueOnce({
+      date: new Date('2024-01-15'),
+      odometerKm: 10000,
+    });
+    prisma.expense.findMany.mockResolvedValueOnce([
+      { date: new Date('2024-01-20'), odometerKm: 11000, liters: 0.5 },
+    ]);
 
     const base = new Request('http://localhost/x', {
       method: 'PATCH',
@@ -98,7 +105,7 @@ describe('api/vehicles/[vehicleId]/expenses/[expenseId] route (unit)', () => {
     const res = await PATCH(req, { params: Promise.resolve({ vehicleId: 'v', expenseId: 'e' }) });
     expect(res.status).toBe(200);
 
-    const updateArgs = prisma.expense.update.mock.calls[0]?.[0] as unknown as {
+    const updateArgs = prisma.expense.update.mock.calls[1]?.[0] as unknown as {
       data: { oilConsumption: number | null };
     };
     expect(updateArgs.data.oilConsumption).not.toBeNull();
@@ -116,15 +123,9 @@ describe('api/vehicles/[vehicleId]/expenses/[expenseId] route (unit)', () => {
   it('PATCH clears oilConsumption when category changes away from OIL_TOP_UP', async () => {
     const prisma = (await import('@/lib/db')).default as unknown as PrismaMock;
     prisma.vehicle.findFirst.mockResolvedValueOnce({ id: 'v' });
-    prisma.expense.findFirst.mockResolvedValueOnce({
-      id: 'e',
-      date: new Date('2024-02-01'),
-      category: 'OIL_TOP_UP',
-      vendor: null,
-      odometerKm: 12000,
-      liters: 1,
-    });
-    prisma.expense.update.mockResolvedValueOnce({ id: 'e' });
+    prisma.expense.update
+      .mockResolvedValueOnce({ category: 'OTHER' })
+      .mockResolvedValueOnce({ id: 'e' });
 
     const base = new Request('http://localhost/x', {
       method: 'PATCH',
@@ -134,12 +135,12 @@ describe('api/vehicles/[vehicleId]/expenses/[expenseId] route (unit)', () => {
     const res = await PATCH(req, { params: Promise.resolve({ vehicleId: 'v', expenseId: 'e' }) });
     expect(res.status).toBe(200);
 
-    const updateArgs = prisma.expense.update.mock.calls[0]?.[0] as unknown as {
+    const updateArgs = prisma.expense.update.mock.calls[1]?.[0] as unknown as {
       data: { oilConsumption: number | null };
     };
     expect(updateArgs.data.oilConsumption).toBeNull();
     expect(prisma.expense.findMany).not.toHaveBeenCalled();
-    expect(prisma.expense.findFirst).toHaveBeenCalledTimes(1);
+    expect(prisma.expense.findFirst).not.toHaveBeenCalled();
   });
 
   it('DELETE removes and returns 200', async () => {

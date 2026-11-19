@@ -49,7 +49,10 @@ single column on phones and a centered dialog on wider screens.
 **Cancel** and **Save changes** are below the attachment section. Save changes applies only
 to changed record values. Changing only a number's formatting (for example, `10` to `10.00`)
 does not enable Save or include that field when saving other changes. The server recalculates
-the fill-up total when liters or price changes. Cancel, Close, and Escape ask before
+the fill-up total when liters or price changes. The edited expense's oil-consumption figure is
+updated in the same transaction when the date, category, odometer, or liters are edited.
+Changes to other fields leave that figure untouched. Expense creation and editing use the same
+[oil-consumption calculation](../../lib/oil-consumption/calculateOilConsumption.ts). Cancel, Close, and Escape ask before
 discarding unsaved form changes; tapping outside does not dismiss the editor. Reopening
 starts from the saved values. Attachment actions save separately and are not undone by
 discarding form changes. Saving or processing an attachment action blocks dismissal.
