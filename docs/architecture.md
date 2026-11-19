@@ -135,7 +135,8 @@ UI → hook → queries module → lib/api/client → route handler → Prisma �
 - Keep credentials in environment configuration. `example.env` documents keys; real values must
   not appear in source, logs, test fixtures, or documentation. Server-only credentials must not
   use a `NEXT_PUBLIC_` prefix.
-- The IP/path rate limiter is process-local, not a distributed quota or concurrency guarantee.
+- Rate limiting is process-local, not a distributed quota or concurrency guarantee.
+  Expense and fill-up edits share a quota per authenticated user and vehicle, independent of record ID.
 
 ## Persistence and External Storage
 

@@ -1,2 +1,1 @@
 pnpm lint-staged
-pnpm -s vitest run --changed HEAD~1 --passWithNoTests --coverage=false

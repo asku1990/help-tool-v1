@@ -10,6 +10,7 @@ type RecordEditDialogProps = {
   restoreFocus: () => void;
   formId: string;
   hasChanges: boolean;
+  invalid?: boolean;
   saving: boolean;
   attachmentBusy: boolean;
   children: ReactNode;
@@ -22,6 +23,7 @@ export default function RecordEditDialog({
   restoreFocus,
   formId,
   hasChanges,
+  invalid,
   saving,
   attachmentBusy,
   children,
@@ -75,7 +77,7 @@ export default function RecordEditDialog({
             type="submit"
             form={formId}
             className="min-h-11 max-sm:flex-1"
-            disabled={busy || !hasChanges}
+            disabled={busy || !hasChanges || invalid}
           >
             {saving ? 'Saving…' : 'Save changes'}
           </Button>

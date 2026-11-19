@@ -9,6 +9,7 @@ let container: StartedPostgreSqlContainer | undefined;
 let prisma: PrismaClient;
 let GET: typeof import('../route').GET;
 let POST: typeof import('../route').POST;
+let PATCH: typeof import('../[expenseId]/route').PATCH;
 const userEmail = 'test@example.com';
 let vehicleId: string;
 
@@ -20,7 +21,7 @@ beforeAll(async () => {
   if (!process.env.RUN_INTEGRATION) return;
   container = await new PostgreSqlContainer('postgres:16-alpine').start();
   const databaseUrl = new URL(container.getConnectionUri());
-  databaseUrl.searchParams.set('connection_limit', '1');
+  databaseUrl.searchParams.set('connection_limit', '4');
   databaseUrl.searchParams.set('pool_timeout', '0');
   process.env.DATABASE_URL = databaseUrl.toString();
 
@@ -29,6 +30,7 @@ beforeAll(async () => {
   // Initialize the route's shared client only after selecting the disposable database.
   prisma = (await import('@/lib/db')).default;
   ({ GET, POST } = await import('../route'));
+  ({ PATCH } = await import('../[expenseId]/route'));
   const user = await prisma.user.create({
     data: { email: userEmail, username: 'tester', passwordHash: '', userType: 'REGULAR' },
   });
@@ -125,4 +127,76 @@ describe('GET returns 429 when rate limited (env tuned)', () => {
     const res2: Response = await GET(req2, { params: Promise.resolve({ vehicleId }) });
     expect([429, 200]).toContain(res2.status);
   });
+});
+
+describe.skipIf(!process.env.RUN_INTEGRATION)('PATCH expense', () => {
+  it('keeps oil consumption in sync when liters and odometer edits overlap', async () => {
+    await prisma.expense.create({
+      data: {
+        vehicleId,
+        date: new Date('2024-01-01'),
+        category: 'OIL_CHANGE',
+        amount: 50,
+        odometerKm: 10000,
+      },
+    });
+    const url = `http://localhost/api/vehicles/${vehicleId}/expenses`;
+    const created = await POST(
+      new NextRequest(url, {
+        method: 'POST',
+        body: JSON.stringify({
+          date: '2024-02-01',
+          category: 'OIL_TOP_UP',
+          amount: 10,
+          odometerKm: 12000,
+          liters: 1,
+        }),
+      }),
+      { params: Promise.resolve({ vehicleId }) }
+    );
+    expect(created.status).toBe(201);
+    const { data: expense } = await created.json();
+    const list = () =>
+      GET(new NextRequest(`${url}?limit=50`), { params: Promise.resolve({ vehicleId }) });
+    const before = await list();
+    expect(before.status).toBe(200);
+    expect((await before.json()).data.expenses).toContainEqual(
+      expect.objectContaining({ id: expense.id, oilConsumption: 5 })
+    );
+
+    const patch = (body: { odometerKm?: number; liters?: number }) =>
+      PATCH(
+        new NextRequest(`${url}/${expense.id}`, { method: 'PATCH', body: JSON.stringify(body) }),
+        {
+          params: Promise.resolve({ vehicleId, expenseId: expense.id }),
+        }
+      );
+
+    // Queue both PATCH writes behind a row lock before either can modify the expense.
+    const { edits } = await prisma.$transaction(
+      async tx => {
+        await tx.expense.update({ where: { id: expense.id }, data: { notes: 'Oil top-up' } });
+        const pendingEdits = Promise.all([patch({ liters: 2 }), patch({ odometerKm: 15000 })]);
+        await vi.waitFor(
+          async () => {
+            const [waiting] = await prisma.$queryRaw<{ count: number }[]>`
+            SELECT count(*)::int AS count FROM pg_stat_activity
+            WHERE datname = current_database() AND wait_event_type = 'Lock'
+          `;
+            expect(waiting.count).toBe(2);
+          },
+          { timeout: 3000 }
+        );
+        return { edits: pendingEdits };
+      },
+      { timeout: 5000 }
+    );
+    expect((await edits).map(res => res.status)).toEqual([200, 200]);
+
+    const response = await list();
+    expect(response.status).toBe(200);
+    expect((await response.json()).data.expenses).toContainEqual(
+      expect.objectContaining({ id: expense.id, liters: 2, odometerKm: 15000, oilConsumption: 4 })
+    );
+  }, 15_000);
 });

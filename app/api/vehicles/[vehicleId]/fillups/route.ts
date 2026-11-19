@@ -1,13 +1,14 @@
 import { NextRequest } from 'next/server';
 import { auth } from '@/auth';
 import prisma from '@/lib/db';
-import { z } from 'zod';
+import type { Prisma } from '@/generated/prisma';
 import { ok, created, unauthorized, notFound, badRequest, serverError } from '@/lib/api/response';
 import { checkRateLimit, rateLimitHeaders, rateLimitKey } from '@/lib/api/rate-limit';
 import { logger } from '@/lib/logger';
 import { decimalToNumber } from '@/lib/prisma/decimal';
 import { getSessionUserId, getVehicleAccess, hasPermission } from '@/lib/api/vehicle-access';
 import { buildConsumptionSegments } from '@/lib/consumption';
+import { createFillUpSchema } from '@/lib/fillups';
 
 export async function GET(req: NextRequest, context: { params: Promise<{ vehicleId: string }> }) {
   try {
@@ -42,15 +43,33 @@ export async function GET(req: NextRequest, context: { params: Promise<{ vehicle
     if (!access || !hasPermission(access.role, 'read')) return notFound();
     const vehicle = access.vehicle;
 
-    const items = await prisma.fuelFillUp.findMany({
-      where: { vehicleId: vehicle.id },
-      orderBy: [{ date: 'desc' }, { odometerKm: 'desc' }],
-      take: limit + 1,
-      ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
-    });
+    async function readPage(db: Pick<Prisma.TransactionClient, 'fuelFillUp'>) {
+      const items = await db.fuelFillUp.findMany({
+        where: { vehicleId: vehicle.id },
+        orderBy: [{ date: 'desc' }, { odometerKm: 'desc' }],
+        take: limit + 1,
+        ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
+      });
+      const hasMore = items.length > limit;
+      const pageItems = hasMore ? items.slice(0, -1) : items;
 
-    const hasMore = items.length > limit;
-    const pageItems = hasMore ? items.slice(0, -1) : items;
+      // Include complete older history for the baseline and previous consumption rate.
+      const oldestFullInPage = withSegments
+        ? pageItems.filter(f => f.isFull).sort((a, b) => a.date.getTime() - b.date.getTime())[0]
+        : undefined;
+      const olderChunk = oldestFullInPage
+        ? await db.fuelFillUp.findMany({
+            where: { vehicleId: vehicle.id, date: { lte: oldestFullInPage.date } },
+            orderBy: [{ date: 'desc' }, { odometerKm: 'desc' }],
+          })
+        : [];
+      return { hasMore, pageItems, olderChunk };
+    }
+
+    // A concurrent save must not be visible only to the trip history read.
+    const { hasMore, pageItems, olderChunk } = withSegments
+      ? await prisma.$transaction(readPage, { isolationLevel: 'RepeatableRead' })
+      : await readPage(prisma);
 
     let fillUps = pageItems.map(f => ({
       id: f.id,
@@ -64,19 +83,6 @@ export async function GET(req: NextRequest, context: { params: Promise<{ vehicle
     }));
 
     if (withSegments) {
-      // Include complete older history for the baseline and previous consumption rate.
-      const oldestFullInPage = [...pageItems]
-        .filter(f => f.isFull)
-        .sort((a, b) => a.date.getTime() - b.date.getTime())[0];
-
-      let olderChunk: typeof pageItems = [];
-      if (oldestFullInPage) {
-        olderChunk = await prisma.fuelFillUp.findMany({
-          where: { vehicleId: vehicle.id, date: { lte: oldestFullInPage.date } },
-          orderBy: [{ date: 'desc' }, { odometerKm: 'desc' }],
-        });
-      }
-
       const combinedMap = new Map<string, (typeof pageItems)[number]>();
       for (const it of [...pageItems, ...olderChunk]) combinedMap.set(it.id, it);
       const segments = buildConsumptionSegments(
@@ -130,16 +136,6 @@ export async function GET(req: NextRequest, context: { params: Promise<{ vehicle
   }
 }
 
-const CreateFillUpSchema = z.object({
-  date: z.string().min(1),
-  odometerKm: z.number().int(),
-  liters: z.number(),
-  pricePerLiter: z.number(),
-  totalCost: z.number(),
-  isFull: z.boolean().optional(),
-  notes: z.string().optional(),
-});
-
 export async function POST(req: NextRequest, context: { params: Promise<{ vehicleId: string }> }) {
   try {
     // Basic rate limiting per IP+path
@@ -155,7 +151,7 @@ export async function POST(req: NextRequest, context: { params: Promise<{ vehicl
       return unauthorized();
     }
 
-    const parsed = CreateFillUpSchema.safeParse(await req.json());
+    const parsed = createFillUpSchema.safeParse(await req.json());
     if (!parsed.success) {
       return badRequest('VALIDATION_ERROR', 'Invalid request body', parsed.error.flatten());
     }

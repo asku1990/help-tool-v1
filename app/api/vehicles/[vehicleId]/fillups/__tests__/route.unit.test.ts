@@ -4,9 +4,11 @@ import { NextRequest } from 'next/server';
 import { GET, POST } from '../route';
 
 vi.mock('@/lib/db', () => {
+  const fuelFillUp = { findMany: vi.fn(), create: vi.fn() };
   const mock = {
     vehicle: { findFirst: vi.fn() },
-    fuelFillUp: { findMany: vi.fn(), create: vi.fn() },
+    fuelFillUp,
+    $transaction: (run: (_tx: { fuelFillUp: typeof fuelFillUp }) => unknown) => run({ fuelFillUp }),
   };
   return { default: mock };
 });
@@ -149,7 +151,17 @@ describe('api/vehicles/[vehicleId]/fillups route (unit)', () => {
     expect(res.status).toBe(429);
   });
 
-  it('POST returns 201 on create', async () => {
+  it('POST requires a supplied total cost', async () => {
+    const req = new NextRequest('http://localhost/api/vehicles/v/fillups', {
+      method: 'POST',
+      body: JSON.stringify({ date: '2024-01-01', odometerKm: 1, liters: 1, pricePerLiter: 1 }),
+    });
+    const res = await POST(req, { params: Promise.resolve({ vehicleId: 'v' }) });
+    expect(res.status).toBe(400);
+    expect((await res.json()).error.details.fieldErrors.totalCost).toBeDefined();
+  });
+
+  it('POST keeps the supplied total and defaults omitted isFull to false', async () => {
     const prisma = (await import('@/lib/db')).default as unknown as {
       vehicle: { findFirst: Mock };
       fuelFillUp: { create: Mock };
@@ -163,10 +175,13 @@ describe('api/vehicles/[vehicleId]/fillups route (unit)', () => {
         odometerKm: 1,
         liters: 1,
         pricePerLiter: 1,
-        totalCost: 1,
+        totalCost: 1.25,
       }),
     });
     const res = await POST(req, { params: Promise.resolve({ vehicleId: 'v' }) });
     expect(res.status).toBe(201);
+    expect(prisma.fuelFillUp.create).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ totalCost: 1.25, isFull: false }) })
+    );
   });
 });

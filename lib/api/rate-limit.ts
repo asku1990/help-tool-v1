@@ -15,6 +15,10 @@ export function rateLimitKey(req: Request): string {
   return `${ip}:${path}`;
 }
 
+export function recordEditRateLimitKey(userId: string, vehicleId: string): string {
+  return `record-edit:${userId}:${vehicleId}`;
+}
+
 export function checkRateLimit(
   key: Key
 ): { allowed: true } | { allowed: false; retryAfterMs: number } {

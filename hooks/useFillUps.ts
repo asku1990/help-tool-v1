@@ -1,11 +1,6 @@
-import {
-  useInfiniteQuery,
-  useMutation,
-  useQuery,
-  useQueryClient,
-  type InfiniteData,
-} from '@tanstack/react-query';
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { fillUpKeys, vehicleSummaryKeys } from '@/queries/keys';
+import type { CreateFillUpInput, UpdateFillUpInput } from '@/lib/fillups';
 import {
   createFillUp,
   listFillUps,
@@ -42,8 +37,7 @@ export function useInfiniteFillUps(vehicleId: string, pageSize = 5) {
 export function useCreateFillUp(vehicleId: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (payload: Omit<FillUpDto, 'id' | 'date'> & { date: string }) =>
-      createFillUp(vehicleId, payload),
+    mutationFn: (payload: CreateFillUpInput) => createFillUp(vehicleId, payload),
     onMutate: async payload => {
       await qc.cancelQueries({ queryKey: fillUpKeys.byVehicle(vehicleId) });
       const previous = qc.getQueryData<{
@@ -58,7 +52,7 @@ export function useCreateFillUp(vehicleId: string) {
         liters: payload.liters,
         pricePerLiter: payload.pricePerLiter,
         totalCost: payload.totalCost,
-        isFull: payload.isFull,
+        isFull: payload.isFull ?? false,
         notes: payload.notes,
       };
 
@@ -88,29 +82,12 @@ export function useCreateFillUp(vehicleId: string) {
 export function useUpdateFillUp(vehicleId: string, fillUpId: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (payload: Partial<Omit<FillUpDto, 'id'>>) =>
-      updateFillUp(vehicleId, fillUpId, payload),
-    onSuccess: async (_result, payload) => {
-      const key = fillUpKeys.infiniteByVehicle(vehicleId);
-      await qc.cancelQueries({ queryKey: key });
-      qc.setQueryData<InfiniteData<Awaited<ReturnType<typeof listFillUps>>>>(
-        key,
-        cached =>
-          cached && {
-            ...cached,
-            pages: cached.pages.map(page => ({
-              ...page,
-              fillUps: page.fillUps.map(fillUp =>
-                fillUp.id === fillUpId
-                  ? { ...fillUp, ...payload, notes: payload.notes ?? fillUp.notes }
-                  : fillUp
-              ),
-            })),
-          }
-      );
+    mutationFn: (payload: UpdateFillUpInput) => updateFillUp(vehicleId, fillUpId, payload),
+    onSuccess: () => {
       qc.invalidateQueries({ queryKey: fillUpKeys.byVehicle(vehicleId) });
-      qc.invalidateQueries({ queryKey: key });
       qc.invalidateQueries({ queryKey: vehicleSummaryKeys.byVehicle(vehicleId) });
+      // Only the refreshed list has both the saved fields and their corresponding trip figures.
+      void qc.invalidateQueries({ queryKey: fillUpKeys.infiniteByVehicle(vehicleId) });
     },
   });
 }
@@ -132,17 +109,7 @@ export type { FillUpDto };
 export function useImportFillUps(vehicleId: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (
-      rows: Array<{
-        date: string;
-        odometerKm: number;
-        liters: number;
-        pricePerLiter: number;
-        totalCost: number;
-        isFull?: boolean;
-        notes?: string;
-      }>
-    ) => {
+    mutationFn: async (rows: CreateFillUpInput[]) => {
       const results = await Promise.allSettled(
         rows.map(r =>
           createFillUp(vehicleId, {
@@ -174,18 +141,7 @@ export function useImportFillUps(vehicleId: string) {
 export function useImportFillUpsToVehicle() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (input: {
-      vehicleId: string;
-      rows: Array<{
-        date: string;
-        odometerKm: number;
-        liters: number;
-        pricePerLiter: number;
-        totalCost: number;
-        isFull?: boolean;
-        notes?: string;
-      }>;
-    }) => {
+    mutationFn: async (input: { vehicleId: string; rows: CreateFillUpInput[] }) => {
       if (!input.vehicleId) {
         throw new Error('Vehicle ID is required to import fill-ups');
       }

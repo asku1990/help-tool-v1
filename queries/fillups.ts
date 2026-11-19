@@ -1,4 +1,5 @@
 import { apiGet, apiPost, apiPatch, apiDelete } from '@/lib/api/client';
+import type { CreateFillUpInput, UpdateFillUpInput } from '@/lib/fillups';
 
 export type FillUpDto = {
   id: string;
@@ -41,26 +42,11 @@ export function listFillUps(
   }>(url);
 }
 
-export function createFillUp(
-  vehicleId: string,
-  payload: Omit<FillUpDto, 'id' | 'date'> & { date: string }
-) {
+export function createFillUp(vehicleId: string, payload: CreateFillUpInput) {
   return apiPost<{ id: string }>(`/api/vehicles/${vehicleId}/fillups`, payload);
 }
 
-export function updateFillUp(
-  vehicleId: string,
-  fillUpId: string,
-  payload: Partial<{
-    date: string;
-    odometerKm: number;
-    liters: number;
-    pricePerLiter: number;
-    totalCost: number;
-    isFull: boolean;
-    notes: string | null;
-  }>
-) {
+export function updateFillUp(vehicleId: string, fillUpId: string, payload: UpdateFillUpInput) {
   return apiPatch<{ id: string }>(`/api/vehicles/${vehicleId}/fillups/${fillUpId}`, payload);
 }
 
