@@ -1,15 +1,15 @@
 'use client';
 
-import { useRef, useState } from 'react';
-import { Button, Dialog, DialogTrigger } from '@/components/ui';
+import { useState } from 'react';
+import { ChevronRight } from 'lucide-react';
+import { Dialog, DialogTrigger } from '@/components/ui';
 import type { ExpenseDto } from '@/queries/expenses';
 import type { FillUpWithSegmentDto } from '@/queries/fillups';
 import { formatDateFi } from '@/utils';
 import RecordAttachments from '../attachments/RecordAttachments';
 import DetailsDialogContent from './DetailsDialogContent';
-import { recordActionClass } from './RecordActions';
 
-type Props = { vehicleId: string; variant?: 'summary' | 'menu' } & (
+type Props = { vehicleId: string } & (
   | { type: 'expense'; item: ExpenseDto }
   | { type: 'fillup'; item: FillUpWithSegmentDto }
 );
@@ -20,9 +20,6 @@ function currency(value: number) {
 
 export default function RecordDetailsButton(props: Props) {
   const [open, setOpen] = useState(false);
-  const returnFocus = useRef<HTMLElement | null>(null);
-  const menu = props.variant === 'menu';
-  const Trigger = menu ? Button : 'button';
   const title = props.type === 'expense' ? 'Expense details' : 'Fill-up details';
   const date = formatDateFi(new Date(props.item.date));
   const summary =
@@ -74,47 +71,21 @@ export default function RecordDetailsButton(props: Props) {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Trigger
+        <button
           type="button"
-          {...(menu ? { variant: 'ghost' as const } : {})}
-          aria-label={
-            menu
-              ? 'Details'
-              : `View ${props.type === 'expense' ? 'expense' : 'fill-up'} details for ${date}: ${summary}`
-          }
-          className={
-            menu
-              ? recordActionClass
-              : 'col-start-1 min-w-0 cursor-pointer rounded-md py-1 text-left hover:bg-gray-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 sm:col-span-2'
-          }
-          onClick={event => {
-            returnFocus.current =
-              event.currentTarget.closest('details')?.querySelector('summary') ??
-              event.currentTarget;
-          }}
+          aria-label={`View ${props.type === 'expense' ? 'expense' : 'fill-up'} details for ${date}: ${summary}`}
+          className="flex min-h-11 min-w-0 cursor-pointer flex-col items-start justify-center rounded-sm py-1 text-left hover:text-primary focus-visible:outline-2 focus-visible:outline-offset-2"
         >
-          {menu ? (
-            'Details'
-          ) : (
-            <>
-              <span className="block text-sm font-medium underline decoration-dotted underline-offset-4">
-                {date}
-              </span>
-              <span className="block break-words text-xs text-gray-600">{summary}</span>
-            </>
-          )}
-        </Trigger>
+          <span className="inline-flex items-center gap-1 text-sm font-medium">
+            {date}
+            <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+          </span>
+          <span className="max-w-full wrap-anywhere text-xs text-muted-foreground lg:hidden">
+            {summary}
+          </span>
+        </button>
       </DialogTrigger>
-      <DetailsDialogContent
-        title={title}
-        fields={fields}
-        onCloseAutoFocus={event => {
-          if (menu) {
-            event.preventDefault();
-            returnFocus.current?.focus();
-          }
-        }}
-      >
+      <DetailsDialogContent title={title} fields={fields}>
         {open ? (
           <RecordAttachments
             vehicleId={props.vehicleId}

@@ -141,7 +141,7 @@ export default function TireManager({ vehicleId }: TireManagerProps) {
   if (isLoading) return <div>Loading tires...</div>;
 
   return (
-    <Card>
+    <Card className="border-slate-200 dark:border-border dark:bg-card">
       <CardHeader className="flex flex-row items-center justify-between">
         <CardTitle>Tires</CardTitle>
         <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>

@@ -104,7 +104,7 @@ export default function VehiclePreview({
           <div className="flex-1">
             <div className="font-medium">Update existing vehicle</div>
             <div className="text-sm text-gray-500 mb-2">
-              Import data into an existing vehicle (optionally clear existing data first)
+              Import data into an existing vehicle without clearing its records
             </div>
             {restoreMode === 'update' && existingVehicles.length > 0 && (
               <select

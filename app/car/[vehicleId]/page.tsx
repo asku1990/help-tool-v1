@@ -2,6 +2,8 @@
 
 import { useParams, useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
+import Link from 'next/link';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import {
   Button,
   Dialog,
@@ -9,7 +11,6 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
   Card,
   CardContent,
   Toaster,
@@ -21,7 +22,7 @@ import CostSummary from '@/components/car/CostSummary';
 import FillUpList from '@/components/car/FillUpList';
 import ExpenseList from '@/components/car/ExpenseList';
 import ConsumptionBadges from '@/components/car/ConsumptionBadges';
-import { ConsumptionChart, ExportMenu, ImportMenu } from '@/components/car';
+import { ConsumptionChart, ExportMenu, RestoreBackupDialog } from '@/components/car';
 import type { ChartOptions } from '@/components/car/charts/ConsumptionChart';
 import ChartToolbar from '@/components/car/ChartToolbar';
 import LicensePlate from '@/components/car/LicensePlate';
@@ -36,13 +37,15 @@ import {
   useUpdateVehicle,
   useDeleteVehicle,
 } from '@/hooks';
-import { pickLastInspectionDateFromExpenses, computeInspectionStatus } from '@/utils';
-import { useUiStore } from '@/stores/ui';
+import { pickLastInspectionDateFromExpenses } from '@/utils';
 import { toast } from 'sonner';
 import { getUiErrorMessage } from '@/lib/api/client-errors';
 
-import PageHeader from '@/components/layout/PageHeader';
-import { RecordActions, recordActionClass } from '@/components/car/records';
+import {
+  RecordActions,
+  destructiveRecordActionClass,
+  recordActionClass,
+} from '@/components/car/records';
 import VehicleDetailsDialog from './VehicleDetailsDialog';
 
 export default function VehiclePage() {
@@ -66,28 +69,15 @@ export default function VehiclePage() {
   // Server state via TanStack Query, derived locally with useMemo (no duplication to local state)
   const vehicleQuery = useVehicle(vehicleId);
   const vehicle = vehicleQuery.data?.vehicle;
-  const vehicleName = useMemo(() => vehicleQuery.data?.vehicle?.name || '', [vehicleQuery.data]);
-  const licensePlate = useMemo(
-    () => vehicleQuery.data?.vehicle?.licensePlate || null,
-    [vehicleQuery.data]
-  );
-  const inspectionDueDate = useMemo(
-    () => vehicleQuery.data?.vehicle?.inspectionDueDate || null,
-    [vehicleQuery.data]
-  );
-  const inspectionIntervalMonths = useMemo(
-    () => vehicleQuery.data?.vehicle?.inspectionIntervalMonths ?? null,
-    [vehicleQuery.data]
-  );
   const { data: vehiclesData } = useVehicles(true);
-  const vehicles = vehiclesData?.vehicles || [];
-  const { setFillUpDialogOpen, setExpenseDialogOpen } = useUiStore();
+  const otherVehicles = vehiclesData?.vehicles.filter(v => v.id !== vehicleId) ?? [];
   const updateVehicleMutation = useUpdateVehicle(vehicleId || '');
   const deleteVehicleMutation = useDeleteVehicle(vehicleId || '');
   const [isEditOpen, setEditOpen] = useState(false);
   const [isDetailsOpen, setDetailsOpen] = useState(false);
   const vehicleDialogTrigger = useRef<HTMLElement | null>(null);
   const [isDeleteOpen, setDeleteOpen] = useState(false);
+  const [isImportOpen, setImportOpen] = useState(false);
   const [editForm, setEditForm] = useState({
     name: '',
     make: '',
@@ -150,16 +140,6 @@ export default function VehiclePage() {
     [expenses]
   );
 
-  const inspectionStatus = useMemo(
-    () =>
-      computeInspectionStatus({
-        inspectionDueDate: inspectionDueDate ? new Date(inspectionDueDate) : null,
-        lastInspectionDate,
-        inspectionIntervalMonths: inspectionIntervalMonths ?? null,
-      }),
-    [inspectionDueDate, lastInspectionDate, inspectionIntervalMonths]
-  );
-
   useEffect(() => {
     if (status === 'unauthenticated' && !isDemo) {
       router.replace('/');
@@ -178,7 +158,7 @@ export default function VehiclePage() {
 
   function openVehicleDialog(event: MouseEvent<HTMLButtonElement>, open: () => void) {
     vehicleDialogTrigger.current =
-      event.currentTarget.closest('details')?.querySelector('summary') ?? null;
+      event.currentTarget.closest('details')?.querySelector('summary') ?? event.currentTarget;
     open();
   }
 
@@ -188,182 +168,140 @@ export default function VehiclePage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
-      <PageHeader
-        title={vehicleName || `Vehicle ${vehicleId}`}
-        backHref="/car"
-        backLabel="Back to vehicles"
-      />
-
-      <main className="container mx-auto px-4 py-8">
-        <div className="mb-4 flex items-center gap-2 flex-wrap">
-          <Button size="sm" onClick={() => setFillUpDialogOpen(true)}>
-            Add fill-up
-          </Button>
-          <Button size="sm" variant="outline" onClick={() => setExpenseDialogOpen(true)}>
-            Add expense
-          </Button>
-          {vehicleId ? (
-            <ImportMenu
-              vehicleId={vehicleId}
-              onImported={() => {
-                summaryQuery.refetch();
-                expensesQuery.refetch();
-              }}
-            />
-          ) : null}
-          {vehicleId ? <ExportMenu vehicleId={vehicleId} /> : null}
-          {vehicleId ? (
-            <Dialog open={isDeleteOpen} onOpenChange={setDeleteOpen}>
-              <DialogTrigger asChild>
-                <Button size="sm" variant="destructive">
-                  Delete vehicle
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="sm:max-w-md">
-                <DialogHeader>
-                  <DialogTitle>Delete vehicle</DialogTitle>
-                  <DialogDescription>
-                    This permanently deletes the vehicle and all related data (fill-ups, expenses,
-                    tires, change logs). This action cannot be undone.
-                  </DialogDescription>
-                </DialogHeader>
-                <div className="flex justify-end gap-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => setDeleteOpen(false)}
-                    disabled={deleteVehicleMutation.isPending}
-                  >
-                    Cancel
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="destructive"
-                    disabled={deleteVehicleMutation.isPending}
-                    onClick={async () => {
-                      if (!vehicleId) return;
-                      try {
-                        await deleteVehicleMutation.mutateAsync();
-                        toast.success('Vehicle deleted');
-                        setDeleteOpen(false);
-                        router.push('/car');
-                      } catch (error) {
-                        toast.error(getUiErrorMessage(error, 'Failed to delete vehicle'));
-                      }
-                    }}
-                  >
-                    {deleteVehicleMutation.isPending ? 'Deleting…' : 'Delete'}
-                  </Button>
-                </div>
-              </DialogContent>
-            </Dialog>
-          ) : null}
-          <label htmlFor="vehicle-switcher" className="sr-only">
-            Select vehicle
-          </label>
-          <select
-            id="vehicle-switcher"
-            className="border rounded-md px-2 py-1 text-sm"
-            value={vehicleId || ''}
-            onChange={e => router.push(`/car/${e.target.value}`)}
-            aria-label="Select vehicle"
+    <div className="min-h-screen bg-[#edf1f5] dark:bg-background">
+      <header className="border-b border-slate-200 bg-background dark:border-border">
+        <div className="container mx-auto px-4 pt-2 pb-5 sm:pt-4 sm:pb-6">
+          <nav
+            aria-label="Vehicle navigation"
+            className="mb-2 flex flex-wrap items-center justify-between gap-x-4"
           >
-            {vehicles.map(v => (
-              <option key={v.id} value={v.id}>
-                {v.name}
-              </option>
-            ))}
-          </select>
-        </div>
-        <Card className="mb-6">
-          <CardContent className="!p-4 sm:!p-6">
-            <div className="flex items-center justify-between flex-wrap gap-3">
-              <div className="min-w-0">
-                {vehicle ? (
-                  <button
-                    type="button"
-                    className="block max-w-full cursor-pointer truncate rounded-sm text-left text-lg font-semibold underline decoration-dotted underline-offset-4 hover:text-blue-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
-                    aria-label={`View vehicle details for ${vehicle.name}`}
-                    onClick={event => {
-                      vehicleDialogTrigger.current = event.currentTarget;
-                      setDetailsOpen(true);
-                    }}
-                  >
-                    {vehicle.name}
-                  </button>
-                ) : vehicleQuery.isError ? (
-                  <div
-                    role="alert"
-                    className="flex flex-wrap items-center gap-2 text-sm text-red-600"
-                  >
-                    Could not load vehicle details.
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="min-h-11"
-                      disabled={vehicleQuery.isFetching}
-                      onClick={() => vehicleQuery.refetch()}
-                    >
-                      Retry
-                    </Button>
-                  </div>
-                ) : (
-                  <div role="status" className="text-sm text-gray-500">
-                    Loading vehicle details…
-                  </div>
-                )}
-                <div className="mt-1 flex items-center gap-3">
-                  <LicensePlate value={licensePlate} />
-                  <InspectionBadge
-                    inspectionDueDate={inspectionDueDate}
-                    lastInspectionDate={lastInspectionDate?.toISOString() || null}
-                    inspectionIntervalMonths={inspectionIntervalMonths}
-                  />
-                  {inspectionStatus.dueDate ? (
-                    <span
-                      className={
-                        'inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ' +
-                        (inspectionStatus.state === 'overdue'
-                          ? 'bg-red-100 text-red-800'
-                          : inspectionStatus.state === 'dueSoon'
-                            ? 'bg-amber-100 text-amber-800'
-                            : 'bg-gray-100 text-gray-700')
-                      }
-                    >
-                      {inspectionStatus.state === 'overdue'
-                        ? `Overdue by ${Math.abs(inspectionStatus.daysRemaining || 0)}d`
-                        : `In ${inspectionStatus.daysRemaining}d`}
-                    </span>
-                  ) : null}
-                </div>
-              </div>
+            <Link
+              href="/car"
+              className="inline-flex min-h-11 items-center gap-1 rounded-sm text-sm font-medium text-primary hover:underline"
+            >
+              <ChevronLeft className="size-4" aria-hidden="true" />
+              Back to vehicles
+            </Link>
+            {otherVehicles.length > 0 ? (
+              <select
+                aria-label="Switch vehicle"
+                className="hidden min-h-11 w-44 cursor-pointer rounded-md border border-border/60 bg-background px-2 text-sm lg:block"
+                value=""
+                onChange={event => router.push(`/car/${event.target.value}`)}
+              >
+                <option value="" disabled>
+                  Switch vehicle
+                </option>
+                {otherVehicles.map(other => (
+                  <option key={other.id} value={other.id}>
+                    {other.name}
+                  </option>
+                ))}
+              </select>
+            ) : null}
+          </nav>
+
+          <div className="flex items-start gap-2 max-sm:justify-between">
+            <h1 className="min-w-0 text-2xl leading-tight font-bold tracking-tight wrap-anywhere sm:text-3xl">
               {vehicle ? (
-                <RecordActions label="Vehicle actions" placement="card">
+                <button
+                  type="button"
+                  aria-haspopup="dialog"
+                  aria-describedby="vehicle-name-action"
+                  className="inline-flex min-h-11 max-w-full cursor-pointer items-center gap-2 rounded-sm text-left hover:text-primary focus-visible:outline-2 focus-visible:outline-offset-2"
+                  onClick={event => openVehicleDialog(event, () => setDetailsOpen(true))}
+                >
+                  <span className="min-w-0">{vehicle.name}</span>
+                  <ChevronRight
+                    className="size-5 shrink-0 text-muted-foreground"
+                    aria-hidden="true"
+                  />
+                </button>
+              ) : (
+                'Vehicle overview'
+              )}
+            </h1>
+            {vehicle ? (
+              <span id="vehicle-name-action" hidden>
+                View vehicle details
+              </span>
+            ) : null}
+            {vehicle ? (
+              <RecordActions label="Vehicle actions" placement="card">
+                {vehicle.canEdit ? (
                   <Button
                     type="button"
                     variant="ghost"
                     className={recordActionClass}
-                    onClick={event => openVehicleDialog(event, () => setDetailsOpen(true))}
+                    onClick={event => openVehicleDialog(event, () => setEditOpen(true))}
                   >
-                    Details
+                    Edit
                   </Button>
-                  {vehicle.canEdit ? (
+                ) : null}
+                {vehicle.canWrite ? (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    className={recordActionClass}
+                    onClick={event => openVehicleDialog(event, () => setImportOpen(true))}
+                  >
+                    Import backup
+                  </Button>
+                ) : null}
+                <ExportMenu vehicleId={vehicle.id} />
+                {vehicle.canEdit ? (
+                  <>
+                    <hr className="my-1 border-border/40" />
                     <Button
                       type="button"
                       variant="ghost"
-                      className={recordActionClass}
-                      onClick={event => openVehicleDialog(event, () => setEditOpen(true))}
+                      className={destructiveRecordActionClass}
+                      onClick={event => openVehicleDialog(event, () => setDeleteOpen(true))}
                     >
-                      Edit
+                      Delete vehicle
                     </Button>
-                  ) : null}
-                </RecordActions>
-              ) : null}
+                  </>
+                ) : null}
+              </RecordActions>
+            ) : null}
+          </div>
+          {vehicle ? (
+            <div className="mt-2 flex flex-col items-start gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-3">
+              <LicensePlate value={vehicle.licensePlate} />
+              <InspectionBadge
+                inspectionDueDate={vehicle.inspectionDueDate}
+                lastInspectionDate={lastInspectionDate?.toISOString()}
+                inspectionIntervalMonths={vehicle.inspectionIntervalMonths}
+              />
             </div>
-          </CardContent>
-        </Card>
+          ) : vehicleQuery.isError ? (
+            <div role="alert" className="flex flex-wrap items-center gap-2 text-sm text-red-600">
+              Could not load vehicle details.
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="min-h-11"
+                disabled={vehicleQuery.isFetching}
+                onClick={() => vehicleQuery.refetch()}
+              >
+                Retry
+              </Button>
+            </div>
+          ) : (
+            <div role="status" className="mt-2 text-sm text-muted-foreground">
+              Loading vehicle details…
+            </div>
+          )}
+          {vehicle?.canWrite ? (
+            <div className="mt-4 grid grid-cols-2 gap-2 sm:flex">
+              <FillUpForm key={`fillup-${vehicle.id}`} vehicleId={vehicle.id} />
+              <ExpenseForm key={`expense-${vehicle.id}`} vehicleId={vehicle.id} />
+            </div>
+          ) : null}
+        </div>
+      </header>
+      <main className="container mx-auto px-4 py-5 sm:py-6">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-3 space-y-4">
             {summaryQuery.isError ? (
@@ -396,17 +334,10 @@ export default function VehiclePage() {
               </div>
             )}
           </div>
-          <div className="lg:col-span-3 space-y-6">
-            <Card>
+          <div className="min-w-0 space-y-6 lg:col-span-3">
+            <Card className="border-slate-200 dark:border-border dark:bg-card">
               <CardContent className="!p-4 sm:!p-6">
                 <h2 className="text-lg font-semibold mb-4">Fill-ups</h2>
-                <div className="mb-4">
-                  {vehicleId ? (
-                    <FillUpForm vehicleId={vehicleId} />
-                  ) : (
-                    <Button disabled>Add fill-up</Button>
-                  )}
-                </div>
                 {vehicleId ? (
                   <FillUpsTabs
                     segments={segments.map(s => ({
@@ -421,25 +352,16 @@ export default function VehiclePage() {
               </CardContent>
             </Card>
 
-            <Card>
+            <Card className="border-slate-200 dark:border-border dark:bg-card">
               <CardContent className="!p-4 sm:!p-6">
                 <h2 className="text-lg font-semibold mb-4">Expenses</h2>
-                <div className="mb-4">
-                  {vehicleId ? (
-                    <ExpenseForm vehicleId={vehicleId} />
-                  ) : (
-                    <Button variant="outline" disabled>
-                      Add expense
-                    </Button>
-                  )}
-                </div>
                 {vehicleId ? <ExpenseList vehicleId={vehicleId} /> : null}
               </CardContent>
             </Card>
 
             {vehicleId ? <TireManager vehicleId={vehicleId} /> : null}
 
-            <Card>
+            <Card className="border-slate-200 dark:border-border dark:bg-card">
               <CardContent className="!p-4 sm:!p-6">
                 <h2 className="text-lg font-semibold mb-4">Oil Consumption</h2>
                 {vehicleId ? <OilConsumptionChart vehicleId={vehicleId} /> : null}
@@ -448,6 +370,61 @@ export default function VehiclePage() {
           </div>
         </div>
       </main>
+      {vehicle?.canWrite ? (
+        <RestoreBackupDialog
+          key={vehicle.id}
+          forVehicleId={vehicle.id}
+          open={isImportOpen}
+          onOpenChange={setImportOpen}
+          onCloseAutoFocus={restoreVehicleDialogFocus}
+          hideTrigger
+          onRestored={() => {
+            summaryQuery.refetch();
+            expensesQuery.refetch();
+          }}
+        />
+      ) : null}
+      <Dialog open={isDeleteOpen} onOpenChange={setDeleteOpen}>
+        <DialogContent className="sm:max-w-md" onCloseAutoFocus={restoreVehicleDialogFocus}>
+          <DialogHeader>
+            <DialogTitle>Delete vehicle</DialogTitle>
+            <DialogDescription>
+              This permanently deletes the vehicle and all related data (fill-ups, expenses, tires,
+              change logs). This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex justify-end gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              className="min-h-11"
+              onClick={() => setDeleteOpen(false)}
+              disabled={deleteVehicleMutation.isPending}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              className="min-h-11"
+              disabled={deleteVehicleMutation.isPending}
+              onClick={async () => {
+                if (!vehicle?.canEdit) return;
+                try {
+                  await deleteVehicleMutation.mutateAsync();
+                  toast.success('Vehicle deleted');
+                  setDeleteOpen(false);
+                  router.push('/car');
+                } catch (error) {
+                  toast.error(getUiErrorMessage(error, 'Failed to delete vehicle'));
+                }
+              }}
+            >
+              {deleteVehicleMutation.isPending ? 'Deleting…' : 'Delete'}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
       {vehicle ? (
         <VehicleDetailsDialog
           vehicle={vehicle}
@@ -612,14 +589,17 @@ function FillUpsTabs({
   });
   return (
     <div>
-      <div role="group" aria-label="Fill-up view" className="mb-3 flex items-center gap-3">
+      <div
+        role="group"
+        aria-label="Fill-up view"
+        className="mb-3 grid w-full max-w-64 grid-cols-2 gap-1 rounded-lg border border-border/40 bg-muted p-1 sm:max-w-48"
+      >
         {(['list', 'chart'] as const).map(view => (
           <Button
             key={view}
             type="button"
-            variant="outline"
-            size="sm"
-            className="min-h-11 cursor-pointer aria-pressed:bg-muted"
+            variant="ghost"
+            className="min-h-11 text-muted-foreground aria-pressed:bg-primary aria-pressed:text-primary-foreground"
             aria-pressed={tab === view}
             onClick={() => setTab(view)}
           >

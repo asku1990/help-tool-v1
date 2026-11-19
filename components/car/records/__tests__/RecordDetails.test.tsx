@@ -42,9 +42,11 @@ describe.each([
 ])('$type details from the list', ({ type, Component, title, resource }) => {
   let canWrite: boolean | undefined;
   let notes: string;
+  let longValues: boolean;
   beforeEach(() => {
     canWrite = true;
     notes = 'Saved notes\nSecond line';
+    longValues = false;
     vi.resetAllMocks();
     vi.mocked(listAttachments).mockResolvedValue(metadata);
     server.use(
@@ -58,9 +60,9 @@ describe.each([
                 category: 'OIL_TOP_UP',
                 amount: 10,
                 vendor: 'Test workshop',
-                odometerKm: 0,
+                odometerKm: longValues ? 2147483647 : 0,
                 liters: 0,
-                oilConsumption: 0,
+                oilConsumption: longValues ? 12345.6 : 0,
                 notes,
               },
             ],
@@ -78,9 +80,9 @@ describe.each([
                 id: 'parent',
                 date: '2026-11-16',
                 odometerKm: 100,
-                liters: 10,
-                pricePerLiter: 2,
-                totalCost: 20,
+                liters: longValues ? 12345.67 : 10,
+                pricePerLiter: longValues ? 12.345 : 2,
+                totalCost: longValues ? 152407.3 : 20,
                 isFull: true,
                 notes,
                 segment: {
@@ -135,6 +137,31 @@ describe.each([
       expect(dialog.getByText('Full tank')).toBeInTheDocument();
       expect(dialog.getByText('7.50 L/100km')).toBeInTheDocument();
     }
+  });
+
+  it('constrains long numeric previews on desktop and keeps the values in Details', async () => {
+    longValues = true;
+    renderList();
+    const details = await screen.findByRole('button', { name: /View .* details for/ });
+    const preview =
+      type === 'expense'
+        ? screen.getByText('Odo: 2147483647 km').parentElement
+        : screen.getByText(/12345\.67 L @ 12\.345/);
+    expect(preview).toHaveClass('lg:block', 'lg:truncate');
+
+    fireEvent.click(details);
+    const dialog = within(await screen.findByRole('dialog', { name: title }));
+    const values =
+      type === 'expense'
+        ? ['2147483647 km', '12345.6 L/10k']
+        : [
+            '12345.67 L',
+            '12.345 €/L',
+            new Intl.NumberFormat(undefined, { style: 'currency', currency: 'EUR' }).format(
+              152407.3
+            ),
+          ];
+    for (const value of values) expect(dialog.getByText(value)).toBeVisible();
   });
 
   it.each([true, false])(
@@ -228,32 +255,27 @@ describe.each([
     canWrite = permission;
     renderList();
     const details = await screen.findByRole('button', { name: /View .* details for/ });
-    fireEvent.click(screen.getByRole('button', { name: /actions for/ }));
-    expect(screen.getByRole('button', { name: 'Details' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /actions for/ })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Edit' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Delete' })).not.toBeInTheDocument();
     fireEvent.click(details);
     expect(await screen.findByRole('dialog', { name: title })).toBeInTheDocument();
   });
 
-  it.each([true, false])(
-    'opens read-only Details from the dropdown with canWrite=%s',
-    async permission => {
-      canWrite = permission;
-      renderList();
-      const actions = await screen.findByRole('button', { name: /actions for/ });
-      fireEvent.click(actions);
-      fireEvent.click(screen.getByRole('button', { name: 'Details' }));
-      const dialog = within(await screen.findByRole('dialog', { name: title }));
-      expect(actions).toHaveAttribute('aria-expanded', 'false');
-      expect(await dialog.findByText('receipt.pdf')).toBeInTheDocument();
-      expect(
-        dialog.queryByRole('button', { name: /^(Save|Edit|Upload|Rename|Delete)/ })
-      ).toBeNull();
-      fireEvent.click(dialog.getAllByRole('button', { name: 'Close' })[0]);
-      await waitFor(() => expect(actions).toHaveFocus());
-    }
-  );
+  it('keeps Details on the row summary and returns focus there', async () => {
+    renderList();
+    const actions = await screen.findByRole('button', { name: /actions for/ });
+    fireEvent.click(actions);
+    expect(screen.queryByRole('button', { name: 'Details' })).not.toBeInTheDocument();
+    expect(screen.getByRole('separator')).toBeVisible();
+    fireEvent.keyDown(actions, { key: 'Escape' });
+    const details = screen.getByRole('button', { name: /View .* details for/ });
+    fireEvent.click(details);
+    const dialog = within(await screen.findByRole('dialog', { name: title }));
+    expect(await dialog.findByText('receipt.pdf')).toBeInTheDocument();
+    fireEvent.click(dialog.getAllByRole('button', { name: 'Close' })[0]);
+    await waitFor(() => expect(details).toHaveFocus());
+  });
 
   it('opens Edit from the menu and returns focus to the collapsed menu trigger on close', async () => {
     renderList();

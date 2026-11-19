@@ -40,12 +40,19 @@ describe('ExpenseList behavior', () => {
       )
     );
     renderWithProviders(<ExpenseList vehicleId="vid" />);
-    const row = await screen.findByRole('listitem');
-    for (const cell of Array.from(row.children)) {
-      if (cell.tagName === 'DIV') expect(cell).not.toBeEmptyDOMElement();
-    }
+    const row = (await screen.findByRole('button', { name: /View expense details/ })).closest(
+      'tr'
+    )!;
+    expect(
+      screen
+        .getAllByRole('columnheader')
+        .slice(0, 2)
+        .map(header => header.textContent)
+    ).toEqual(['Date', 'Odometer / oil']);
+    expect(screen.getByRole('columnheader', { name: 'Notes' })).toBeInTheDocument();
+    expect(screen.getByRole('columnheader', { name: 'Amount' })).toBeInTheDocument();
     for (const value of expected) expect(within(row).getByText(value)).toBeInTheDocument();
-    expect(within(row).getByText(/10[.,]00/)).toHaveClass('sm:col-start-4');
+    expect(within(row).getByText(/10[.,]00/)).toHaveClass('lg:tabular-nums');
   });
 
   it('renders non-empty list and total', async () => {
@@ -101,7 +108,7 @@ describe('ExpenseList behavior', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Load more' }));
     fireEvent.click(await screen.findByRole('button', { name: 'Retry' }));
     await waitFor(() => expect(cursors).toEqual([null, 'e1', 'e1']));
-    expect(await screen.findAllByRole('listitem')).toHaveLength(2);
+    expect(await screen.findAllByRole('button', { name: /View expense details/ })).toHaveLength(2);
   });
 
   it('deletes an expense when confirmed', async () => {
@@ -211,7 +218,9 @@ describe('ExpenseList behavior', () => {
       await waitFor(() => expect(refresh).toHaveBeenCalled());
       await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
       await waitFor(() =>
-        expect(screen.getByRole('list').closest('[tabindex="-1"]')).toHaveFocus()
+        expect(
+          screen.getByRole('table', { name: 'Expense records' }).closest('[tabindex="-1"]')
+        ).toHaveFocus()
       );
       fireEvent.click(screen.getByRole('button', { name: /actions for/ }));
       expect(screen.getByRole('button', { name: 'Edit' })).toBeDisabled();
@@ -279,7 +288,9 @@ describe('ExpenseList behavior', () => {
     );
     const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     renderWithProviders(<ExpenseList vehicleId="vid" />, qc);
-    const row = (await screen.findByText('MAINTENANCE')).closest('li')!;
+    const row = (
+      await screen.findByRole('button', { name: /View expense details.*MAINTENANCE/ })
+    ).closest('tr')!;
     const openEdit = () => {
       fireEvent.click(within(row).getByRole('button', { name: /actions for/ }));
       fireEvent.click(within(row).getByRole('button', { name: 'Edit' }));

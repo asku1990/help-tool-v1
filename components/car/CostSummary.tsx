@@ -24,7 +24,8 @@ export default function CostSummary({
   const parts = breakdown90d.map(b => ({ ...b, pct: total > 0 ? (b.amount / total) * 100 : 0 }));
 
   return (
-    <div className="bg-white p-4 rounded-xl shadow-sm border space-y-4">
+    <section className="space-y-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-border dark:bg-card">
+      <h2 className="text-lg font-semibold">Vehicle costs</h2>
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <KpiCard
           label="Lifetime cost per km"
@@ -53,24 +54,24 @@ export default function CostSummary({
             />
           ))}
         </div>
-        <div className="mt-2 flex flex-wrap gap-4 text-xs text-gray-600">
+        <div className="mt-2 flex flex-wrap gap-4 text-xs text-muted-foreground">
           {parts.map(p => (
             <div key={p.label} className="flex items-center gap-2">
               <span className={`inline-block w-3 h-3 rounded ${dotColor(p.label)}`} />
               <span>{p.label}</span>
-              <span className="text-gray-400">{formatCurrency(p.amount)}</span>
+              <span className="font-medium text-foreground">{formatCurrency(p.amount)}</span>
             </div>
           ))}
         </div>
       </div>
-    </div>
+    </section>
   );
 }
 
 function KpiCard({ label, value, tooltip }: { label: string; value: string; tooltip?: string }) {
   return (
-    <div className="rounded-lg border bg-gray-50 px-3 py-2">
-      <div className="text-[11px] uppercase tracking-wide text-gray-500 flex items-center gap-1">
+    <div className="rounded-lg bg-muted px-3 py-2">
+      <div className="flex items-center gap-1 text-[11px] uppercase tracking-wide text-muted-foreground">
         <span title={tooltip}>{label}</span>
         {tooltip ? (
           <span

@@ -41,8 +41,15 @@ These are relative comparisons, not absolute efficiency ratings. Keep the numeri
 signed delta when available, and comparison description readable without relying on color.
 Partial fill-ups and the initial full-tank baseline do not have completed-trip consumption.
 
+On smaller screens, completed trips have their own line below the purchase details and notes.
+Distance sits on the left; the consumption badge and delta stay together on the right,
+wrapping as a group if space runs out. On desktop, trip figures have a labeled column
+in the fill-up table. Fill-ups and Expenses stack at the full
+vehicle-page content width so switching to Chart does not constrain the chart to a column.
+
 ## Consumption Chart
 
+- The vehicle's Fill-ups section uses a segmented **List / Chart** switch with one selected view.
 - Recharts renders one point per completed full-tank-to-full-tank segment, dated by its ending
   fill-up. Points are ordered chronologically and spaced by elapsed time.
 - The axes show calendar dates and consumption in L/100 km. The actual span of completed

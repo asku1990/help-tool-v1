@@ -31,6 +31,7 @@ export async function GET(_req: NextRequest, context: { params: Promise<{ vehicl
       inspectionIntervalMonths: access.vehicle.inspectionIntervalMonths,
       initialOdometer: access.vehicle.initialOdometer,
       canEdit: hasPermission(access.role, 'admin'),
+      canWrite: hasPermission(access.role, 'write'),
     };
 
     return ok({ vehicle }, { headers: { 'Cache-Control': 'no-store' } });

@@ -99,69 +99,129 @@ function VehicleFillUpList({ vehicleId }: { vehicleId: string }) {
       <div className="text-xs text-gray-500">
         Fuel cost — loaded records: {formatCurrency(totalFuelCost)}
       </div>
-      <ul className="space-y-2 sm:space-y-0 sm:divide-y">
-        {items.map(f => (
-          <li
-            key={f.id}
-            className="grid grid-cols-[minmax(0,1fr)_auto] gap-2 py-3 max-sm:rounded-lg max-sm:border max-sm:border-border/60 max-sm:px-3 sm:grid-cols-[repeat(4,minmax(0,1fr))_auto] sm:items-center"
+      <table
+        role="table"
+        aria-label="Fill-up records"
+        className="block w-full text-left text-sm lg:table lg:table-fixed"
+      >
+        <thead role="rowgroup" className="hidden lg:table-header-group">
+          <tr
+            role="row"
+            className="bg-muted text-left text-xs text-muted-foreground [&>th]:px-2 [&>th]:py-2 [&>th]:font-medium"
           >
-            <RecordDetailsButton vehicleId={vehicleId} type="fillup" item={f} />
-            <div className="col-span-full min-w-0 wrap-anywhere text-sm text-gray-600 sm:col-span-1 sm:col-start-3">
-              {f.liters} L @ {f.pricePerLiter.toFixed(3)} →{' '}
-              <span className="font-medium max-sm:font-semibold max-sm:text-foreground">
-                {formatCurrency(f.totalCost)}
-              </span>
-            </div>
-            <div className="col-span-full min-w-0 text-xs text-gray-500 sm:col-span-1 sm:col-start-4">
-              <div className="flex items-start gap-1">
-                <span className="shrink-0">{f.isFull ? 'Full tank' : 'Partial'}</span>
-                {f.notes ? (
-                  <>
-                    <span aria-hidden="true">·</span>
-                    <p className="min-w-0 line-clamp-2 break-words sm:line-clamp-1">{f.notes}</p>
-                  </>
-                ) : null}
-              </div>
-              {f.isFull && f.segment ? (
-                <div className="mt-0.5 wrap-anywhere text-[11px] text-gray-600">
-                  Trip {f.segment.distanceKm.toFixed(0)} km •{' '}
-                  <ConsumptionRate value={f.segment.lPer100} previous={f.segment.prevLPer100} />
-                  {typeof f.segment.prevLPer100 === 'number' ? (
+            <th role="columnheader" scope="col" className="w-28">
+              Date
+            </th>
+            <th role="columnheader" scope="col" className="w-28">
+              Odometer (km)
+            </th>
+            <th role="columnheader" scope="col" className="w-44">
+              Fuel purchase
+            </th>
+            <th role="columnheader" scope="col">
+              Tank / notes
+            </th>
+            <th role="columnheader" scope="col" className="w-70">
+              Trip / consumption
+            </th>
+            {canWrite ? (
+              <th role="columnheader" scope="col" className="w-16 text-center">
+                Actions
+              </th>
+            ) : null}
+          </tr>
+        </thead>
+        <tbody role="rowgroup" className="block space-y-2 lg:table-row-group lg:space-y-0">
+          {items.map(f => (
+            <tr
+              role="row"
+              key={f.id}
+              className="grid grid-cols-[minmax(0,1fr)_auto] gap-2 rounded-lg border border-slate-200 px-3 py-3 dark:border-border lg:table-row lg:rounded-none lg:border-x-0 lg:border-b-0 lg:whitespace-nowrap lg:[&>td]:px-2"
+            >
+              <td role="cell" className="col-start-1 row-start-1 min-w-0">
+                <RecordDetailsButton vehicleId={vehicleId} type="fillup" item={f} />
+              </td>
+              <td role="cell" className="hidden tabular-nums lg:table-cell">
+                {f.odometerKm}
+              </td>
+              <td
+                role="cell"
+                className="col-span-full min-w-0 text-muted-foreground lg:tabular-nums"
+              >
+                <span className="lg:block lg:truncate">
+                  {f.liters} L @ {f.pricePerLiter.toFixed(3)} →{' '}
+                  <span className="font-medium max-sm:font-semibold max-sm:text-foreground">
+                    {formatCurrency(f.totalCost)}
+                  </span>
+                </span>
+              </td>
+              <td role="cell" className="col-span-full min-w-0 text-xs text-muted-foreground">
+                <div className="flex min-w-0 items-start gap-1">
+                  <span className="shrink-0">{f.isFull ? 'Full tank' : 'Partial'}</span>
+                  {f.notes ? (
                     <>
-                      {' '}
-                      • <Delta now={f.segment.lPer100} prev={f.segment.prevLPer100} />
+                      <span aria-hidden="true">·</span>
+                      <p className="min-w-0 line-clamp-2 break-words sm:line-clamp-1 lg:block lg:truncate">
+                        {f.notes}
+                      </p>
                     </>
                   ) : null}
                 </div>
-              ) : null}
-            </div>
-            <RecordActions label={`Fill-up actions for ${formatDateFi(new Date(f.date))}`}>
-              <RecordDetailsButton vehicleId={vehicleId} type="fillup" item={f} variant="menu" />
+              </td>
+              <td
+                role="cell"
+                className={`col-span-full min-w-0 lg:table-cell ${f.isFull && f.segment ? '' : 'hidden'}`}
+              >
+                {f.isFull && f.segment ? (
+                  <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground max-lg:border-t max-lg:border-slate-200 max-lg:pt-2 lg:flex-nowrap dark:max-lg:border-border">
+                    <span className="font-medium tabular-nums">
+                      Trip {f.segment.distanceKm.toFixed(0)} km
+                    </span>
+                    <div className="inline-flex items-center gap-2 whitespace-nowrap tabular-nums max-lg:ml-auto">
+                      <ConsumptionRate value={f.segment.lPer100} previous={f.segment.prevLPer100} />
+                      {typeof f.segment.prevLPer100 === 'number' ? (
+                        <Delta now={f.segment.lPer100} prev={f.segment.prevLPer100} />
+                      ) : null}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-muted-foreground">—</div>
+                )}
+              </td>
               {canWrite ? (
-                <>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    className={recordActionClass}
-                    disabled={fetchStatus !== 'idle'}
-                    onClick={event =>
-                      setEdit({
-                        item: f,
-                        trigger:
-                          event.currentTarget.closest('details')?.querySelector('summary') ??
-                          event.currentTarget,
-                      })
-                    }
+                <td
+                  role="cell"
+                  className="col-start-2 row-start-1 lg:[&>details]:mx-auto lg:[&>details]:w-11"
+                >
+                  <RecordActions
+                    label={`Fill-up actions for ${formatDateFi(new Date(f.date))}`}
+                    placement="card"
                   >
-                    Edit
-                  </Button>
-                  <DeleteFillUpButton vehicleId={vehicleId} fillUpId={f.id} />
-                </>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      className={recordActionClass}
+                      disabled={fetchStatus !== 'idle'}
+                      onClick={event =>
+                        setEdit({
+                          item: f,
+                          trigger:
+                            event.currentTarget.closest('details')?.querySelector('summary') ??
+                            event.currentTarget,
+                        })
+                      }
+                    >
+                      Edit
+                    </Button>
+                    <hr className="my-1 border-border/40" />
+                    <DeleteFillUpButton vehicleId={vehicleId} fillUpId={f.id} />
+                  </RecordActions>
+                </td>
               ) : null}
-            </RecordActions>
-          </li>
-        ))}
-      </ul>
+            </tr>
+          ))}
+        </tbody>
+      </table>
       {hasNextPage ? (
         <div className="pt-3">
           <Button
@@ -211,10 +271,7 @@ function ConsumptionRate({ value, previous }: { value: number; previous?: number
           : 'Same as previous trip';
 
   return (
-    <span
-      className={`inline-block max-w-full rounded-md px-2 py-1 align-middle text-sm font-semibold tabular-nums ${color}`}
-      title={comparison}
-    >
+    <span className={`rounded-md px-2 py-1 text-sm font-semibold ${color}`} title={comparison}>
       {value.toFixed(2)} L/100km
       <span className="sr-only"> — {comparison}</span>
     </span>

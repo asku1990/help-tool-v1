@@ -183,9 +183,11 @@ export default function ExpenseForm({ vehicleId, onCreated }: ExpenseFormProps) 
       }}
     >
       <DialogTrigger asChild>
-        <Button variant="outline">Add expense</Button>
+        <Button variant="outline" className="min-h-11">
+          Add expense
+        </Button>
       </DialogTrigger>
-      <DialogContent aria-label={`${title} dialog`}>
+      <DialogContent aria-label={`${title} dialog`} aria-describedby={undefined}>
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
         </DialogHeader>
