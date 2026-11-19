@@ -19,6 +19,10 @@ focus to **⋯**.
 Neither **Import backup** on the vehicle page nor **Restore Backup** on the vehicles list
 clears existing records. Replacing records is not available. If an import fails partway
 through, records already imported remain saved.
+When importing into an existing vehicle, selected active tire sets or tire-change entries
+can change which set is marked as mounted, even if the entries are old. The dialog warns
+before importing. To keep the current mount, uncheck active sets and tire-change entries
+in the Tires tab.
 
 Select the vehicle name to see saved basic information without opening the edit form.
 Closing Details returns focus to the name. The registration plate stays selectable text.

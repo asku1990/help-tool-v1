@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useId } from 'react';
 import {
   Button,
   Dialog,
@@ -89,6 +89,11 @@ export default function RestoreBackupDialog({
 
   const totalCount = counts.fillUps + counts.expenses + counts.tireSets + counts.changeLogs;
   const hasData = (forVehicleId && totalCount > 0) || data.vehicle?.valid || totalCount > 0;
+  const tireWarningId = useId();
+  const showTireWarning =
+    Boolean(forVehicleId || (restoreMode === 'update' && selectedVehicleId)) &&
+    (counts.changeLogs > 0 ||
+      data.tireSets.some(r => r.include && r.valid && r.status === 'ACTIVE'));
 
   // Can restore if: forVehicleId is set OR restoreMode is selected
   const canRestore = forVehicleId
@@ -412,6 +417,17 @@ export default function RestoreBackupDialog({
             </div>
           )}
 
+          {showTireWarning && (
+            <p
+              id={tireWarningId}
+              role="alert"
+              className="shrink-0 rounded-md border border-amber-300 bg-amber-50 p-2 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-100"
+            >
+              Importing the selected tire records can change which tire set is marked as mounted,
+              even if the tire changes are old. To keep the current mount, uncheck active tire sets
+              and tire change entries in the Tires tab.
+            </p>
+          )}
           <div className="flex items-center justify-between pt-2 border-t">
             <div className="text-sm">
               {restoreStatus ? (
@@ -428,7 +444,12 @@ export default function RestoreBackupDialog({
               <Button type="button" variant="outline" onClick={() => setOpen(false)}>
                 Cancel
               </Button>
-              <Button type="button" onClick={handleRestore} disabled={!canRestore || isRestoring}>
+              <Button
+                type="button"
+                onClick={handleRestore}
+                disabled={!canRestore || isRestoring}
+                aria-describedby={showTireWarning ? tireWarningId : undefined}
+              >
                 {isRestoring ? 'Importing…' : buttonLabel}
               </Button>
             </div>
