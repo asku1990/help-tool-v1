@@ -180,6 +180,10 @@ it.each([
     'href',
     '/api/vehicles/v1/export'
   );
+  expect(screen.getByRole('link', { name: 'Download for spreadsheet' })).toHaveAttribute(
+    'href',
+    '/api/vehicles/v1/export?format=spreadsheet'
+  );
   if (canEdit) {
     fireEvent.click(screen.getByRole('button', { name: 'Delete vehicle' }));
     const confirmation = await screen.findByRole('dialog', { name: 'Delete vehicle' });
