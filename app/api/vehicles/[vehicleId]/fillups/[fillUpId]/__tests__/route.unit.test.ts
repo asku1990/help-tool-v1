@@ -79,19 +79,22 @@ describe('api/vehicles/[vehicleId]/fillups/[fillUpId] route (unit)', () => {
     expect(res.status).toBe(404);
   });
 
-  it('PATCH updates and returns 200', async () => {
+  it('PATCH clears notes without requiring other fields', async () => {
     const prisma = (await import('@/lib/db')).default as unknown as PrismaMock;
     prisma.vehicle.findFirst.mockResolvedValueOnce({ id: 'v' });
     prisma.fuelFillUp.update.mockResolvedValueOnce({ id: 'f' });
     const base = new Request('http://localhost/x', {
       method: 'PATCH',
-      body: JSON.stringify({ notes: 'Updated note' }),
+      body: JSON.stringify({ notes: null }),
     });
     const req = new NextRequest(base);
     const res = await PATCH(req, { params: Promise.resolve({ vehicleId: 'v', fillUpId: 'f' }) });
     expect(res.status).toBe(200);
     expect(prisma.fuelFillUp.update).toHaveBeenCalledWith(
-      expect.objectContaining({ where: { id: 'f', vehicleId: 'v' } })
+      expect.objectContaining({
+        where: { id: 'f', vehicleId: 'v' },
+        data: expect.objectContaining({ notes: null }),
+      })
     );
   });
 
