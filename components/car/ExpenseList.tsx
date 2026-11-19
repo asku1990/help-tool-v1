@@ -88,15 +88,15 @@ function VehicleExpenseList({ vehicleId }: { vehicleId: string }) {
   return withEditor(
     <div className="space-y-2">
       <div className="text-xs text-gray-500">Total: {formatCurrency(total)}</div>
-      <ul className="divide-y">
+      <ul className="space-y-2 sm:space-y-0 sm:divide-y">
         {items.map(e => (
           <li
             key={e.id}
-            className="grid grid-cols-[minmax(0,1fr)_auto] gap-2 py-3 sm:grid-cols-5 sm:items-center"
+            className="grid grid-cols-[minmax(0,1fr)_auto] gap-2 py-3 max-sm:rounded-lg max-sm:border max-sm:border-border/60 max-sm:px-3 sm:grid-cols-[repeat(4,minmax(0,1fr))_auto] sm:items-center"
           >
             <RecordDetailsButton vehicleId={vehicleId} type="expense" item={e} />
             {e.odometerKm != null || e.oilConsumption != null ? (
-              <div className="col-start-1 flex flex-wrap items-center gap-x-2 text-sm text-gray-600 sm:col-start-3">
+              <div className="col-span-full min-w-0 wrap-anywhere flex flex-wrap items-center gap-x-2 text-sm text-gray-600 sm:col-span-1 sm:col-start-3">
                 {e.odometerKm != null ? `Odo: ${e.odometerKm} km` : null}
                 {e.oilConsumption != null ? (
                   <span className="text-xs text-amber-600">
@@ -105,11 +105,11 @@ function VehicleExpenseList({ vehicleId }: { vehicleId: string }) {
                 ) : null}
               </div>
             ) : null}
-            <div className="col-start-1 text-sm font-medium sm:col-start-4 sm:text-right">
+            <div className="col-span-full min-w-0 wrap-anywhere text-sm font-medium max-sm:font-semibold sm:col-span-1 sm:col-start-4 sm:text-right">
               {formatCurrency(e.amount)}
             </div>
             {e.notes ? (
-              <div className="col-start-1 min-w-0 line-clamp-2 break-words text-xs text-gray-500 sm:col-span-4 sm:line-clamp-1">
+              <div className="col-span-full min-w-0 line-clamp-2 break-words text-xs text-gray-500 sm:col-span-4 sm:line-clamp-1">
                 {e.notes}
               </div>
             ) : null}

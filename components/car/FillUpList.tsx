@@ -92,18 +92,20 @@ function VehicleFillUpList({ vehicleId }: { vehicleId: string }) {
       <div className="text-xs text-gray-500">
         Fuel cost — loaded records: {formatCurrency(totalFuelCost)}
       </div>
-      <ul className="divide-y">
+      <ul className="space-y-2 sm:space-y-0 sm:divide-y">
         {items.map(f => (
           <li
             key={f.id}
-            className="grid grid-cols-[minmax(0,1fr)_auto] gap-2 py-3 sm:grid-cols-5 sm:items-center"
+            className="grid grid-cols-[minmax(0,1fr)_auto] gap-2 py-3 max-sm:rounded-lg max-sm:border max-sm:border-border/60 max-sm:px-3 sm:grid-cols-[repeat(4,minmax(0,1fr))_auto] sm:items-center"
           >
             <RecordDetailsButton vehicleId={vehicleId} type="fillup" item={f} />
-            <div className="col-start-1 text-sm text-gray-600 sm:col-start-auto">
+            <div className="col-span-full min-w-0 wrap-anywhere text-sm text-gray-600 sm:col-span-1 sm:col-start-3">
               {f.liters} L @ {f.pricePerLiter.toFixed(3)} →{' '}
-              <span className="font-medium">{formatCurrency(f.totalCost)}</span>
+              <span className="font-medium max-sm:font-semibold max-sm:text-foreground">
+                {formatCurrency(f.totalCost)}
+              </span>
             </div>
-            <div className="col-start-1 min-w-0 text-xs text-gray-500 sm:col-start-auto">
+            <div className="col-span-full min-w-0 text-xs text-gray-500 sm:col-span-1 sm:col-start-4">
               <div className="flex items-start gap-1">
                 <span className="shrink-0">{f.isFull ? 'Full tank' : 'Partial'}</span>
                 {f.notes ? (
@@ -114,7 +116,7 @@ function VehicleFillUpList({ vehicleId }: { vehicleId: string }) {
                 ) : null}
               </div>
               {f.isFull && f.segment ? (
-                <div className="text-[11px] text-gray-600 mt-0.5">
+                <div className="mt-0.5 wrap-anywhere text-[11px] text-gray-600">
                   Trip {f.segment.distanceKm.toFixed(0)} km •{' '}
                   <ConsumptionRate value={f.segment.lPer100} previous={f.segment.prevLPer100} />
                   {typeof f.segment.prevLPer100 === 'number' ? (
@@ -200,7 +202,7 @@ function ConsumptionRate({ value, previous }: { value: number; previous?: number
 
   return (
     <span
-      className={`inline-flex items-center rounded-md px-2 py-1 text-sm font-semibold tabular-nums ${color}`}
+      className={`inline-block max-w-full rounded-md px-2 py-1 align-middle text-sm font-semibold tabular-nums ${color}`}
       title={comparison}
     >
       {value.toFixed(2)} L/100km
