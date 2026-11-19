@@ -32,16 +32,16 @@ describe('api/vehicles/[vehicleId] route (unit)', () => {
   });
 
   it.each([
-    ['OWNER', true],
-    ['EDITOR', false],
-    ['VIEWER', false],
-  ])('GET returns the edit capability for %s', async (role, canEdit) => {
+    ['OWNER', true, true],
+    ['EDITOR', false, true],
+    ['VIEWER', false, false],
+  ])('GET returns vehicle capabilities for %s', async (role, canEdit, canWrite) => {
     const prisma = (await import('@/lib/db')).default as unknown as PrismaMock;
     prisma.vehicleAccess.findFirst.mockResolvedValueOnce({ role, vehicle: { id: 'v1' } });
     const req = new NextRequest('http://localhost/api/vehicles/v1');
     const res = await GET(req, { params: Promise.resolve({ vehicleId: 'v1' }) });
     expect(res.status).toBe(200);
-    expect(await res.json()).toMatchObject({ data: { vehicle: { id: 'v1', canEdit } } });
+    expect(await res.json()).toMatchObject({ data: { vehicle: { id: 'v1', canEdit, canWrite } } });
   });
 
   it('PATCH returns 400 on validation error', async () => {

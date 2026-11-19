@@ -1,17 +1,36 @@
 # Viewing Saved Records
 
-On the vehicle card, select the vehicle name or choose **⋯ → Details** to see its saved basic information
-without opening the edit form. The read-only dialog shows the saved inspection due date
+## Vehicle Overview
+
+The overview header shows the vehicle name, registration plate, and one inspection status.
+On phones, the inspection status gets its own line. It shows the date when more than
+30 days away, and uses plain-language urgency when due soon or overdue.
+**Switch vehicle** appears on large screens only when another vehicle is available.
+On smaller screens, use **Back to vehicles** to switch.
+The summary groups and records share the same content width as the header. White panels
+on a blue-gray canvas distinguish sections without heavy borders in the light theme.
+
+**Add fill-up** and **Add expense** are the primary actions for owners and editors.
+**⋯** groups the less frequent actions: **Download backup** for anyone with
+read access, **Import backup** for owners and editors, and **Edit** and **Delete vehicle**
+for owners only. Vehicle deletion requires confirmation. Closing a menu dialog returns
+focus to **⋯**.
+
+Backup import keeps existing records unless an owner selects **Clear existing data before import**
+and confirms. Clearing happens before importing; if the import fails, cleared records are
+not restored. Cancelling the confirmation leaves existing records untouched.
+
+Select the vehicle name to see saved basic information without opening the edit form.
+Closing Details returns focus to the name. The registration plate stays selectable text.
+The read-only dialog shows the saved inspection due date
 and interval, not an estimate based on maintenance entries. Missing values display as
 `—`; a saved initial odometer of zero displays as `0 km`.
-Anyone with vehicle read access can open Details. Only owners see **Edit** in the
-vehicle menu. Closing either dialog returns focus to the control that opened it.
 Vehicle, fill-up, and expense Details share the same field layout and Close controls.
 
 ## Fill-ups and Expenses
 
 Select the date and summary area of an expense or fill-up to open **Details**. It is a
-keyboard-accessible button with a pointer cursor and hover highlighting, not an invisible
+keyboard-accessible button with a chevron, not an invisible
 click handler on the whole row. Details opens a read-only dialog with the saved record
 information, full notes, and attachment links. Fill-ups also show completed-trip figures when those are available
 in the list response; the dialog does not calculate new consumption values.
@@ -21,15 +40,16 @@ controls, including for owners and editors. Opening and closing it does not save
 Optional missing values display an unavailable marker; numeric zero remains visible.
 The existing Edit dialogs remain the place to change records and manage attachments.
 
-Each row has a touch-friendly **⋯** disclosure containing **Details**, followed by
-**Edit** and **Delete** for owners and editors. Viewers get **Details** only.
+For owners and editors, each row has a touch-friendly **⋯** disclosure with **Edit**
+and **Delete**, separated by a divider. Details is not duplicated in the menu.
 It closes after selection, on an outside pointer press, or on
 Escape. Keyboard users can activate the native disclosure, Tab through its buttons,
 and press Escape to close it and return focus to the trigger. Delete retains its existing
 confirmation.
 
 The existing list responses include a server-derived `canWrite` flag. Viewers and callers
-without a confirmed write capability see only Details in the disclosure and no empty-list creation action.
+without a confirmed write capability can open Details from the row summary, but see no
+action disclosure or empty-list creation action.
 This is presentation only; server authorization remains required for every mutation.
 Attachment requests are not used to determine record write permissions.
 
@@ -46,7 +66,10 @@ The dialog uses the record data already loaded by the list, without new record e
 
 On mobile, each entry is outlined and spaced from the next. The date and summary align
 with the rest of the entry, the **⋯** menu stays at the top right, and the remaining
-details use the full width underneath. Desktop keeps compact rows with dividers.
+details use the full width underneath. On desktop, both lists are tables with visible
+column headings aligned to the start of each cell, one line per record, and a narrow actions
+column. Odometer follows Date in both tables. Missing values are marked with a dash
+without shifting other columns.
 The lists retain their existing values. Note previews use at most two lines on mobile
 and one on desktop; Details keeps the full notes. Fill-up status and consumption figures
 are outside the note preview and remain visible. Expenses without odometer or oil-consumption
@@ -124,4 +147,5 @@ no attachments, and available attachments. Confirm there are no editable fields 
 controls, files still open, and closing does not save. Reopen after managing files through
 Edit and confirm the attachment list refreshes. Check both write and viewer roles.
 Verify the action disclosure opens independently of Details, dismisses outside/on Escape,
-and returns focus after editing or viewing Details from the menu. Viewers must have no Edit/Delete actions.
+and regains focus after editing. Closing Details returns focus to the row summary.
+Viewers must have no action disclosure.

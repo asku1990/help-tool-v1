@@ -19,7 +19,8 @@ export default function ConsumptionBadges({ segments }: { segments: Segment[] })
   const costPer100 = fuelCostPer100(segments.slice(-3));
 
   return (
-    <div className="bg-white p-4 rounded-xl shadow-sm border">
+    <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-border dark:bg-card">
+      <h2 className="mb-3 text-lg font-semibold">Fuel consumption</h2>
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
         <Badge label="Latest" value={formatNumber(latest, 2)} suffix=" L/100km" />
         <Badge label="Avg (3)" value={formatNumber(avg3, 2)} suffix=" L/100km" />
@@ -27,17 +28,17 @@ export default function ConsumptionBadges({ segments }: { segments: Segment[] })
         <Badge label="Lifetime" value={formatNumber(lifetime, 2)} suffix=" L/100km" />
         <Badge label="Cost/100" value={formatCurrency(costPer100)} />
       </div>
-    </div>
+    </section>
   );
 }
 
 function Badge({ label, value, suffix }: { label: string; value: string; suffix?: string }) {
   return (
-    <div className="rounded-lg border bg-gray-50 px-3 py-2">
-      <div className="text-[11px] uppercase tracking-wide text-gray-500">{label}</div>
+    <div className="rounded-lg bg-muted px-3 py-2">
+      <div className="text-[11px] uppercase tracking-wide text-muted-foreground">{label}</div>
       <div className="text-sm font-semibold">
         {value}
-        {suffix ? <span className="text-gray-600 font-normal">{suffix}</span> : null}
+        {suffix ? <span className="font-normal text-muted-foreground">{suffix}</span> : null}
       </div>
     </div>
   );

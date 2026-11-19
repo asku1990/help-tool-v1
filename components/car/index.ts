@@ -9,7 +9,6 @@ export { default as FillUpList } from './FillUpList';
 export { default as LicensePlate } from './LicensePlate';
 export { default as InspectionBadge } from './InspectionBadge';
 export { default as ExportMenu } from './exports/ExportMenu';
-export { default as ImportMenu } from './imports/ImportMenu';
 export { default as RestoreBackupDialog } from './imports/RestoreBackupDialog';
 export * from './vehicles';
 export * from './vehicle-detail';

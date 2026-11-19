@@ -117,9 +117,9 @@ export default function FillUpForm({ vehicleId, onCreated }: FillUpFormProps) {
       }}
     >
       <DialogTrigger asChild>
-        <Button>Add fill-up</Button>
+        <Button className="min-h-11">Add fill-up</Button>
       </DialogTrigger>
-      <DialogContent aria-label={`${title} dialog`}>
+      <DialogContent aria-label={`${title} dialog`} aria-describedby={undefined}>
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
         </DialogHeader>

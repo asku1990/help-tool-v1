@@ -52,9 +52,10 @@ export default function RecordActions({
           : 'relative shrink-0'
       }
       onClick={event => {
-        const button = event.target instanceof Element ? event.target.closest('button') : null;
-        // Dialogs are portaled: their button events must not be treated as menu selections.
-        if (button && details.current?.contains(button)) {
+        const action =
+          event.target instanceof Element ? event.target.closest('button, a[href]') : null;
+        // Dialogs are portaled: their events must not be treated as menu selections.
+        if (action && details.current?.contains(action)) {
           setOpen(false);
           details.current.querySelector('summary')?.focus();
         }

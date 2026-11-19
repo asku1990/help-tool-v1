@@ -53,8 +53,11 @@ describe('FillUpList behavior', () => {
     );
     renderWithProviders(<FillUpList vehicleId="vid" />);
     const badge = await screen.findByTitle(comparison);
+    expect(screen.getByRole('columnheader', { name: 'Fuel purchase' })).toBeInTheDocument();
+    expect(screen.getByRole('columnheader', { name: 'Trip / consumption' })).toBeInTheDocument();
     expect(badge).toHaveTextContent(`${consumption.toFixed(2)} L/100km`);
     expect(badge).toHaveClass(color, 'font-semibold');
+    expect(screen.getByText('Trip 100 km')).toBeVisible();
     if (previous !== undefined && consumption !== previous) {
       const expectedDelta = consumption < previous ? /Δ −1.00/ : /Δ \+1.00/;
       expect(screen.getByText(expectedDelta)).toBeInTheDocument();
@@ -192,7 +195,9 @@ describe('FillUpList behavior', () => {
     );
 
     renderWithProviders(<FillUpList vehicleId="vid" />);
-    const list = (await screen.findByRole('list')).closest('[tabindex="-1"]')!;
+    const list = (await screen.findByRole('table', { name: 'Fill-up records' })).closest(
+      '[tabindex="-1"]'
+    )!;
     fireEvent.click(await screen.findByRole('button', { name: /actions for/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
     fireEvent.change(screen.getByLabelText('Price per liter'), { target: { value: '1.5' } });

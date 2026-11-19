@@ -34,6 +34,8 @@ type Props = {
   onOpenChange?: (_open: boolean) => void;
   hideTrigger?: boolean;
   triggerClassName?: string;
+  canClearExisting?: boolean;
+  onCloseAutoFocus?: (_event: Event) => void;
 };
 
 export default function RestoreBackupDialog({
@@ -44,6 +46,8 @@ export default function RestoreBackupDialog({
   onOpenChange,
   hideTrigger,
   triggerClassName,
+  canClearExisting = true,
+  onCloseAutoFocus,
 }: Props) {
   const [uncontrolledOpen, setUncontrolledOpen] = useState(false);
   const isOpen = open ?? uncontrolledOpen;
@@ -58,7 +62,7 @@ export default function RestoreBackupDialog({
   });
   const [isParsing, setIsParsing] = useState(false);
   const [isRestoring, setIsRestoring] = useState(false);
-  const [clearExisting, setClearExisting] = useState(true);
+  const [clearExisting, setClearExisting] = useState(false);
   const [activeTab, setActiveTab] = useState<'vehicle' | 'fillups' | 'expenses' | 'tires'>(
     forVehicleId ? 'fillups' : 'vehicle'
   );
@@ -100,7 +104,7 @@ export default function RestoreBackupDialog({
       setData({ fillUps: [], expenses: [], tireSets: [], changeLogs: [] });
       setIsParsing(false);
       setIsRestoring(false);
-      setClearExisting(true);
+      setClearExisting(false);
       setRestoreStatus('');
       setRestoreMode(forVehicleId ? 'update' : 'pending');
       setSelectedVehicleId(forVehicleId ?? '');
@@ -140,6 +144,16 @@ export default function RestoreBackupDialog({
   }
 
   async function handleRestore() {
+    const shouldClear =
+      canClearExisting && clearExisting && (forVehicleId || restoreMode === 'update');
+    if (
+      shouldClear &&
+      !window.confirm(
+        'This will permanently delete existing fill-ups, expenses, tire sets, and tire changes before importing. Deleted records cannot be recovered if the import fails. Continue?'
+      )
+    )
+      return;
+
     setIsRestoring(true);
     setRestoreStatus('');
 
@@ -148,11 +162,6 @@ export default function RestoreBackupDialog({
 
       if (forVehicleId) {
         targetVehicleId = forVehicleId;
-        if (clearExisting) {
-          setRestoreStatus('Clearing existing data...');
-          const res = await fetch(`/api/vehicles/${targetVehicleId}/clear`, { method: 'DELETE' });
-          if (!res.ok) throw new Error('Failed to clear existing data');
-        }
       } else if (restoreMode === 'create') {
         if (!data.vehicle?.valid) return;
         setRestoreStatus('Creating vehicle...');
@@ -172,13 +181,14 @@ export default function RestoreBackupDialog({
           throw new Error('Please select a vehicle to update');
         }
         targetVehicleId = selectedVehicleId;
-        if (clearExisting) {
-          setRestoreStatus('Clearing existing data...');
-          const res = await fetch(`/api/vehicles/${targetVehicleId}/clear`, { method: 'DELETE' });
-          if (!res.ok) throw new Error('Failed to clear existing data');
-        }
       } else {
         return;
+      }
+
+      if (shouldClear) {
+        setRestoreStatus('Clearing existing data...');
+        const res = await fetch(`/api/vehicles/${targetVehicleId}/clear`, { method: 'DELETE' });
+        if (!res.ok) throw new Error('Failed to clear existing data');
       }
 
       if (counts.fillUps > 0) {
@@ -294,6 +304,7 @@ export default function RestoreBackupDialog({
       )}
       <DialogContent
         aria-label={dialogTitle}
+        onCloseAutoFocus={onCloseAutoFocus}
         className="sm:max-w-5xl max-w-[95vw] w-full h-[90vh] overflow-hidden flex flex-col"
       >
         <DialogHeader>
@@ -421,7 +432,7 @@ export default function RestoreBackupDialog({
                 </div>
               </div>
 
-              {(forVehicleId || restoreMode === 'update') && (
+              {canClearExisting && (forVehicleId || restoreMode === 'update') && (
                 <label className="flex items-center space-x-2 cursor-pointer">
                   <input
                     type="checkbox"

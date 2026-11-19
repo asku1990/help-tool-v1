@@ -228,32 +228,27 @@ describe.each([
     canWrite = permission;
     renderList();
     const details = await screen.findByRole('button', { name: /View .* details for/ });
-    fireEvent.click(screen.getByRole('button', { name: /actions for/ }));
-    expect(screen.getByRole('button', { name: 'Details' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /actions for/ })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Edit' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Delete' })).not.toBeInTheDocument();
     fireEvent.click(details);
     expect(await screen.findByRole('dialog', { name: title })).toBeInTheDocument();
   });
 
-  it.each([true, false])(
-    'opens read-only Details from the dropdown with canWrite=%s',
-    async permission => {
-      canWrite = permission;
-      renderList();
-      const actions = await screen.findByRole('button', { name: /actions for/ });
-      fireEvent.click(actions);
-      fireEvent.click(screen.getByRole('button', { name: 'Details' }));
-      const dialog = within(await screen.findByRole('dialog', { name: title }));
-      expect(actions).toHaveAttribute('aria-expanded', 'false');
-      expect(await dialog.findByText('receipt.pdf')).toBeInTheDocument();
-      expect(
-        dialog.queryByRole('button', { name: /^(Save|Edit|Upload|Rename|Delete)/ })
-      ).toBeNull();
-      fireEvent.click(dialog.getAllByRole('button', { name: 'Close' })[0]);
-      await waitFor(() => expect(actions).toHaveFocus());
-    }
-  );
+  it('keeps Details on the row summary and returns focus there', async () => {
+    renderList();
+    const actions = await screen.findByRole('button', { name: /actions for/ });
+    fireEvent.click(actions);
+    expect(screen.queryByRole('button', { name: 'Details' })).not.toBeInTheDocument();
+    expect(screen.getByRole('separator')).toBeVisible();
+    fireEvent.keyDown(actions, { key: 'Escape' });
+    const details = screen.getByRole('button', { name: /View .* details for/ });
+    fireEvent.click(details);
+    const dialog = within(await screen.findByRole('dialog', { name: title }));
+    expect(await dialog.findByText('receipt.pdf')).toBeInTheDocument();
+    fireEvent.click(dialog.getAllByRole('button', { name: 'Close' })[0]);
+    await waitFor(() => expect(details).toHaveFocus());
+  });
 
   it('opens Edit from the menu and returns focus to the collapsed menu trigger on close', async () => {
     renderList();

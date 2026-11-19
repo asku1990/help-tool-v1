@@ -95,58 +95,115 @@ function VehicleExpenseList({ vehicleId }: { vehicleId: string }) {
   return withEditor(
     <div className="space-y-2">
       <div className="text-xs text-gray-500">Total: {formatCurrency(total)}</div>
-      <ul className="space-y-2 sm:space-y-0 sm:divide-y">
-        {items.map(e => (
-          <li
-            key={e.id}
-            className="grid grid-cols-[minmax(0,1fr)_auto] gap-2 py-3 max-sm:rounded-lg max-sm:border max-sm:border-border/60 max-sm:px-3 sm:grid-cols-[repeat(4,minmax(0,1fr))_auto] sm:items-center"
+      <table
+        role="table"
+        aria-label="Expense records"
+        className="block w-full text-left text-sm lg:table lg:table-fixed"
+      >
+        <thead role="rowgroup" className="hidden lg:table-header-group">
+          <tr
+            role="row"
+            className="bg-muted text-left text-xs text-muted-foreground [&>th]:px-2 [&>th]:py-2 [&>th]:font-medium"
           >
-            <RecordDetailsButton vehicleId={vehicleId} type="expense" item={e} />
-            {e.odometerKm != null || e.oilConsumption != null ? (
-              <div className="col-span-full min-w-0 wrap-anywhere flex flex-wrap items-center gap-x-2 text-sm text-gray-600 sm:col-span-1 sm:col-start-3">
-                {e.odometerKm != null ? `Odo: ${e.odometerKm} km` : null}
+            <th role="columnheader" scope="col" className="w-28">
+              Date
+            </th>
+            <th role="columnheader" scope="col" className="w-40">
+              Odometer / oil
+            </th>
+            <th role="columnheader" scope="col" className="w-1/4">
+              Category / vendor
+            </th>
+            <th role="columnheader" scope="col">
+              Notes
+            </th>
+            <th role="columnheader" scope="col" className="w-28">
+              Amount
+            </th>
+            {canWrite ? (
+              <th role="columnheader" scope="col" className="w-16 text-center">
+                Actions
+              </th>
+            ) : null}
+          </tr>
+        </thead>
+        <tbody role="rowgroup" className="block space-y-2 lg:table-row-group lg:space-y-0">
+          {items.map(e => (
+            <tr
+              role="row"
+              key={e.id}
+              className="grid grid-cols-[minmax(0,1fr)_auto] gap-2 rounded-lg border border-slate-200 px-3 py-3 dark:border-border lg:table-row lg:rounded-none lg:border-x-0 lg:border-b-0 lg:whitespace-nowrap lg:[&>td]:px-2"
+            >
+              <td role="cell" className="col-start-1 row-start-1 min-w-0">
+                <RecordDetailsButton vehicleId={vehicleId} type="expense" item={e} />
+              </td>
+              <td
+                role="cell"
+                className={`col-span-full min-w-0 text-muted-foreground lg:table-cell lg:tabular-nums ${e.odometerKm == null && e.oilConsumption == null ? 'hidden' : ''}`}
+              >
+                {e.odometerKm != null ? <span>{`Odo: ${e.odometerKm} km`}</span> : null}
                 {e.oilConsumption != null ? (
-                  <span className="text-xs text-amber-600">
+                  <span className="ml-2 text-xs text-amber-600">
                     {e.oilConsumption.toFixed(1)} L/10k
                   </span>
                 ) : null}
-              </div>
-            ) : null}
-            <div className="col-span-full min-w-0 wrap-anywhere text-sm font-medium max-sm:font-semibold sm:col-span-1 sm:col-start-4 sm:text-right">
-              {formatCurrency(e.amount)}
-            </div>
-            {e.notes ? (
-              <div className="col-span-full min-w-0 line-clamp-2 break-words text-xs text-gray-500 sm:col-span-4 sm:line-clamp-1">
-                {e.notes}
-              </div>
-            ) : null}
-            <RecordActions label={`Expense actions for ${formatDateFi(new Date(e.date))}`}>
-              <RecordDetailsButton vehicleId={vehicleId} type="expense" item={e} variant="menu" />
+                {e.odometerKm == null && e.oilConsumption == null ? '—' : null}
+              </td>
+              <td role="cell" className="hidden lg:table-cell">
+                <span className="block truncate">
+                  {e.category.replace(/_/g, ' ')}
+                  {e.vendor ? ` · ${e.vendor}` : ''}
+                </span>
+              </td>
+              <td
+                role="cell"
+                className={`order-last col-span-full min-w-0 lg:table-cell ${e.notes ? '' : 'hidden'}`}
+              >
+                {e.notes ? (
+                  <span className="line-clamp-2 break-words text-xs text-muted-foreground sm:line-clamp-1 lg:block lg:truncate">
+                    {e.notes}
+                  </span>
+                ) : (
+                  <span className="text-muted-foreground">—</span>
+                )}
+              </td>
+              <td role="cell" className="col-span-full min-w-0 font-semibold lg:tabular-nums">
+                {formatCurrency(e.amount)}
+              </td>
               {canWrite ? (
-                <>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    className={recordActionClass}
-                    disabled={fetchStatus !== 'idle'}
-                    onClick={event =>
-                      setEdit({
-                        item: e,
-                        trigger:
-                          event.currentTarget.closest('details')?.querySelector('summary') ??
-                          event.currentTarget,
-                      })
-                    }
+                <td
+                  role="cell"
+                  className="col-start-2 row-start-1 lg:[&>details]:mx-auto lg:[&>details]:w-11"
+                >
+                  <RecordActions
+                    label={`Expense actions for ${formatDateFi(new Date(e.date))}`}
+                    placement="card"
                   >
-                    Edit
-                  </Button>
-                  <DeleteExpenseButton vehicleId={vehicleId} expenseId={e.id} />
-                </>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      className={recordActionClass}
+                      disabled={fetchStatus !== 'idle'}
+                      onClick={event =>
+                        setEdit({
+                          item: e,
+                          trigger:
+                            event.currentTarget.closest('details')?.querySelector('summary') ??
+                            event.currentTarget,
+                        })
+                      }
+                    >
+                      Edit
+                    </Button>
+                    <hr className="my-1 border-border/40" />
+                    <DeleteExpenseButton vehicleId={vehicleId} expenseId={e.id} />
+                  </RecordActions>
+                </td>
               ) : null}
-            </RecordActions>
-          </li>
-        ))}
-      </ul>
+            </tr>
+          ))}
+        </tbody>
+      </table>
       {hasNextPage ? (
         <div className="pt-3">
           <Button

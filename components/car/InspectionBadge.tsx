@@ -16,11 +16,15 @@ export default function InspectionBadge(props: {
   });
 
   const label = (() => {
-    if (!dueDate) return 'Inspection: —';
-    if (daysRemaining === null) return `Inspection: ${formatDateFi(dueDate)}`;
-    if (daysRemaining < 0) return `Inspection: Overdue • ${Math.abs(daysRemaining)}d`;
-    if (daysRemaining <= 30) return `Inspection: Due in ${daysRemaining}d`;
-    return `Inspection: ${formatDateFi(dueDate)}`;
+    if (!dueDate) return 'Inspection: Not scheduled';
+    if (daysRemaining === 0) return 'Inspection: Due today';
+    if (daysRemaining !== null) {
+      const days = Math.abs(daysRemaining);
+      const duration = `${days} ${days === 1 ? 'day' : 'days'}`;
+      if (state === 'overdue') return `Inspection: Overdue by ${duration}`;
+      if (state === 'dueSoon') return `Inspection: Due in ${duration}`;
+    }
+    return `Inspection due ${formatDateFi(dueDate)}`;
   })();
 
   const color =
