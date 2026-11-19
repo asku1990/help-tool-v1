@@ -292,8 +292,27 @@ export default function VehiclePage() {
                   >
                     {vehicle.name}
                   </button>
+                ) : vehicleQuery.isError ? (
+                  <div
+                    role="alert"
+                    className="flex flex-wrap items-center gap-2 text-sm text-red-600"
+                  >
+                    Could not load vehicle details.
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="min-h-11"
+                      disabled={vehicleQuery.isFetching}
+                      onClick={() => vehicleQuery.refetch()}
+                    >
+                      Retry
+                    </Button>
+                  </div>
                 ) : (
-                  <div className="truncate text-lg font-semibold">{`Vehicle ${vehicleId}`}</div>
+                  <div role="status" className="text-sm text-gray-500">
+                    Loading vehicle details…
+                  </div>
                 )}
                 <div className="mt-1 flex items-center gap-3">
                   <LicensePlate value={licensePlate} />

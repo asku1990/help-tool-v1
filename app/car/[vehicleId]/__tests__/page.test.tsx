@@ -8,8 +8,24 @@ import { computeVehicleSummary } from '@/lib/consumption';
 
 beforeEach(() => {
   server.use(
+    http.get('/api/vehicles', () =>
+      HttpResponse.json({ data: { vehicles: [{ id: 'v1', name: 'Car A' }] } })
+    ),
+    http.get('/api/vehicles/:vehicleId', () =>
+      HttpResponse.json({ data: { vehicle: { id: 'v1', name: 'Car A', canEdit: false } } })
+    ),
     http.get('/api/vehicles/:vehicleId/summary', () =>
       HttpResponse.json({ data: computeVehicleSummary([], []) })
+    ),
+    http.get('/api/vehicles/:vehicleId/fillups', () =>
+      HttpResponse.json({ data: { fillUps: [], nextCursor: null } })
+    ),
+    http.get('/api/vehicles/:vehicleId/expenses', () =>
+      HttpResponse.json({ data: { expenses: [], expensesTotal: 0, nextCursor: null } })
+    ),
+    http.get('/api/vehicles/:vehicleId/tires', () => HttpResponse.json({ data: { tireSets: [] } })),
+    http.get('/api/vehicles/:vehicleId/tires/change-log', () =>
+      HttpResponse.json({ data: { history: [] } })
     )
   );
 });
@@ -32,20 +48,6 @@ function renderWithProviders(ui: React.ReactElement) {
 }
 
 it('renders vehicle header and lists', async () => {
-  server.use(
-    http.get('/api/vehicles', () =>
-      HttpResponse.json({ data: { vehicles: [{ id: 'v1', name: 'Car A' }] } })
-    ),
-    http.get('/api/vehicles/:vehicleId', () =>
-      HttpResponse.json({ data: { vehicle: { id: 'v1', name: 'Car A', canEdit: false } } })
-    ),
-    http.get('/api/vehicles/:vehicleId/fillups', () =>
-      HttpResponse.json({ data: { fillUps: [], nextCursor: null } })
-    ),
-    http.get('/api/vehicles/:vehicleId/expenses', () =>
-      HttpResponse.json({ data: { expenses: [], expensesTotal: 0, nextCursor: null } })
-    )
-  );
   renderWithProviders(<VehiclePage />);
   await waitFor(() => expect(screen.getAllByText(/Car A/).length).toBeGreaterThan(0));
   expect(screen.getByRole('heading', { name: /Fill-ups/i })).toBeInTheDocument();
@@ -55,11 +57,7 @@ it('renders vehicle header and lists', async () => {
 
 it('shows a retryable error rather than zero-valued summaries when the summary request fails', async () => {
   server.use(
-    http.get('/api/vehicles/:vehicleId/summary', () => HttpResponse.json({}, { status: 500 })),
-    http.get('/api/vehicles', () => HttpResponse.json({ data: { vehicles: [] } })),
-    http.get('/api/vehicles/:vehicleId/fillups', () =>
-      HttpResponse.json({ data: { fillUps: [], nextCursor: null } })
-    )
+    http.get('/api/vehicles/:vehicleId/summary', () => HttpResponse.json({}, { status: 500 }))
   );
   renderWithProviders(<VehiclePage />);
   expect(await screen.findByRole('alert')).toHaveTextContent('Could not load vehicle summary.');
@@ -67,19 +65,25 @@ it('shows a retryable error rather than zero-valued summaries when the summary r
   expect(screen.getAllByRole('button', { name: /retry/i }).length).toBeGreaterThan(0);
 });
 
+it('offers Retry when vehicle details fail and restores the actions after recovery', async () => {
+  server.use(
+    http.get('/api/vehicles/:vehicleId', () => HttpResponse.json({}, { status: 500 }), {
+      once: true,
+    })
+  );
+  renderWithProviders(<VehiclePage />);
+  const alert = await screen.findByRole('alert');
+  expect(alert).toHaveTextContent('Could not load vehicle details.');
+  expect(screen.queryByRole('button', { name: 'Vehicle actions' })).not.toBeInTheDocument();
+  fireEvent.click(within(alert).getByRole('button', { name: 'Retry' }));
+  expect(await screen.findByRole('button', { name: 'Vehicle actions' })).toBeInTheDocument();
+  expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+});
+
 it('opens the edit vehicle dialog from the actions menu for an owner', async () => {
   server.use(
-    http.get('/api/vehicles', () =>
-      HttpResponse.json({ data: { vehicles: [{ id: 'v1', name: 'Car A' }] } })
-    ),
     http.get('/api/vehicles/:vehicleId', () =>
       HttpResponse.json({ data: { vehicle: { id: 'v1', name: 'Car A', canEdit: true } } })
-    ),
-    http.get('/api/vehicles/:vehicleId/fillups', () =>
-      HttpResponse.json({ data: { fillUps: [], nextCursor: null } })
-    ),
-    http.get('/api/vehicles/:vehicleId/expenses', () =>
-      HttpResponse.json({ data: { expenses: [], expensesTotal: 0, nextCursor: null } })
     )
   );
 
@@ -98,7 +102,15 @@ it('opens read-only vehicle details for a non-owner and restores menu focus', as
     http.get('/api/vehicles/:vehicleId', () =>
       HttpResponse.json({
         data: {
-          vehicle: { id: 'v1', name: 'Car A', make: 'Volvo', initialOdometer: 0, canEdit: false },
+          vehicle: {
+            id: 'v1',
+            name: 'Car A',
+            make: 'Volvo',
+            initialOdometer: 0,
+            inspectionDueDate: '2027-12-04T00:00:00.000Z',
+            inspectionIntervalMonths: 12,
+            canEdit: false,
+          },
         },
       })
     )
@@ -111,6 +123,8 @@ it('opens read-only vehicle details for a non-owner and restores menu focus', as
   const dialog = await screen.findByRole('dialog', { name: 'Vehicle details' });
   expect(dialog).toHaveTextContent('Volvo');
   expect(dialog).toHaveTextContent('0 km');
+  expect(dialog).toHaveTextContent('04.12.2027');
+  expect(dialog).toHaveTextContent('12 months');
   expect(dialog).toHaveTextContent('—');
   expect(within(dialog).queryByRole('button', { name: /save/i })).not.toBeInTheDocument();
   expect(menu).toHaveAttribute('aria-expanded', 'false');
