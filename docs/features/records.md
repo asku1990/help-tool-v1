@@ -1,5 +1,15 @@
 # Viewing Saved Records
 
+On the vehicle card, select the vehicle name or choose **⋯ → Details** to see its saved basic information
+without opening the edit form. The read-only dialog shows the saved inspection due date
+and interval, not an estimate based on maintenance entries. Missing values display as
+`—`; a saved initial odometer of zero displays as `0 km`.
+Anyone with vehicle read access can open Details. Only owners see **Edit** in the
+vehicle menu. Closing either dialog returns focus to the control that opened it.
+Vehicle, fill-up, and expense Details share the same field layout and Close controls.
+
+## Fill-ups and Expenses
+
 Select the date and summary area of an expense or fill-up to open **Details**. It is a
 keyboard-accessible button with a pointer cursor and hover highlighting, not an invisible
 click handler on the whole row. Details opens a read-only dialog with the saved record
