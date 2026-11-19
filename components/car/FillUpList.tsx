@@ -361,7 +361,7 @@ function FillUpEditor({
         </fieldset>
         {invalidOdometer ? (
           <p id={`${formId}-odometer-error`} className="text-sm text-red-600">
-            Enter a whole number for the odometer.
+            Enter a whole number from −2,147,483,648 to 2,147,483,647.
           </p>
         ) : null}
         <p className="text-sm text-gray-500">

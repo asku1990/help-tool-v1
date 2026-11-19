@@ -30,6 +30,22 @@ describe('api/vehicles/[vehicleId]/expenses/[expenseId] route (unit)', () => {
     vi.clearAllMocks();
   });
 
+  it.each([-2147483649, 2147483648])(
+    'PATCH rejects out-of-range odometer %s before starting a transaction',
+    async odometerKm => {
+      const prisma = (await import('@/lib/db')).default as unknown as PrismaMock;
+      const req = new NextRequest('http://localhost/x', {
+        method: 'PATCH',
+        body: JSON.stringify({ odometerKm }),
+      });
+      const res = await PATCH(req, { params: Promise.resolve({ vehicleId: 'v', expenseId: 'e' }) });
+      expect(res.status).toBe(400);
+      expect((await res.json()).error.code).toBe('VALIDATION_ERROR');
+      expect(prisma.$transaction).not.toHaveBeenCalled();
+      expect(prisma.expense.update).not.toHaveBeenCalled();
+    }
+  );
+
   it('PATCH rate limits edits across records on the same vehicle before starting a transaction', async () => {
     const prisma = (await import('@/lib/db')).default as unknown as PrismaMock;
     for (const expenseId of ['e1', 'e2']) {

@@ -30,6 +30,21 @@ describe('api/vehicles/[vehicleId]/fillups/[fillUpId] route (unit)', () => {
     vi.clearAllMocks();
   });
 
+  it.each([-2147483649, 2147483648])(
+    'PATCH rejects out-of-range odometer %s without writing',
+    async odometerKm => {
+      const prisma = (await import('@/lib/db')).default as unknown as PrismaMock;
+      const req = new NextRequest('http://localhost/x', {
+        method: 'PATCH',
+        body: JSON.stringify({ odometerKm }),
+      });
+      const res = await PATCH(req, { params: Promise.resolve({ vehicleId: 'v', fillUpId: 'f' }) });
+      expect(res.status).toBe(400);
+      expect((await res.json()).error.code).toBe('VALIDATION_ERROR');
+      expect(prisma.fuelFillUp.update).not.toHaveBeenCalled();
+    }
+  );
+
   it('PATCH returns 429 before starting a transaction when the vehicle edit quota is exhausted', async () => {
     const prisma = (await import('@/lib/db')).default as unknown as PrismaMock;
     prisma.vehicle.findFirst.mockResolvedValueOnce({ id: 'v' });

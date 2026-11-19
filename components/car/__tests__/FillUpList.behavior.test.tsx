@@ -199,6 +199,10 @@ describe('FillUpList behavior', () => {
     fireEvent.change(screen.getByLabelText('Odometer km'), { target: { value: '1e3' } });
     expect(screen.getByRole('button', { name: 'Save changes' })).toBeDisabled();
     fireEvent.change(screen.getByLabelText('Liters'), { target: { value: '8' } });
+    fireEvent.change(screen.getByLabelText('Odometer km'), { target: { value: '2147483647' } });
+    expect(screen.getByRole('button', { name: 'Save changes' })).toBeEnabled();
+    fireEvent.change(screen.getByLabelText('Odometer km'), { target: { value: '2147483648' } });
+    expect(screen.getByRole('button', { name: 'Save changes' })).toBeDisabled();
     fireEvent.change(screen.getByLabelText('Odometer km'), { target: { value: '1000.5' } });
     expect(screen.getByRole('button', { name: 'Save changes' })).toBeDisabled();
     fireEvent.change(screen.getByLabelText('Odometer km'), { target: { value: '1e3' } });

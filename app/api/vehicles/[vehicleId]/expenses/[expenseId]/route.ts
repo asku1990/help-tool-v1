@@ -29,7 +29,7 @@ const UpdateSchema = z.object({
     .optional(),
   amount: z.number().optional(),
   vendor: z.string().nullable().optional(),
-  odometerKm: z.number().int().nullable().optional(),
+  odometerKm: z.int32().nullable().optional(),
   liters: z.number().nullable().optional(),
   notes: z.string().nullable().optional(),
 });

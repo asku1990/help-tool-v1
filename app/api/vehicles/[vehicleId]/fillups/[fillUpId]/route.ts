@@ -9,7 +9,7 @@ import { checkRateLimit, rateLimitHeaders, recordEditRateLimitKey } from '@/lib/
 
 const UpdateSchema = z.object({
   date: z.string().min(1, 'Date cannot be empty').optional(),
-  odometerKm: z.number().int().optional(),
+  odometerKm: z.int32().optional(),
   liters: z.number().optional(),
   pricePerLiter: z.number().optional(),
   isFull: z.boolean().optional(),
