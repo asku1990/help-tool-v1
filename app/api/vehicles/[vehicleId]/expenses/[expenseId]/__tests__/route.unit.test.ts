@@ -30,6 +30,23 @@ describe('api/vehicles/[vehicleId]/expenses/[expenseId] route (unit)', () => {
     vi.clearAllMocks();
   });
 
+  it('PATCH clears optional text fields without requiring the category or amount', async () => {
+    const prisma = (await import('@/lib/db')).default as unknown as PrismaMock;
+    prisma.vehicle.findFirst.mockResolvedValueOnce({ id: 'v' });
+    prisma.expense.update.mockResolvedValueOnce({ id: 'e' });
+    const req = new NextRequest('http://localhost/x', {
+      method: 'PATCH',
+      body: JSON.stringify({ vendor: null, notes: null }),
+    });
+    const res = await PATCH(req, { params: Promise.resolve({ vehicleId: 'v', expenseId: 'e' }) });
+    expect(res.status).toBe(200);
+    expect(prisma.expense.update).toHaveBeenCalledExactlyOnceWith({
+      where: { id: 'e', vehicleId: 'v' },
+      data: expect.objectContaining({ vendor: null, notes: null }),
+      select: { id: true },
+    });
+  });
+
   it.each([-2147483649, 2147483648])(
     'PATCH rejects out-of-range odometer %s before starting a transaction',
     async odometerKm => {

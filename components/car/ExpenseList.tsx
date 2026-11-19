@@ -11,8 +11,8 @@ import { toast } from 'sonner';
 import { getUiErrorMessage } from '@/lib/api/client-errors';
 import RecordAttachments from './attachments/RecordAttachments';
 import { RecordActions, RecordDetailsButton } from './records';
-import { parseRecordDecimal } from './records/parseRecordDecimal';
-import { parseRecordOdometer } from './records/parseRecordOdometer';
+import { expenseCategories, isValidExpenseCategory } from '@/utils/expenses';
+import { getExpenseDraftChanges, toExpenseDraft } from './expenses/expenseDraft';
 import RecordEditDialog from './records/RecordEditDialog';
 
 export default function ExpenseList({ vehicleId }: { vehicleId: string }) {
@@ -182,31 +182,8 @@ function ExpenseEditor({
   const formId = useId();
   const saved = useRef(false);
   const [uploading, setUploading] = useState(false);
-  const openingState = {
-    date: item.date.slice(0, 10),
-    category: item.category,
-    amount: String(item.amount),
-    vendor: item.vendor || '',
-    odometerKm: item.odometerKm != null ? String(item.odometerKm) : '',
-    liters: item.liters != null ? String(item.liters) : '',
-    notes: item.notes || '',
-  };
-  const [state, setState] = useState(openingState);
-  const changed = (field: keyof typeof state) => state[field] !== openingState[field];
-  const amount = parseRecordDecimal(state.amount);
-  const odometerKm = parseRecordOdometer(state.odometerKm);
-  const invalidOdometer = odometerKm === undefined;
-  const liters = state.liters ? parseRecordDecimal(state.liters) : null;
-  const patch = {
-    date: changed('date') ? state.date : undefined,
-    category: changed('category') ? state.category : undefined,
-    amount: amount !== item.amount ? amount : undefined,
-    vendor: changed('vendor') ? state.vendor || null : undefined,
-    odometerKm: odometerKm !== (item.odometerKm ?? null) ? odometerKm : undefined,
-    liters: liters !== (item.liters ?? null) ? liters : undefined,
-    notes: changed('notes') ? state.notes || null : undefined,
-  };
-  const hasChanges = invalidOdometer || Object.values(patch).some(value => value !== undefined);
+  const [state, setState] = useState(() => toExpenseDraft(item));
+  const { patch, invalidOdometer, hasChanges } = getExpenseDraftChanges(item, state);
   const update = useUpdateExpense(vehicleId, item.id);
   return (
     <RecordEditDialog
@@ -252,23 +229,12 @@ function ExpenseEditor({
             <select
               className="border rounded-md px-3 py-2"
               value={state.category}
-              onChange={e =>
-                setState(s => ({ ...s, category: e.target.value as ExpenseDto['category'] }))
-              }
+              onChange={e => {
+                const category = e.target.value;
+                if (isValidExpenseCategory(category)) setState(s => ({ ...s, category }));
+              }}
             >
-              {[
-                'FUEL',
-                'MAINTENANCE',
-                'INSURANCE',
-                'TAX',
-                'PARKING',
-                'TOLL',
-                'OIL_CHANGE',
-                'OIL_TOP_UP',
-                'INSPECTION',
-                'TIRES',
-                'OTHER',
-              ].map(c => (
+              {expenseCategories.map(c => (
                 <option key={c} value={c}>
                   {c}
                 </option>

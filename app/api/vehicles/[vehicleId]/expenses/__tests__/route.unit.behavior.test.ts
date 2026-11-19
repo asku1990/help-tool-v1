@@ -44,7 +44,19 @@ describe('expenses route basic behavior', () => {
     expect(json.data.expensesTotal).toBe(1);
   });
 
-  it('POST validates and creates', async () => {
+  it('POST requires an expense category and amount', async () => {
+    const req = new NextRequest('http://localhost/api/vehicles/v/expenses', {
+      method: 'POST',
+      body: JSON.stringify({ date: '2024-01-01' }),
+    });
+    const res = await POST(req, { params: Promise.resolve({ vehicleId: 'v' }) });
+    expect(res.status).toBe(400);
+    expect((await res.json()).error.details.fieldErrors).toEqual(
+      expect.objectContaining({ category: expect.any(Array), amount: expect.any(Array) })
+    );
+  });
+
+  it('POST creates an expense without trusting a supplied oil-consumption figure', async () => {
     const prisma = (await import('@/lib/db')).default as unknown as {
       vehicle: { findFirst: Mock };
       expense: { create: Mock };
@@ -53,10 +65,18 @@ describe('expenses route basic behavior', () => {
     prisma.expense.create.mockResolvedValueOnce({ id: 'new' });
     const base = new Request('http://localhost/api/vehicles/v/expenses', {
       method: 'POST',
-      body: JSON.stringify({ date: '2024-01-01', category: 'MAINTENANCE', amount: 3.5 }),
+      body: JSON.stringify({
+        date: '2024-01-01',
+        category: 'MAINTENANCE',
+        amount: 3.5,
+        oilConsumption: 99,
+      }),
     });
     const req = new NextRequest(base);
     const res = await POST(req, { params: Promise.resolve({ vehicleId: 'v' }) });
     expect(res.status).toBe(201);
+    expect(prisma.expense.create).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ oilConsumption: undefined }) })
+    );
   });
 });

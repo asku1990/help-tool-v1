@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server';
 import { auth } from '@/auth';
 import prisma from '@/lib/db';
-import { z } from 'zod';
+import { updateExpenseSchema } from '@/lib/expenses';
 import type { Expense, Prisma } from '@/generated/prisma';
 import { ok, unauthorized, notFound, badRequest, serverError } from '@/lib/api/response';
 import { logger } from '@/lib/logger';
@@ -9,30 +9,6 @@ import { decimalToNumber } from '@/lib/prisma/decimal';
 import { calculateOilConsumption } from '@/lib/oil-consumption';
 import { checkRateLimit, rateLimitHeaders, recordEditRateLimitKey } from '@/lib/api/rate-limit';
 import { getSessionUserId, getVehicleAccess, hasPermission } from '@/lib/api/vehicle-access';
-
-const UpdateSchema = z.object({
-  date: z.string().min(1, 'Date cannot be empty').optional(),
-  category: z
-    .enum([
-      'FUEL',
-      'MAINTENANCE',
-      'INSURANCE',
-      'TAX',
-      'PARKING',
-      'TOLL',
-      'OIL_CHANGE',
-      'OIL_TOP_UP',
-      'INSPECTION',
-      'TIRES',
-      'OTHER',
-    ])
-    .optional(),
-  amount: z.number().optional(),
-  vendor: z.string().nullable().optional(),
-  odometerKm: z.int32().nullable().optional(),
-  liters: z.number().nullable().optional(),
-  notes: z.string().nullable().optional(),
-});
 
 export async function PATCH(
   req: NextRequest,
@@ -43,7 +19,7 @@ export async function PATCH(
     const userId = await getSessionUserId(session);
     if (!userId) return unauthorized();
     const { vehicleId, expenseId } = await context.params;
-    const parsed = UpdateSchema.safeParse(await req.json());
+    const parsed = updateExpenseSchema.safeParse(await req.json());
     if (!parsed.success)
       return badRequest('VALIDATION_ERROR', 'Invalid request body', parsed.error.flatten());
 
