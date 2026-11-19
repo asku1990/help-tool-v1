@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { ok, unauthorized, notFound, badRequest, serverError } from '@/lib/api/response';
 import { logger } from '@/lib/logger';
 import { getSessionUserId, canAccessVehicle } from '@/lib/api/vehicle-access';
+import { checkRateLimit, rateLimitHeaders, recordEditRateLimitKey } from '@/lib/api/rate-limit';
 
 const UpdateSchema = z.object({
   date: z.string().min(1, 'Date cannot be empty').optional(),
@@ -30,6 +31,14 @@ export async function PATCH(
 
     const canWrite = await canAccessVehicle(vehicleId, userId, 'write');
     if (!canWrite) return notFound();
+
+    const rateLimit = checkRateLimit(recordEditRateLimitKey(userId, vehicleId));
+    if (!rateLimit.allowed) {
+      return serverError('Rate limit exceeded', undefined, {
+        status: 429,
+        headers: rateLimitHeaders(rateLimit.retryAfterMs),
+      });
+    }
 
     const { date, ...fields } = parsed.data;
     const where = { id: fillUpId, vehicleId };

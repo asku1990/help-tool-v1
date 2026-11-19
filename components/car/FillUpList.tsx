@@ -12,6 +12,7 @@ import { getUiErrorMessage } from '@/lib/api/client-errors';
 import RecordAttachments from './attachments/RecordAttachments';
 import { RecordActions, RecordDetailsButton } from './records';
 import { parseRecordDecimal } from './records/parseRecordDecimal';
+import { parseRecordOdometer } from './records/parseRecordOdometer';
 import RecordEditDialog from './records/RecordEditDialog';
 
 export default function FillUpList({ vehicleId }: { vehicleId: string }) {
@@ -246,7 +247,8 @@ function FillUpEditor({
   };
   const [state, setState] = useState(openingState);
   const changed = (field: keyof typeof state) => state[field] !== openingState[field];
-  const odometerKm = parseInt(state.odometerKm, 10);
+  const odometerKm = parseRecordOdometer(state.odometerKm) ?? undefined;
+  const invalidOdometer = odometerKm === undefined;
   const liters = parseRecordDecimal(state.liters);
   const pricePerLiter = parseRecordDecimal(state.pricePerLiter);
   const patch = {
@@ -257,7 +259,7 @@ function FillUpEditor({
     isFull: changed('isFull') ? state.isFull : undefined,
     notes: changed('notes') ? state.notes || null : undefined,
   };
-  const hasChanges = Object.values(patch).some(value => value !== undefined);
+  const hasChanges = invalidOdometer || Object.values(patch).some(value => value !== undefined);
   const update = useUpdateFillUp(vehicleId, item.id);
   const total = liters * pricePerLiter;
   return (
@@ -268,6 +270,7 @@ function FillUpEditor({
       restoreFocus={() => restoreFocus(saved.current)}
       formId={formId}
       hasChanges={hasChanges}
+      invalid={invalidOdometer}
       saving={update.isPending}
       attachmentBusy={uploading}
     >
@@ -276,7 +279,7 @@ function FillUpEditor({
         className="space-y-4"
         onSubmit={async e => {
           e.preventDefault();
-          if (uploading || update.isPending || !hasChanges) return;
+          if (uploading || update.isPending || !hasChanges || invalidOdometer) return;
           try {
             await update.mutateAsync(patch);
             saved.current = true;
@@ -301,8 +304,9 @@ function FillUpEditor({
           <label className="flex flex-col gap-1">
             <span className="text-sm">Odometer km</span>
             <input
-              type="number"
               inputMode="numeric"
+              aria-invalid={invalidOdometer}
+              aria-describedby={invalidOdometer ? `${formId}-odometer-error` : undefined}
               className="border rounded-md px-3 py-2"
               value={state.odometerKm}
               onChange={e => setState(s => ({ ...s, odometerKm: e.target.value }))}
@@ -355,6 +359,11 @@ function FillUpEditor({
             />
           </label>
         </fieldset>
+        {invalidOdometer ? (
+          <p id={`${formId}-odometer-error`} className="text-sm text-red-600">
+            Enter a whole number for the odometer.
+          </p>
+        ) : null}
         <p className="text-sm text-gray-500">
           Total: {Number.isFinite(total) ? total.toFixed(2) : '0.00'}
         </p>

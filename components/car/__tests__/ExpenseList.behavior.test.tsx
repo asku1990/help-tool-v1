@@ -294,9 +294,12 @@ describe('ExpenseList behavior', () => {
 
     openEdit();
     fireEvent.change(screen.getByLabelText('Amount'), { target: { value: '10.00' } });
+    fireEvent.change(screen.getByLabelText('Odometer km'), { target: { value: '1e3' } });
+    expect(screen.getByRole('button', { name: 'Save changes' })).toBeDisabled();
+    fireEvent.change(screen.getByLabelText('Notes'), { target: { value: 'Second unsaved edit' } });
+    fireEvent.change(screen.getByLabelText('Odometer km'), { target: { value: '1000abc' } });
     expect(screen.getByRole('button', { name: 'Save changes' })).toBeDisabled();
     fireEvent.change(screen.getByLabelText('Odometer km'), { target: { value: '' } });
-    fireEvent.change(screen.getByLabelText('Notes'), { target: { value: 'Second unsaved edit' } });
     expense.date = '2026-11-15'; // A concurrent edit moved this record behind the loaded page.
     expense.amount = 20;
     loadedExpenses = otherExpenses;

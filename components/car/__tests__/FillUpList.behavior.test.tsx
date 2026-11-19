@@ -196,8 +196,12 @@ describe('FillUpList behavior', () => {
     fireEvent.click(await screen.findByRole('button', { name: /actions for/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
     fireEvent.change(screen.getByLabelText('Price per liter'), { target: { value: '1.5' } });
+    fireEvent.change(screen.getByLabelText('Odometer km'), { target: { value: '1e3' } });
     expect(screen.getByRole('button', { name: 'Save changes' })).toBeDisabled();
     fireEvent.change(screen.getByLabelText('Liters'), { target: { value: '8' } });
+    fireEvent.change(screen.getByLabelText('Odometer km'), { target: { value: '1000.5' } });
+    expect(screen.getByRole('button', { name: 'Save changes' })).toBeDisabled();
+    fireEvent.change(screen.getByLabelText('Odometer km'), { target: { value: '1e3' } });
     fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
     try {
       await waitFor(() => expect(refresh).toHaveBeenCalled());

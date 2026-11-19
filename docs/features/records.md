@@ -48,7 +48,8 @@ single column on phones and a centered dialog on wider screens.
 
 **Cancel** and **Save changes** are below the attachment section. Save changes applies only
 to changed record values. Changing only a number's formatting (for example, `10` to `10.00`)
-does not enable Save or include that field when saving other changes. The server recalculates
+does not enable Save or include that field when saving other changes. The odometer must be a
+whole number; only expenses allow it to be blank. The server recalculates
 the fill-up total when liters or price changes. The edited expense's oil-consumption figure is
 updated in the same transaction when the date, category, odometer, or liters are edited.
 Changes to other fields leave that figure untouched. Expense creation and editing use the same

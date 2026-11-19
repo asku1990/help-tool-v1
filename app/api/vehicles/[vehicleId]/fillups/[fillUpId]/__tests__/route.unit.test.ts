@@ -2,6 +2,7 @@
 import { beforeEach, describe, it, expect, vi, type Mock } from 'vitest';
 import { NextRequest } from 'next/server';
 import { Prisma } from '@/generated/prisma';
+import { checkRateLimit } from '@/lib/api/rate-limit';
 import { PATCH, DELETE } from '../route';
 
 vi.mock('@/lib/db', () => {
@@ -13,6 +14,10 @@ vi.mock('@/lib/db', () => {
   return { default: mock };
 });
 vi.mock('@/auth', () => ({ auth: vi.fn(async () => ({ user: { email: 'u@e' } })) }));
+vi.mock('@/lib/api/rate-limit', async importOriginal => ({
+  ...(await importOriginal<typeof import('@/lib/api/rate-limit')>()),
+  checkRateLimit: vi.fn(() => ({ allowed: true })),
+}));
 
 type PrismaMock = {
   vehicle: { findFirst: Mock };
@@ -23,6 +28,22 @@ type PrismaMock = {
 describe('api/vehicles/[vehicleId]/fillups/[fillUpId] route (unit)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  it('PATCH returns 429 before starting a transaction when the vehicle edit quota is exhausted', async () => {
+    const prisma = (await import('@/lib/db')).default as unknown as PrismaMock;
+    prisma.vehicle.findFirst.mockResolvedValueOnce({ id: 'v' });
+    vi.mocked(checkRateLimit).mockReturnValueOnce({ allowed: false, retryAfterMs: 1500 });
+    const req = new NextRequest('http://localhost/api/vehicles/v/fillups/f', {
+      method: 'PATCH',
+      body: JSON.stringify({ liters: 2 }),
+    });
+    const res = await PATCH(req, { params: Promise.resolve({ vehicleId: 'v', fillUpId: 'f' }) });
+    expect(res.status).toBe(429);
+    expect(res.headers.get('Retry-After')).toBe('2');
+    expect(checkRateLimit).toHaveBeenCalledExactlyOnceWith('record-edit:u@e:v');
+    expect(prisma.$transaction).not.toHaveBeenCalled();
+    expect(prisma.fuelFillUp.update).not.toHaveBeenCalled();
   });
 
   it('PATCH returns 404 when not owner', async () => {

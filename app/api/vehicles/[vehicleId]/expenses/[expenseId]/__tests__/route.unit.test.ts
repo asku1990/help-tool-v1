@@ -1,6 +1,7 @@
 // @vitest-environment node
 import { describe, it, expect, vi, type Mock, beforeEach } from 'vitest';
 import { NextRequest } from 'next/server';
+import { checkRateLimit } from '@/lib/api/rate-limit';
 import { PATCH, DELETE } from '../route';
 
 vi.mock('@/lib/db', () => {
@@ -13,15 +14,40 @@ vi.mock('@/lib/db', () => {
   return { default: mock };
 });
 vi.mock('@/auth', () => ({ auth: vi.fn(async () => ({ user: { email: 'u@e' } })) }));
+vi.mock('@/lib/api/rate-limit', async importOriginal => ({
+  ...(await importOriginal<typeof import('@/lib/api/rate-limit')>()),
+  checkRateLimit: vi.fn(() => ({ allowed: true })),
+}));
 
 type PrismaMock = {
   vehicle: { findFirst: Mock };
   expense: { findFirst: Mock; findMany: Mock; update: Mock; deleteMany: Mock };
+  $transaction: Mock;
 };
 
 describe('api/vehicles/[vehicleId]/expenses/[expenseId] route (unit)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  it('PATCH rate limits edits across records on the same vehicle before starting a transaction', async () => {
+    const prisma = (await import('@/lib/db')).default as unknown as PrismaMock;
+    for (const expenseId of ['e1', 'e2']) {
+      prisma.vehicle.findFirst.mockResolvedValueOnce({ id: 'v' });
+      vi.mocked(checkRateLimit).mockReturnValueOnce({ allowed: false, retryAfterMs: 1500 });
+      const req = new NextRequest(`http://localhost/api/vehicles/v/expenses/${expenseId}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ liters: 2 }),
+      });
+      const res = await PATCH(req, { params: Promise.resolve({ vehicleId: 'v', expenseId }) });
+      expect(res.status).toBe(429);
+      expect(res.headers.get('Retry-After')).toBe('2');
+    }
+    expect(checkRateLimit).toHaveBeenCalledTimes(2);
+    expect(checkRateLimit).toHaveBeenNthCalledWith(1, 'record-edit:u@e:v');
+    expect(checkRateLimit).toHaveBeenNthCalledWith(2, 'record-edit:u@e:v');
+    expect(prisma.$transaction).not.toHaveBeenCalled();
+    expect(prisma.expense.update).not.toHaveBeenCalled();
   });
 
   it('PATCH returns 404 when not owner', async () => {

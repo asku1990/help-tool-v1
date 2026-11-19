@@ -12,6 +12,7 @@ import { getUiErrorMessage } from '@/lib/api/client-errors';
 import RecordAttachments from './attachments/RecordAttachments';
 import { RecordActions, RecordDetailsButton } from './records';
 import { parseRecordDecimal } from './records/parseRecordDecimal';
+import { parseRecordOdometer } from './records/parseRecordOdometer';
 import RecordEditDialog from './records/RecordEditDialog';
 
 export default function ExpenseList({ vehicleId }: { vehicleId: string }) {
@@ -193,7 +194,8 @@ function ExpenseEditor({
   const [state, setState] = useState(openingState);
   const changed = (field: keyof typeof state) => state[field] !== openingState[field];
   const amount = parseRecordDecimal(state.amount);
-  const odometerKm = state.odometerKm ? parseInt(state.odometerKm, 10) : null;
+  const odometerKm = parseRecordOdometer(state.odometerKm);
+  const invalidOdometer = odometerKm === undefined;
   const liters = state.liters ? parseRecordDecimal(state.liters) : null;
   const patch = {
     date: changed('date') ? state.date : undefined,
@@ -204,7 +206,7 @@ function ExpenseEditor({
     liters: liters !== (item.liters ?? null) ? liters : undefined,
     notes: changed('notes') ? state.notes || null : undefined,
   };
-  const hasChanges = Object.values(patch).some(value => value !== undefined);
+  const hasChanges = invalidOdometer || Object.values(patch).some(value => value !== undefined);
   const update = useUpdateExpense(vehicleId, item.id);
   return (
     <RecordEditDialog
@@ -214,6 +216,7 @@ function ExpenseEditor({
       restoreFocus={() => restoreFocus(saved.current)}
       formId={formId}
       hasChanges={hasChanges}
+      invalid={invalidOdometer}
       saving={update.isPending}
       attachmentBusy={uploading}
     >
@@ -222,7 +225,7 @@ function ExpenseEditor({
         className="space-y-4"
         onSubmit={async e => {
           e.preventDefault();
-          if (uploading || update.isPending || !hasChanges) return;
+          if (uploading || update.isPending || !hasChanges || invalidOdometer) return;
           try {
             await update.mutateAsync(patch);
             saved.current = true;
@@ -295,8 +298,9 @@ function ExpenseEditor({
           <label className="flex flex-col gap-1">
             <span className="text-sm">Odometer km</span>
             <input
-              type="number"
               inputMode="numeric"
+              aria-invalid={invalidOdometer}
+              aria-describedby={invalidOdometer ? `${formId}-odometer-error` : undefined}
               className="border rounded-md px-3 py-2"
               value={state.odometerKm}
               onChange={e => setState(s => ({ ...s, odometerKm: e.target.value }))}
@@ -323,6 +327,11 @@ function ExpenseEditor({
             />
           </label>
         </fieldset>
+        {invalidOdometer ? (
+          <p id={`${formId}-odometer-error`} className="text-sm text-red-600">
+            Enter a whole number for the odometer, or leave it blank.
+          </p>
+        ) : null}
       </form>
       <RecordAttachments
         key={item.id}

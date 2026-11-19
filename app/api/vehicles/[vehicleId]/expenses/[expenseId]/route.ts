@@ -7,6 +7,7 @@ import { ok, unauthorized, notFound, badRequest, serverError } from '@/lib/api/r
 import { logger } from '@/lib/logger';
 import { decimalToNumber } from '@/lib/prisma/decimal';
 import { calculateOilConsumption } from '@/lib/oil-consumption';
+import { checkRateLimit, rateLimitHeaders, recordEditRateLimitKey } from '@/lib/api/rate-limit';
 import { getSessionUserId, getVehicleAccess, hasPermission } from '@/lib/api/vehicle-access';
 
 const UpdateSchema = z.object({
@@ -48,6 +49,13 @@ export async function PATCH(
 
     const access = await getVehicleAccess(vehicleId, userId);
     if (!access || !hasPermission(access.role, 'write')) return notFound();
+    const rateLimit = checkRateLimit(recordEditRateLimitKey(userId, vehicleId));
+    if (!rateLimit.allowed) {
+      return serverError('Rate limit exceeded', undefined, {
+        status: 429,
+        headers: rateLimitHeaders(rateLimit.retryAfterMs),
+      });
+    }
     const { date, ...fields } = parsed.data;
     const where = { id: expenseId, vehicleId: access.vehicle.id };
     const data = { ...fields, date: date ? new Date(date) : undefined };
