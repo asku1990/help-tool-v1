@@ -42,7 +42,7 @@ import { toast } from 'sonner';
 import { getUiErrorMessage } from '@/lib/api/client-errors';
 
 import PageHeader from '@/components/layout/PageHeader';
-import { RecordActions } from '@/components/car/records';
+import { RecordActions, recordActionClass } from '@/components/car/records';
 import VehicleDetailsDialog from './VehicleDetailsDialog';
 
 export default function VehiclePage() {
@@ -187,9 +187,6 @@ export default function VehiclePage() {
     vehicleDialogTrigger.current?.focus();
   }
 
-  const actionClass =
-    'block min-h-11 w-full cursor-pointer rounded px-3 py-2 text-left text-sm hover:bg-gray-100';
-
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
       <PageHeader
@@ -325,21 +322,23 @@ export default function VehiclePage() {
               </div>
               {vehicle ? (
                 <RecordActions label="Vehicle actions" placement="card">
-                  <button
+                  <Button
                     type="button"
-                    className={actionClass}
+                    variant="ghost"
+                    className={recordActionClass}
                     onClick={event => openVehicleDialog(event, () => setDetailsOpen(true))}
                   >
                     Details
-                  </button>
+                  </Button>
                   {vehicle.canEdit ? (
-                    <button
+                    <Button
                       type="button"
-                      className={actionClass}
+                      variant="ghost"
+                      className={recordActionClass}
                       onClick={event => openVehicleDialog(event, () => setEditOpen(true))}
                     >
                       Edit
-                    </button>
+                    </Button>
                   ) : null}
                 </RecordActions>
               ) : null}
@@ -351,13 +350,15 @@ export default function VehiclePage() {
             {summaryQuery.isError ? (
               <div role="alert" className="text-sm text-red-600">
                 Could not load vehicle summary.
-                <button
+                <Button
                   type="button"
                   onClick={() => summaryQuery.refetch()}
-                  className="ml-2 underline"
+                  variant="ghost"
+                  size="sm"
+                  className="ml-2 min-h-11 cursor-pointer"
                 >
                   Retry
-                </button>
+                </Button>
               </div>
             ) : summary ? (
               <>
@@ -556,20 +557,21 @@ export default function VehiclePage() {
               </label>
             </div>
             <div className="flex justify-end gap-2 pt-4">
-              <button
+              <Button
                 type="button"
-                className="text-sm px-3 py-1.5 rounded border"
+                variant="outline"
+                className="min-h-11 cursor-pointer"
                 onClick={() => setEditOpen(false)}
               >
                 Cancel
-              </button>
-              <button
+              </Button>
+              <Button
                 type="submit"
-                className="text-sm px-3 py-1.5 rounded border bg-blue-600 text-white border-blue-600"
+                className="min-h-11 cursor-pointer"
                 disabled={updateVehicleMutation.isPending}
               >
                 {updateVehicleMutation.isPending ? 'Saving…' : 'Save'}
-              </button>
+              </Button>
             </div>
           </form>
         </DialogContent>

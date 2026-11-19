@@ -10,7 +10,12 @@ import { formatDateFi } from '@/utils';
 import { toast } from 'sonner';
 import { getUiErrorMessage } from '@/lib/api/client-errors';
 import RecordAttachments from './attachments/RecordAttachments';
-import { RecordActions, RecordDetailsButton } from './records';
+import {
+  destructiveRecordActionClass,
+  recordActionClass,
+  RecordActions,
+  RecordDetailsButton,
+} from './records';
 import { expenseCategories, isValidExpenseCategory } from '@/utils/expenses';
 import { getExpenseDraftChanges, toExpenseDraft } from './expenses/expenseDraft';
 import RecordEditDialog from './records/RecordEditDialog';
@@ -65,16 +70,18 @@ function VehicleExpenseList({ vehicleId }: { vehicleId: string }) {
     return withEditor(
       <div className="text-sm text-red-600 flex items-center justify-between">
         <span>{String(error)}</span>
-        <button
+        <Button
           type="button"
-          className="text-sm px-3 py-1.5 rounded border"
+          variant="ghost"
+          size="sm"
+          className="min-h-11 cursor-pointer"
           disabled={fetchStatus !== 'idle'}
           onClick={() =>
             isFetchNextPageError ? fetchNextPage({ cancelRefetch: false }) : refetch()
           }
         >
           Retry
-        </button>
+        </Button>
       </div>
     );
   if (!items.length)
@@ -117,9 +124,10 @@ function VehicleExpenseList({ vehicleId }: { vehicleId: string }) {
               <RecordDetailsButton vehicleId={vehicleId} type="expense" item={e} variant="menu" />
               {canWrite ? (
                 <>
-                  <button
+                  <Button
                     type="button"
-                    className="block min-h-11 w-full cursor-pointer rounded px-3 py-2 text-left text-sm hover:bg-gray-100"
+                    variant="ghost"
+                    className={recordActionClass}
                     disabled={fetchStatus !== 'idle'}
                     onClick={event =>
                       setEdit({
@@ -131,7 +139,7 @@ function VehicleExpenseList({ vehicleId }: { vehicleId: string }) {
                     }
                   >
                     Edit
-                  </button>
+                  </Button>
                   <DeleteExpenseButton vehicleId={vehicleId} expenseId={e.id} />
                 </>
               ) : null}
@@ -141,14 +149,16 @@ function VehicleExpenseList({ vehicleId }: { vehicleId: string }) {
       </ul>
       {hasNextPage ? (
         <div className="pt-3">
-          <button
+          <Button
             type="button"
             onClick={() => fetchNextPage({ cancelRefetch: false })}
-            className="text-sm px-3 py-2 rounded border"
+            variant="outline"
+            size="sm"
+            className="min-h-11 cursor-pointer"
             disabled={fetchStatus !== 'idle'}
           >
             {isFetchingNextPage ? 'Loading…' : 'Load more'}
-          </button>
+          </Button>
         </div>
       ) : null}
     </div>
@@ -314,9 +324,10 @@ function ExpenseEditor({
 function DeleteExpenseButton({ vehicleId, expenseId }: { vehicleId: string; expenseId: string }) {
   const del = useDeleteExpense(vehicleId, expenseId);
   return (
-    <button
+    <Button
       type="button"
-      className="block min-h-11 w-full cursor-pointer rounded px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50"
+      variant="ghost"
+      className={destructiveRecordActionClass}
       onClick={async () => {
         if (!confirm('Delete this expense?')) return;
         try {
@@ -329,6 +340,6 @@ function DeleteExpenseButton({ vehicleId, expenseId }: { vehicleId: string; expe
       disabled={del.isPending}
     >
       {del.isPending ? 'Deleting…' : 'Delete'}
-    </button>
+    </Button>
   );
 }

@@ -3,6 +3,10 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { MoreHorizontal } from 'lucide-react';
 
+export const recordActionClass = 'min-h-11 w-full justify-start px-3';
+export const destructiveRecordActionClass =
+  `${recordActionClass} text-destructive hover:bg-destructive/10 hover:text-destructive` as const;
+
 export default function RecordActions({
   label,
   children,

@@ -1,12 +1,13 @@
 'use client';
 
 import { useRef, useState } from 'react';
-import { Dialog, DialogTrigger } from '@/components/ui';
+import { Button, Dialog, DialogTrigger } from '@/components/ui';
 import type { ExpenseDto } from '@/queries/expenses';
 import type { FillUpWithSegmentDto } from '@/queries/fillups';
 import { formatDateFi } from '@/utils';
 import RecordAttachments from '../attachments/RecordAttachments';
 import DetailsDialogContent from './DetailsDialogContent';
+import { recordActionClass } from './RecordActions';
 
 type Props = { vehicleId: string; variant?: 'summary' | 'menu' } & (
   | { type: 'expense'; item: ExpenseDto }
@@ -21,6 +22,7 @@ export default function RecordDetailsButton(props: Props) {
   const [open, setOpen] = useState(false);
   const returnFocus = useRef<HTMLElement | null>(null);
   const menu = props.variant === 'menu';
+  const Trigger = menu ? Button : 'button';
   const title = props.type === 'expense' ? 'Expense details' : 'Fill-up details';
   const date = formatDateFi(new Date(props.item.date));
   const summary =
@@ -72,8 +74,9 @@ export default function RecordDetailsButton(props: Props) {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <button
+        <Trigger
           type="button"
+          {...(menu ? { variant: 'ghost' as const } : {})}
           aria-label={
             menu
               ? 'Details'
@@ -81,7 +84,7 @@ export default function RecordDetailsButton(props: Props) {
           }
           className={
             menu
-              ? 'block min-h-11 w-full cursor-pointer rounded px-3 py-2 text-left text-sm hover:bg-gray-100'
+              ? recordActionClass
               : 'col-start-1 min-w-0 cursor-pointer rounded-md py-1 text-left hover:bg-gray-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 sm:col-span-2'
           }
           onClick={event => {
@@ -100,7 +103,7 @@ export default function RecordDetailsButton(props: Props) {
               <span className="block break-words text-xs text-gray-600">{summary}</span>
             </>
           )}
-        </button>
+        </Trigger>
       </DialogTrigger>
       <DetailsDialogContent
         title={title}
