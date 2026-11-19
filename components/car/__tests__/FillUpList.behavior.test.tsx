@@ -195,6 +195,8 @@ describe('FillUpList behavior', () => {
     const list = (await screen.findByRole('list')).closest('[tabindex="-1"]')!;
     fireEvent.click(await screen.findByRole('button', { name: /actions for/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
+    fireEvent.change(screen.getByLabelText('Price per liter'), { target: { value: '1.5' } });
+    expect(screen.getByRole('button', { name: 'Save changes' })).toBeDisabled();
     fireEvent.change(screen.getByLabelText('Liters'), { target: { value: '8' } });
     fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
     try {

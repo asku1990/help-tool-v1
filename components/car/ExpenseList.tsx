@@ -11,6 +11,7 @@ import { toast } from 'sonner';
 import { getUiErrorMessage } from '@/lib/api/client-errors';
 import RecordAttachments from './attachments/RecordAttachments';
 import { RecordActions, RecordDetailsButton } from './records';
+import { parseRecordDecimal } from './records/parseRecordDecimal';
 import RecordEditDialog from './records/RecordEditDialog';
 
 export default function ExpenseList({ vehicleId }: { vehicleId: string }) {
@@ -191,21 +192,16 @@ function ExpenseEditor({
   };
   const [state, setState] = useState(openingState);
   const changed = (field: keyof typeof state) => state[field] !== openingState[field];
+  const amount = parseRecordDecimal(state.amount);
+  const odometerKm = state.odometerKm ? parseInt(state.odometerKm, 10) : null;
+  const liters = state.liters ? parseRecordDecimal(state.liters) : null;
   const patch = {
     date: changed('date') ? state.date : undefined,
     category: changed('category') ? state.category : undefined,
-    amount: changed('amount') ? parseFloat(state.amount.replace(',', '.')) : undefined,
+    amount: amount !== item.amount ? amount : undefined,
     vendor: changed('vendor') ? state.vendor || null : undefined,
-    odometerKm: changed('odometerKm')
-      ? state.odometerKm
-        ? parseInt(state.odometerKm, 10)
-        : null
-      : undefined,
-    liters: changed('liters')
-      ? state.liters
-        ? parseFloat(state.liters.replace(',', '.'))
-        : null
-      : undefined,
+    odometerKm: odometerKm !== (item.odometerKm ?? null) ? odometerKm : undefined,
+    liters: liters !== (item.liters ?? null) ? liters : undefined,
     notes: changed('notes') ? state.notes || null : undefined,
   };
   const hasChanges = Object.values(patch).some(value => value !== undefined);

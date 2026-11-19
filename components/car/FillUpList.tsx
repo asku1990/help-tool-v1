@@ -11,6 +11,7 @@ import { toast } from 'sonner';
 import { getUiErrorMessage } from '@/lib/api/client-errors';
 import RecordAttachments from './attachments/RecordAttachments';
 import { RecordActions, RecordDetailsButton } from './records';
+import { parseRecordDecimal } from './records/parseRecordDecimal';
 import RecordEditDialog from './records/RecordEditDialog';
 
 export default function FillUpList({ vehicleId }: { vehicleId: string }) {
@@ -245,24 +246,20 @@ function FillUpEditor({
   };
   const [state, setState] = useState(openingState);
   const changed = (field: keyof typeof state) => state[field] !== openingState[field];
+  const odometerKm = parseInt(state.odometerKm, 10);
+  const liters = parseRecordDecimal(state.liters);
+  const pricePerLiter = parseRecordDecimal(state.pricePerLiter);
   const patch = {
     date: changed('date') ? state.date : undefined,
-    odometerKm: changed('odometerKm') ? parseInt(state.odometerKm, 10) : undefined,
-    liters: changed('liters') ? parseFloat(state.liters.replace(',', '.')) : undefined,
-    pricePerLiter: changed('pricePerLiter')
-      ? parseFloat(state.pricePerLiter.replace(',', '.'))
-      : undefined,
+    odometerKm: odometerKm !== item.odometerKm ? odometerKm : undefined,
+    liters: liters !== item.liters ? liters : undefined,
+    pricePerLiter: pricePerLiter !== item.pricePerLiter ? pricePerLiter : undefined,
     isFull: changed('isFull') ? state.isFull : undefined,
     notes: changed('notes') ? state.notes || null : undefined,
   };
   const hasChanges = Object.values(patch).some(value => value !== undefined);
   const update = useUpdateFillUp(vehicleId, item.id);
-  const total = (() => {
-    const l = parseFloat((state.liters || '0').replace(',', '.'));
-    const p = parseFloat((state.pricePerLiter || '0').replace(',', '.'));
-    const t = l * p;
-    return Number.isFinite(t) ? t.toFixed(2) : '0.00';
-  })();
+  const total = liters * pricePerLiter;
   return (
     <RecordEditDialog
       title="Edit fill-up"
@@ -358,7 +355,9 @@ function FillUpEditor({
             />
           </label>
         </fieldset>
-        <p className="text-sm text-gray-500">Total: {total}</p>
+        <p className="text-sm text-gray-500">
+          Total: {Number.isFinite(total) ? total.toFixed(2) : '0.00'}
+        </p>
       </form>
       <RecordAttachments
         key={item.id}

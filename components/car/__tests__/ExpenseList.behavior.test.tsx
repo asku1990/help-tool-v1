@@ -190,8 +190,8 @@ describe('ExpenseList behavior', () => {
           },
         });
       }),
-      http.patch('/api/vehicles/vid/expenses/e1', () => {
-        patch();
+      http.patch('/api/vehicles/vid/expenses/e1', async ({ request }: { request: Request }) => {
+        patch(await request.json());
         saved = true;
         return HttpResponse.json({ data: { id: expense.id } });
       }),
@@ -235,11 +235,17 @@ describe('ExpenseList behavior', () => {
     await waitFor(() => expect(screen.getByRole('button', { name: 'Edit' })).toBeEnabled());
     fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
     expect(screen.getByLabelText('Amount')).toHaveValue('12.35');
-    expect(patch).toHaveBeenCalledTimes(1);
+    expect(patch).toHaveBeenCalledExactlyOnceWith({ amount: 12.345 });
   });
 
   it('keeps a second draft when a later refresh removes its row', async () => {
-    const expense = { id: 'e1', date: '2026-11-17', category: 'MAINTENANCE', amount: 10 };
+    const expense = {
+      id: 'e1',
+      date: '2026-11-17',
+      category: 'MAINTENANCE',
+      amount: 10,
+      odometerKm: 1000,
+    };
     const save = vi.fn();
     const otherExpenses = Array.from({ length: 5 }, (_, index) => ({
       ...expense,
@@ -287,15 +293,20 @@ describe('ExpenseList behavior', () => {
     );
 
     openEdit();
+    fireEvent.change(screen.getByLabelText('Amount'), { target: { value: '10.00' } });
+    expect(screen.getByRole('button', { name: 'Save changes' })).toBeDisabled();
+    fireEvent.change(screen.getByLabelText('Odometer km'), { target: { value: '' } });
     fireEvent.change(screen.getByLabelText('Notes'), { target: { value: 'Second unsaved edit' } });
     expense.date = '2026-11-15'; // A concurrent edit moved this record behind the loaded page.
+    expense.amount = 20;
     loadedExpenses = otherExpenses;
     await act(() => qc.invalidateQueries({ queryKey: expenseKeys.infiniteByVehicle('vid') }));
     await waitFor(() => expect(row).not.toBeInTheDocument());
     expect(screen.getByLabelText('Notes')).toHaveValue('Second unsaved edit');
     fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
-    expect(save).toHaveBeenLastCalledWith({ notes: 'Second unsaved edit' });
+    expect(save).toHaveBeenLastCalledWith({ notes: 'Second unsaved edit', odometerKm: null });
     expect(expense.date).toBe('2026-11-15');
+    expect(expense.amount).toBe(20);
   });
 });
