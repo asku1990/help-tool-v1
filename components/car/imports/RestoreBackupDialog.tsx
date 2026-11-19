@@ -34,7 +34,6 @@ type Props = {
   onOpenChange?: (_open: boolean) => void;
   hideTrigger?: boolean;
   triggerClassName?: string;
-  canClearExisting?: boolean;
   onCloseAutoFocus?: (_event: Event) => void;
 };
 
@@ -46,7 +45,6 @@ export default function RestoreBackupDialog({
   onOpenChange,
   hideTrigger,
   triggerClassName,
-  canClearExisting = true,
   onCloseAutoFocus,
 }: Props) {
   const [uncontrolledOpen, setUncontrolledOpen] = useState(false);
@@ -62,7 +60,6 @@ export default function RestoreBackupDialog({
   });
   const [isParsing, setIsParsing] = useState(false);
   const [isRestoring, setIsRestoring] = useState(false);
-  const [clearExisting, setClearExisting] = useState(false);
   const [activeTab, setActiveTab] = useState<'vehicle' | 'fillups' | 'expenses' | 'tires'>(
     forVehicleId ? 'fillups' : 'vehicle'
   );
@@ -104,7 +101,6 @@ export default function RestoreBackupDialog({
       setData({ fillUps: [], expenses: [], tireSets: [], changeLogs: [] });
       setIsParsing(false);
       setIsRestoring(false);
-      setClearExisting(false);
       setRestoreStatus('');
       setRestoreMode(forVehicleId ? 'update' : 'pending');
       setSelectedVehicleId(forVehicleId ?? '');
@@ -144,16 +140,6 @@ export default function RestoreBackupDialog({
   }
 
   async function handleRestore() {
-    const shouldClear =
-      canClearExisting && clearExisting && (forVehicleId || restoreMode === 'update');
-    if (
-      shouldClear &&
-      !window.confirm(
-        'This will permanently delete existing fill-ups, expenses, tire sets, and tire changes before importing. Deleted records cannot be recovered if the import fails. Continue?'
-      )
-    )
-      return;
-
     setIsRestoring(true);
     setRestoreStatus('');
 
@@ -183,12 +169,6 @@ export default function RestoreBackupDialog({
         targetVehicleId = selectedVehicleId;
       } else {
         return;
-      }
-
-      if (shouldClear) {
-        setRestoreStatus('Clearing existing data...');
-        const res = await fetch(`/api/vehicles/${targetVehicleId}/clear`, { method: 'DELETE' });
-        if (!res.ok) throw new Error('Failed to clear existing data');
       }
 
       if (counts.fillUps > 0) {
@@ -284,7 +264,7 @@ export default function RestoreBackupDialog({
 
   const dialogTitle = forVehicleId ? 'Import Backup' : 'Restore from Backup';
   const dialogDescription = forVehicleId
-    ? 'Import fill-ups, expenses, and tire history from a backup CSV.'
+    ? 'Import fill-ups, expenses, and tire history from a backup CSV without clearing existing records.'
     : 'Restore a backup CSV into a new or existing vehicle.';
   const buttonLabel = forVehicleId ? 'Import' : 'Restore';
   const triggerLabel = forVehicleId ? 'Import Backup' : 'Restore Backup';
@@ -329,121 +309,107 @@ export default function RestoreBackupDialog({
           </label>
 
           {hasData && (
-            <>
-              <div className="flex-1 flex flex-col min-h-0">
-                <div
-                  className={`grid gap-1 bg-gray-100 p-1 rounded-lg`}
-                  style={{ gridTemplateColumns: `repeat(${tabCount}, 1fr)` }}
+            <div className="flex-1 flex flex-col min-h-0">
+              <div
+                className={`grid gap-1 bg-gray-100 p-1 rounded-lg`}
+                style={{ gridTemplateColumns: `repeat(${tabCount}, 1fr)` }}
+              >
+                {showVehicleTab && (
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab('vehicle')}
+                    className={`px-3 py-2 text-sm rounded-md ${activeTab === 'vehicle' ? 'bg-white shadow' : 'hover:bg-gray-200'}`}
+                  >
+                    Vehicle {data.vehicle?.valid ? '✓' : ''}
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('fillups')}
+                  disabled={data.fillUps.length === 0}
+                  className={`px-3 py-2 text-sm rounded-md disabled:opacity-50 ${activeTab === 'fillups' ? 'bg-white shadow' : 'hover:bg-gray-200'}`}
                 >
-                  {showVehicleTab && (
-                    <button
-                      type="button"
-                      onClick={() => setActiveTab('vehicle')}
-                      className={`px-3 py-2 text-sm rounded-md ${activeTab === 'vehicle' ? 'bg-white shadow' : 'hover:bg-gray-200'}`}
-                    >
-                      Vehicle {data.vehicle?.valid ? '✓' : ''}
-                    </button>
-                  )}
-                  <button
-                    type="button"
-                    onClick={() => setActiveTab('fillups')}
-                    disabled={data.fillUps.length === 0}
-                    className={`px-3 py-2 text-sm rounded-md disabled:opacity-50 ${activeTab === 'fillups' ? 'bg-white shadow' : 'hover:bg-gray-200'}`}
-                  >
-                    Fill-ups ({counts.fillUps})
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setActiveTab('expenses')}
-                    disabled={data.expenses.length === 0}
-                    className={`px-3 py-2 text-sm rounded-md disabled:opacity-50 ${activeTab === 'expenses' ? 'bg-white shadow' : 'hover:bg-gray-200'}`}
-                  >
-                    Expenses ({counts.expenses})
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setActiveTab('tires')}
-                    disabled={data.tireSets.length === 0 && data.changeLogs.length === 0}
-                    className={`px-3 py-2 text-sm rounded-md disabled:opacity-50 ${activeTab === 'tires' ? 'bg-white shadow' : 'hover:bg-gray-200'}`}
-                  >
-                    Tires ({counts.tireSets + counts.changeLogs})
-                  </button>
-                </div>
-
-                <div className="flex-1 min-h-0 overflow-auto mt-2">
-                  {activeTab === 'vehicle' && data.vehicle && !forVehicleId && (
-                    <VehiclePreview
-                      vehicle={data.vehicle}
-                      matchingVehicle={matchingVehicle}
-                      existingVehicles={existingVehicles}
-                      restoreMode={restoreMode}
-                      selectedVehicleId={selectedVehicleId}
-                      onModeChange={setRestoreMode}
-                      onVehicleSelect={setSelectedVehicleId}
-                    />
-                  )}
-
-                  {activeTab === 'fillups' && (
-                    <FillUpsPreviewTable
-                      data={data.fillUps}
-                      onToggle={(idx, include) =>
-                        setData(prev => {
-                          const clone = [...prev.fillUps];
-                          clone[idx] = { ...clone[idx], include };
-                          return { ...prev, fillUps: clone };
-                        })
-                      }
-                    />
-                  )}
-
-                  {activeTab === 'expenses' && (
-                    <ExpensesPreviewTable
-                      data={data.expenses}
-                      onToggle={(idx, include) =>
-                        setData(prev => {
-                          const clone = [...prev.expenses];
-                          clone[idx] = { ...clone[idx], include };
-                          return { ...prev, expenses: clone };
-                        })
-                      }
-                    />
-                  )}
-
-                  {activeTab === 'tires' && (
-                    <TiresPreviewTable
-                      tireSets={data.tireSets}
-                      changeLogs={data.changeLogs}
-                      onToggleTireSet={(idx, include) =>
-                        setData(prev => {
-                          const clone = [...prev.tireSets];
-                          clone[idx] = { ...clone[idx], include };
-                          return { ...prev, tireSets: clone };
-                        })
-                      }
-                      onToggleChangeLog={(idx, include) =>
-                        setData(prev => {
-                          const clone = [...prev.changeLogs];
-                          clone[idx] = { ...clone[idx], include };
-                          return { ...prev, changeLogs: clone };
-                        })
-                      }
-                    />
-                  )}
-                </div>
+                  Fill-ups ({counts.fillUps})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('expenses')}
+                  disabled={data.expenses.length === 0}
+                  className={`px-3 py-2 text-sm rounded-md disabled:opacity-50 ${activeTab === 'expenses' ? 'bg-white shadow' : 'hover:bg-gray-200'}`}
+                >
+                  Expenses ({counts.expenses})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('tires')}
+                  disabled={data.tireSets.length === 0 && data.changeLogs.length === 0}
+                  className={`px-3 py-2 text-sm rounded-md disabled:opacity-50 ${activeTab === 'tires' ? 'bg-white shadow' : 'hover:bg-gray-200'}`}
+                >
+                  Tires ({counts.tireSets + counts.changeLogs})
+                </button>
               </div>
 
-              {canClearExisting && (forVehicleId || restoreMode === 'update') && (
-                <label className="flex items-center space-x-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={clearExisting}
-                    onChange={e => setClearExisting(e.target.checked)}
-                    className="w-4 h-4"
+              <div className="flex-1 min-h-0 overflow-auto mt-2">
+                {activeTab === 'vehicle' && data.vehicle && !forVehicleId && (
+                  <VehiclePreview
+                    vehicle={data.vehicle}
+                    matchingVehicle={matchingVehicle}
+                    existingVehicles={existingVehicles}
+                    restoreMode={restoreMode}
+                    selectedVehicleId={selectedVehicleId}
+                    onModeChange={setRestoreMode}
+                    onVehicleSelect={setSelectedVehicleId}
                   />
-                  <span className="text-sm">Clear existing data before import</span>
-                </label>
-              )}
-            </>
+                )}
+
+                {activeTab === 'fillups' && (
+                  <FillUpsPreviewTable
+                    data={data.fillUps}
+                    onToggle={(idx, include) =>
+                      setData(prev => {
+                        const clone = [...prev.fillUps];
+                        clone[idx] = { ...clone[idx], include };
+                        return { ...prev, fillUps: clone };
+                      })
+                    }
+                  />
+                )}
+
+                {activeTab === 'expenses' && (
+                  <ExpensesPreviewTable
+                    data={data.expenses}
+                    onToggle={(idx, include) =>
+                      setData(prev => {
+                        const clone = [...prev.expenses];
+                        clone[idx] = { ...clone[idx], include };
+                        return { ...prev, expenses: clone };
+                      })
+                    }
+                  />
+                )}
+
+                {activeTab === 'tires' && (
+                  <TiresPreviewTable
+                    tireSets={data.tireSets}
+                    changeLogs={data.changeLogs}
+                    onToggleTireSet={(idx, include) =>
+                      setData(prev => {
+                        const clone = [...prev.tireSets];
+                        clone[idx] = { ...clone[idx], include };
+                        return { ...prev, tireSets: clone };
+                      })
+                    }
+                    onToggleChangeLog={(idx, include) =>
+                      setData(prev => {
+                        const clone = [...prev.changeLogs];
+                        clone[idx] = { ...clone[idx], include };
+                        return { ...prev, changeLogs: clone };
+                      })
+                    }
+                  />
+                )}
+              </div>
+            </div>
           )}
 
           <div className="flex items-center justify-between pt-2 border-t">

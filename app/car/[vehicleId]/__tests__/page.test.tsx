@@ -152,12 +152,15 @@ it.each([
   ['owner', true],
   ['editor', false],
 ])('keeps logging visible and moves backup actions into the menu for an %s', async (_, canEdit) => {
+  const clearRecords = vi.fn(() => HttpResponse.json({ data: {} }));
   server.use(
     http.get('/api/vehicles/:vehicleId', () =>
       HttpResponse.json({
         data: { vehicle: { id: 'v1', name: 'Car A', canEdit, canWrite: true } },
       })
-    )
+    ),
+    http.delete('/api/vehicles/v1/clear', clearRecords),
+    http.post('/api/vehicles/v1/fillups', () => HttpResponse.json({}, { status: 500 }))
   );
   renderWithProviders(<VehiclePage />);
   const fillUp = await screen.findByRole('button', { name: 'Add fill-up' });
@@ -196,34 +199,10 @@ it.each([
     },
   });
   fireEvent.click(within(backup).getByRole('button', { name: 'Parse' }));
-  expect(within(backup).getByRole('button', { name: 'Import' })).toBeEnabled();
-  const clear = within(backup).queryByRole('checkbox', {
-    name: 'Clear existing data before import',
-  });
-  if (canEdit) {
-    expect(clear).not.toBeChecked();
-    const clearRecords = vi.fn();
-    const importFillUp = vi.fn();
-    server.use(
-      http.delete('/api/vehicles/v1/clear', clearRecords),
-      http.post('/api/vehicles/v1/fillups', importFillUp)
-    );
-    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
-    try {
-      fireEvent.click(
-        within(backup).getByRole('checkbox', { name: 'Clear existing data before import' })
-      );
-      fireEvent.click(within(backup).getByRole('button', { name: 'Import' }));
-      expect(confirm).toHaveBeenCalledWith(expect.stringContaining('permanently delete'));
-      expect(clearRecords).not.toHaveBeenCalled();
-      expect(importFillUp).not.toHaveBeenCalled();
-      expect(backup).toBeVisible();
-    } finally {
-      confirm.mockRestore();
-    }
-  } else {
-    expect(clear).not.toBeInTheDocument();
-  }
+  expect(within(backup).queryByRole('checkbox', { name: /clear existing data/i })).toBeNull();
+  fireEvent.click(within(backup).getByRole('button', { name: 'Import' }));
+  expect(await within(backup).findByText('Error: Imported 0/1 fill-ups; 1 failed')).toBeVisible();
+  expect(clearRecords).not.toHaveBeenCalled();
   fireEvent.click(within(backup).getByRole('button', { name: 'Cancel' }));
   await waitFor(() => expect(menu).toHaveFocus());
 });

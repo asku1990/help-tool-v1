@@ -16,9 +16,9 @@ read access, **Import backup** for owners and editors, and **Edit** and **Delete
 for owners only. Vehicle deletion requires confirmation. Closing a menu dialog returns
 focus to **⋯**.
 
-Backup import keeps existing records unless an owner selects **Clear existing data before import**
-and confirms. Clearing happens before importing; if the import fails, cleared records are
-not restored. Cancelling the confirmation leaves existing records untouched.
+Neither **Import backup** on the vehicle page nor **Restore Backup** on the vehicles list
+clears existing records. Replacing records is not available. If an import fails partway
+through, records already imported remain saved.
 
 Select the vehicle name to see saved basic information without opening the edit form.
 Closing Details returns focus to the name. The registration plate stays selectable text.

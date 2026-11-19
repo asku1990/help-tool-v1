@@ -374,7 +374,6 @@ export default function VehiclePage() {
         <RestoreBackupDialog
           key={vehicle.id}
           forVehicleId={vehicle.id}
-          canClearExisting={vehicle.canEdit}
           open={isImportOpen}
           onOpenChange={setImportOpen}
           onCloseAutoFocus={restoreVehicleDialogFocus}
