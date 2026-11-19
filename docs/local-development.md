@@ -12,6 +12,17 @@ PostgreSQL runs in Docker.
 
 ## 1. Install and Configure
 
+For local browser testing without Google, use a disposable local database with a
+regular user whose email is `browser-test@example.test` and the vehicle permissions you want
+to test. From the repository root, start the app with:
+
+```bash
+LOCAL_AUTO_SIGN_IN=1 pnpm dev --hostname 127.0.0.1
+```
+
+Every browser on that local server acts as the test user. The flag has no effect in
+production. Stop the server and restart without the flag to return to Google sign-in.
+
 ```bash
 pnpm install
 ```

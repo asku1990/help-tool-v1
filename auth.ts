@@ -3,6 +3,7 @@ import type { JWT } from 'next-auth/jwt';
 import Google from 'next-auth/providers/google';
 import { prisma } from '@/lib/db';
 import { logger } from '@/lib/logger';
+import { getLocalTestSession, localAutoSignInEnabled } from '@/lib/auth/local-test-session';
 
 interface GoogleProfile {
   email: string;
@@ -65,7 +66,12 @@ if (ALLOWED_EMAILS.length === 0) {
   logger.error('No allowed emails configured. Please set ALLOWED_EMAILS environment variable.');
 }
 
-export const { handlers, signIn, signOut, auth } = NextAuth({
+export const {
+  handlers,
+  signIn,
+  signOut,
+  auth: authMiddleware,
+} = NextAuth({
   providers: [Google],
   pages: {
     signIn: '/',
@@ -189,3 +195,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     },
   },
 });
+
+export function auth() {
+  return localAutoSignInEnabled() ? getLocalTestSession() : authMiddleware();
+}
