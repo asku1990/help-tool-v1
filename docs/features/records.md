@@ -75,10 +75,12 @@ column headings aligned to the start of each cell, one line per record, and a na
 column. Odometer follows Date in both tables. Missing values are marked with a dash
 without shifting other columns.
 The lists retain their existing values. Note previews use at most two lines on mobile
-and one on desktop; Details keeps the full notes. Fill-up status and consumption figures
-are outside the note preview and remain visible. Expenses without odometer or oil-consumption
-values do not render an empty metrics row; numeric zero is still shown and amounts stay
-aligned on desktop. Attachment counts remain separate work.
+and one on desktop; Details keeps the full notes. Long fuel purchase and odometer/oil
+previews truncate on desktop; open Details from the date to see the full values.
+Fill-up status and consumption figures are outside the note preview and remain visible.
+Expenses without odometer or oil-consumption values do not render an empty metrics row;
+numeric zero is still shown and amounts stay aligned on desktop. Attachment counts remain
+separate work.
 
 ## Editing a Saved Record
 

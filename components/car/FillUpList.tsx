@@ -148,9 +148,11 @@ function VehicleFillUpList({ vehicleId }: { vehicleId: string }) {
                 role="cell"
                 className="col-span-full min-w-0 text-muted-foreground lg:tabular-nums"
               >
-                {f.liters} L @ {f.pricePerLiter.toFixed(3)} →{' '}
-                <span className="font-medium max-sm:font-semibold max-sm:text-foreground">
-                  {formatCurrency(f.totalCost)}
+                <span className="lg:block lg:truncate">
+                  {f.liters} L @ {f.pricePerLiter.toFixed(3)} →{' '}
+                  <span className="font-medium max-sm:font-semibold max-sm:text-foreground">
+                    {formatCurrency(f.totalCost)}
+                  </span>
                 </span>
               </td>
               <td role="cell" className="col-span-full min-w-0 text-xs text-muted-foreground">

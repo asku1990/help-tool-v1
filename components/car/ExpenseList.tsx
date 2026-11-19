@@ -141,13 +141,15 @@ function VehicleExpenseList({ vehicleId }: { vehicleId: string }) {
                 role="cell"
                 className={`col-span-full min-w-0 text-muted-foreground lg:table-cell lg:tabular-nums ${e.odometerKm == null && e.oilConsumption == null ? 'hidden' : ''}`}
               >
-                {e.odometerKm != null ? <span>{`Odo: ${e.odometerKm} km`}</span> : null}
-                {e.oilConsumption != null ? (
-                  <span className="ml-2 text-xs text-amber-600">
-                    {e.oilConsumption.toFixed(1)} L/10k
-                  </span>
-                ) : null}
-                {e.odometerKm == null && e.oilConsumption == null ? '—' : null}
+                <span className="lg:block lg:truncate">
+                  {e.odometerKm != null ? <span>{`Odo: ${e.odometerKm} km`}</span> : null}
+                  {e.oilConsumption != null ? (
+                    <span className="ml-2 text-xs text-amber-600">
+                      {e.oilConsumption.toFixed(1)} L/10k
+                    </span>
+                  ) : null}
+                  {e.odometerKm == null && e.oilConsumption == null ? '—' : null}
+                </span>
               </td>
               <td role="cell" className="hidden lg:table-cell">
                 <span className="block truncate">
