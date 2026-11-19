@@ -34,6 +34,9 @@ Implementation: `components/car/records/RecordDetailsButton.tsx`, used by both l
 and the read-only mode of `components/car/attachments/RecordAttachments.tsx`.
 The dialog uses the record data already loaded by the list, without new record endpoints.
 
+On mobile, each entry is outlined and spaced from the next. The date and summary align
+with the rest of the entry, the **⋯** menu stays at the top right, and the remaining
+details use the full width underneath. Desktop keeps compact rows with dividers.
 The lists retain their existing values. Note previews use at most two lines on mobile
 and one on desktop; Details keeps the full notes. Fill-up status and consumption figures
 are outside the note preview and remain visible. Expenses without odometer or oil-consumption

@@ -59,6 +59,7 @@ Partial fill-ups and the initial full-tank baseline do not have completed-trip c
   segments; the average remains distance-weighted.
 - A single completed segment is shown as a point; no segments in the selected range shows
   the empty state rather than a zero-consumption chart.
+- On narrow charts, the unit stays in the title and is not repeated on the vertical axis.
 
 ## Implementation
 

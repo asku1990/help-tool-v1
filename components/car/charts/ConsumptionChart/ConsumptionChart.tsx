@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import {
   CartesianGrid,
   Line,
@@ -30,6 +30,7 @@ export type ConsumptionChartProps = {
 };
 
 export default function ConsumptionChart({ segments, options }: ConsumptionChartProps) {
+  const [compact, setCompact] = useState(false);
   const rangeDays = options?.rangeDays ?? 0;
   const { points, avg } = useMemo(() => {
     const from = rangeDays ? Date.now() - rangeDays * 24 * 60 * 60 * 1000 : null;
@@ -94,8 +95,16 @@ export default function ConsumptionChart({ segments, options }: ConsumptionChart
     <div className="min-w-0 bg-white p-4 sm:p-6 rounded-xl shadow-sm border">
       <div className="text-sm font-medium mb-2">Consumption trend (L/100 km)</div>
       <div role="group" aria-label="Fuel consumption trend chart">
-        <ResponsiveContainer width="100%" height={260} minWidth={0}>
-          <LineChart data={points} margin={{ top: 16, right: 20, bottom: 20, left: 8 }}>
+        <ResponsiveContainer
+          width="100%"
+          height={260}
+          minWidth={0}
+          onResize={width => setCompact(width < 320)}
+        >
+          <LineChart
+            data={points}
+            margin={{ top: 16, right: 20, bottom: 20, left: compact ? 0 : 8 }}
+          >
             <CartesianGrid stroke="#f1f5f9" vertical={false} />
             <XAxis
               dataKey="timestamp"
@@ -114,10 +123,12 @@ export default function ConsumptionChart({ segments, options }: ConsumptionChart
               label={{ value: 'Date', position: 'insideBottom', offset: -12 }}
             />
             <YAxis
-              width={48}
+              width={compact ? 'auto' : 48}
               domain={['auto', 'auto']}
               tick={{ fontSize: 11 }}
-              label={{ value: 'L/100 km', angle: -90, position: 'insideLeft' }}
+              label={
+                compact ? undefined : { value: 'L/100 km', angle: -90, position: 'insideLeft' }
+              }
             />
             <Tooltip
               content={({ active, payload }) => {

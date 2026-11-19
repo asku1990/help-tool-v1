@@ -89,7 +89,7 @@ export default function RecordDetailsButton(props: Props) {
           className={
             menu
               ? 'block min-h-11 w-full cursor-pointer rounded px-3 py-2 text-left text-sm hover:bg-gray-100'
-              : 'col-start-1 min-w-0 cursor-pointer rounded-md px-2 py-1 text-left hover:bg-gray-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 sm:col-span-2'
+              : 'col-start-1 min-w-0 cursor-pointer rounded-md py-1 text-left hover:bg-gray-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 sm:col-span-2'
           }
           onClick={event => {
             returnFocus.current =
