@@ -5,7 +5,8 @@ import { GET, PATCH, DELETE } from '../route';
 
 vi.mock('@/lib/db', () => {
   const mock = {
-    vehicle: { findFirst: vi.fn(), update: vi.fn(), delete: vi.fn() },
+    vehicleAccess: { findFirst: vi.fn() },
+    vehicle: { update: vi.fn(), delete: vi.fn() },
   };
   return { default: mock };
 });
@@ -17,16 +18,30 @@ vi.mock('@/lib/api/rate-limit', () => ({
 }));
 
 type PrismaMock = {
-  vehicle: { findFirst: Mock; update: Mock; delete: Mock };
+  vehicleAccess: { findFirst: Mock };
+  vehicle: { update: Mock; delete: Mock };
 };
 
 describe('api/vehicles/[vehicleId] route (unit)', () => {
   it('GET returns 404 when vehicle not owned', async () => {
     const prisma = (await import('@/lib/db')).default as unknown as PrismaMock;
-    prisma.vehicle.findFirst.mockResolvedValueOnce(null);
+    prisma.vehicleAccess.findFirst.mockResolvedValueOnce(null);
     const req = new NextRequest('http://localhost/api/vehicles/v1');
     const res = await GET(req, { params: Promise.resolve({ vehicleId: 'v1' }) });
     expect(res.status).toBe(404);
+  });
+
+  it.each([
+    ['OWNER', true],
+    ['EDITOR', false],
+    ['VIEWER', false],
+  ])('GET returns the edit capability for %s', async (role, canEdit) => {
+    const prisma = (await import('@/lib/db')).default as unknown as PrismaMock;
+    prisma.vehicleAccess.findFirst.mockResolvedValueOnce({ role, vehicle: { id: 'v1' } });
+    const req = new NextRequest('http://localhost/api/vehicles/v1');
+    const res = await GET(req, { params: Promise.resolve({ vehicleId: 'v1' }) });
+    expect(res.status).toBe(200);
+    expect(await res.json()).toMatchObject({ data: { vehicle: { id: 'v1', canEdit } } });
   });
 
   it('PATCH returns 400 on validation error', async () => {
@@ -41,7 +56,7 @@ describe('api/vehicles/[vehicleId] route (unit)', () => {
 
   it('PATCH allows null vs undefined fields and returns 200', async () => {
     const prisma = (await import('@/lib/db')).default as unknown as PrismaMock;
-    prisma.vehicle.findFirst.mockResolvedValueOnce({ id: 'v1' });
+    prisma.vehicleAccess.findFirst.mockResolvedValueOnce({ role: 'OWNER', vehicle: { id: 'v1' } });
     prisma.vehicle.update.mockResolvedValueOnce({ id: 'v1' });
     const base = new Request('http://localhost/api/vehicles/v1', {
       method: 'PATCH',
@@ -58,7 +73,7 @@ describe('api/vehicles/[vehicleId] route (unit)', () => {
 
   it('DELETE returns 404 when vehicle not owned', async () => {
     const prisma = (await import('@/lib/db')).default as unknown as PrismaMock;
-    prisma.vehicle.findFirst.mockResolvedValueOnce(null);
+    prisma.vehicleAccess.findFirst.mockResolvedValueOnce(null);
     const req = new NextRequest('http://localhost/api/vehicles/v1', { method: 'DELETE' });
     const res = await DELETE(req, { params: Promise.resolve({ vehicleId: 'v1' }) });
     expect(res.status).toBe(404);
@@ -66,7 +81,7 @@ describe('api/vehicles/[vehicleId] route (unit)', () => {
 
   it('DELETE deletes vehicle and returns 200', async () => {
     const prisma = (await import('@/lib/db')).default as unknown as PrismaMock;
-    prisma.vehicle.findFirst.mockResolvedValueOnce({ id: 'v1' });
+    prisma.vehicleAccess.findFirst.mockResolvedValueOnce({ role: 'OWNER', vehicle: { id: 'v1' } });
     prisma.vehicle.delete.mockResolvedValueOnce({ id: 'v1' });
     const req = new NextRequest('http://localhost/api/vehicles/v1', { method: 'DELETE' });
     const res = await DELETE(req, { params: Promise.resolve({ vehicleId: 'v1' }) });
