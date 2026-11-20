@@ -9,7 +9,7 @@ fuel fill-ups, maintenance, and running costs in one place.
 - Fuel fill-ups and consumption insights
 - Maintenance and expense tracking
 - Google sign-in and vehicle access permissions
-- Expense and fill-up attachments for disposable staging files
+- Vehicle, expense, and fill-up attachments for disposable staging files
 
 ## Tech Stack
 

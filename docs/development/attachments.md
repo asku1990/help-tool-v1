@@ -61,13 +61,22 @@ Use **Node.js 22+**, confirm the app targets your local PostgreSQL database, and
 pass-cli run --env-file .env.local -- pnpm dev
 ```
 
-Sign in as an owner/editor. Open **Edit** on an existing expense or fuel fill-up,
+Sign in as an owner/editor. Open **Details → Manage files** on an expense or fuel fill-up,
 select a supported file of at most **4,000,000 bytes**, and press **Upload file**.
 Saving record edits is not required. Reopen the record to confirm the filename and
 remaining capacity persist. In the R2 dashboard, a new object should appear under
 `attachments/` with a random key, not the original filename.
 
-Viewers can list filenames but cannot upload, rename, or delete. There are five slots per record.
+Viewers can list filenames but cannot upload, rename, or delete. Each expense and fill-up
+has ten attachment slots. The supported formats are PDF, JPEG (`.jpg` and `.jpeg`), PNG,
+and WebP.
+
+The vehicle attachment routes use the same permissions, formats, and ten-slot limit
+as expenses and fill-ups. Direct vehicle attachments have their own slots and are
+not included in expense or fill-up lists. Browser uploads must come from the app's
+own origin. To check the vehicle flow, open **Vehicle Details → Manage files**
+as an owner or editor, then upload, open, rename, and delete a disposable file.
+Check that a viewer can open files but does not see **Manage files**.
 See the [manual checks in the feature plan](../plan/file-upload.md#slice-3-ui-and-manual-staging-check).
 
 ## Attachments During the Creation Workflow
@@ -84,9 +93,8 @@ for state, dismissal, and inspection-update failure behavior.
 ## Open an attachment
 
 Select the date/summary of an expense or fill-up to open **Details** and view saved
-information and attachment links
-without entering an editable form. This view has no upload, rename, or delete controls,
-even for owners and editors. Use **⋯ → Edit** to manage attachments.
+information and attachment links without entering an editable form. For either record,
+choose **Manage files** in Details to manage attachments.
 See [viewing saved records](../features/records.md) for the complete viewing behavior.
 
 Select a saved filename to open it in a new tab. Owners, editors, and viewers with access to

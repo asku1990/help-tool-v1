@@ -1,7 +1,8 @@
-export { default as RecordDetailsButton } from './RecordDetailsButton';
+export { RecordSummaryButton } from './RecordSummaryButton';
+export { recordFields } from './formatRecordFields';
 export {
   default as RecordActions,
   recordActionClass,
   destructiveRecordActionClass,
 } from './RecordActions';
-export { default as DetailsDialogContent } from './DetailsDialogContent';
+export { default as RecordFields } from './RecordFields';

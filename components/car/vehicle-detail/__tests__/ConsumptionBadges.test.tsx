@@ -1,6 +1,6 @@
 import React from 'react';
 import { render, screen } from '@testing-library/react';
-import ConsumptionBadges from '@/components/car/ConsumptionBadges';
+import ConsumptionBadges from '../ConsumptionBadges';
 
 describe('ConsumptionBadges', () => {
   it('renders badges with latest and averages', () => {

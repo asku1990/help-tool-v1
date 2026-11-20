@@ -1,6 +1,7 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest';
-import { MAX_ATTACHMENT_BYTES, readAttachment, validateAttachment } from '../validation';
+import { readAttachment, validateAttachment } from '../validation';
+import { MAX_ATTACHMENT_BYTES } from '../limits';
 
 const pdf = new TextEncoder().encode('%PDF-1.4\n1 0 obj\n<< /Type /Catalog >>\nendobj\n%%EOF\n');
 const png = Uint8Array.from(
@@ -58,6 +59,7 @@ describe('Attachment validation', () => {
     ['photo.png', 'image/png', pdf],
     ['receipt.pdf', 'image/jpeg', pdf],
     ['receipt.exe', 'application/pdf', pdf],
+    ['pdf', 'application/pdf', pdf],
     ['photo.gif', 'image/gif', 'GIF89a1234567890'],
     ['photo.png', 'image/png', new Uint8Array([0x89, 0x50])],
   ])('rejects unsupported or misleading content (%s, %s)', async (filename, type, bytes) => {

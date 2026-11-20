@@ -124,7 +124,12 @@ it('opens the edit vehicle dialog from the actions menu for an owner', async () 
 
   fireEvent.click(screen.getByRole('button', { name: 'More vehicle actions' }));
   fireEvent.click(screen.getByRole('button', { name: /^edit$/i }));
-  expect(await screen.findByLabelText(/Edit vehicle dialog/i)).toBeInTheDocument();
+  const dialog = within(await screen.findByRole('dialog', { name: 'Edit vehicle' }));
+  expect(dialog.getByLabelText('Name')).toHaveValue('Car A');
+  fireEvent.click(dialog.getByRole('button', { name: 'Cancel' }));
+  await waitFor(() =>
+    expect(screen.getByRole('button', { name: 'More vehicle actions' })).toHaveFocus()
+  );
 });
 
 it.each(['Add expense', 'Add fill-up'])('%s opens without focusing the date field', async name => {
@@ -247,6 +252,17 @@ it('opens read-only vehicle details from the name and restores focus to it', asy
           },
         },
       })
+    ),
+    http.get('/api/vehicles/v1/attachments', () =>
+      HttpResponse.json({
+        data: {
+          attachments: [{ id: 'file1', filename: 'receipt.pdf' }],
+          canUpload: false,
+          maxAttachments: 10,
+          remainingCapacity: 9,
+        },
+        error: null,
+      })
     )
   );
   renderWithProviders(<VehiclePage />);
@@ -265,7 +281,11 @@ it('opens read-only vehicle details from the name and restores focus to it', asy
   expect(dialog).toHaveTextContent('04.12.2027');
   expect(dialog).toHaveTextContent('12 months');
   expect(dialog).toHaveTextContent('—');
-  expect(within(dialog).queryByRole('button', { name: /save/i })).not.toBeInTheDocument();
+  expect(
+    await within(dialog).findByRole('link', { name: 'Open receipt.pdf in a new tab' })
+  ).toHaveAttribute('href', '/api/vehicles/v1/attachments/file1/open');
+  expect(within(dialog).queryByRole('button', { name: 'Manage files' })).not.toBeInTheDocument();
+  expect(within(dialog).queryByRole('button', { name: 'Edit details' })).not.toBeInTheDocument();
   expect(menu).toHaveAttribute('aria-expanded', 'false');
   const [footerClose, cornerClose] = within(dialog).getAllByRole('button', { name: 'Close' });
   expect(footerClose).toBeVisible();
@@ -274,4 +294,111 @@ it('opens read-only vehicle details from the name and restores focus to it', asy
   await waitFor(() => expect(vehicleName).toHaveFocus());
   expect(screen.queryByRole('button', { name: 'Add fill-up' })).not.toBeInTheDocument();
   expect(screen.queryByRole('button', { name: 'Add expense' })).not.toBeInTheDocument();
+});
+
+it('loads documents only when details open and lets users retry without hiding vehicle fields', async () => {
+  const list = vi.fn().mockReturnValueOnce(HttpResponse.json({}, { status: 500 }));
+  list.mockImplementation(() =>
+    HttpResponse.json({
+      data: { attachments: [], canUpload: true, maxAttachments: 10, remainingCapacity: 10 },
+      error: null,
+    })
+  );
+  server.use(
+    http.get('/api/vehicles/v1/attachments', () => list()),
+    http.get('/api/vehicles/v1', () =>
+      HttpResponse.json({
+        data: { vehicle: { id: 'v1', name: 'Car A', canEdit: false, canWrite: true } },
+      })
+    )
+  );
+  renderWithProviders(<VehiclePage />);
+  const vehicleName = await screen.findByRole('button', { name: 'Car A' });
+  expect(list).not.toHaveBeenCalled();
+  fireEvent.click(vehicleName);
+  const dialog = within(await screen.findByRole('dialog', { name: 'Vehicle details' }));
+  const refresh = await dialog.findByRole('button', { name: 'Refresh attachments' });
+  expect(dialog.getByText('Car A')).toBeVisible();
+  expect(dialog.queryByRole('button', { name: 'Manage files' })).not.toBeInTheDocument();
+  fireEvent.click(refresh);
+  expect(await dialog.findByText('No files yet.')).toBeVisible();
+  expect(dialog.queryByRole('button', { name: 'Edit details' })).toBeNull();
+  fireEvent.click(dialog.getByRole('button', { name: 'Manage files' }));
+  expect(dialog.getByRole('heading', { name: 'Manage vehicle files' })).toHaveFocus();
+  expect(dialog.queryByRole('term')).toBeNull();
+  expect(dialog.getByRole('button', { name: 'Upload file' })).toBeVisible();
+  fireEvent.click(dialog.getByRole('button', { name: 'Done' }));
+  expect(dialog.getByRole('button', { name: 'Manage files' })).toHaveFocus();
+});
+
+it('returns an owner to the updated vehicle summary and preserves a zero odometer', async () => {
+  let name = 'Car A';
+  const patch = vi.fn();
+  server.use(
+    http.get('/api/vehicles/v1', () =>
+      HttpResponse.json({
+        data: { vehicle: { id: 'v1', name, initialOdometer: 0, canEdit: true, canWrite: true } },
+      })
+    ),
+    http.get('/api/vehicles/v1/attachments', () =>
+      HttpResponse.json({
+        data: { attachments: [], canUpload: true, maxAttachments: 10, remainingCapacity: 10 },
+      })
+    ),
+    http.patch('/api/vehicles/v1', async ({ request }) => {
+      const body = (await request.json()) as { name: string };
+      patch(body);
+      name = body.name;
+      return HttpResponse.json({ data: { id: 'v1' } });
+    })
+  );
+  renderWithProviders(<VehiclePage />);
+  fireEvent.click(await screen.findByRole('button', { name: 'Car A' }));
+  const dialog = within(screen.getByRole('dialog'));
+  fireEvent.click(dialog.getByRole('button', { name: 'Edit details' }));
+  expect(dialog.getByLabelText('Initial Odometer')).toHaveValue(0);
+  fireEvent.change(dialog.getByLabelText('Name'), { target: { value: 'Car B' } });
+  fireEvent.click(dialog.getByRole('button', { name: 'Save changes' }));
+  expect(await dialog.findByText('Car B', { selector: 'dd' })).toBeVisible();
+  expect(patch).toHaveBeenCalledExactlyOnceWith({ name: 'Car B' });
+  expect(dialog.getByRole('button', { name: 'Edit details' })).toHaveFocus();
+});
+
+it('waits for the saved vehicle to refresh before reopening More → Edit', async () => {
+  let saved = false;
+  let release!: () => void;
+  const refresh = new Promise<void>(resolve => {
+    release = resolve;
+  });
+  server.use(
+    http.get('/api/vehicles/v1', async () => {
+      if (saved) await refresh;
+      return HttpResponse.json({
+        data: {
+          vehicle: { id: 'v1', name: saved ? 'Car B' : 'Car A', canEdit: true, canWrite: true },
+        },
+      });
+    }),
+    http.patch('/api/vehicles/v1', () => {
+      saved = true;
+      return HttpResponse.json({ data: { id: 'v1' } });
+    })
+  );
+  renderWithProviders(<VehiclePage />);
+  const menu = await screen.findByRole('button', { name: 'More vehicle actions' });
+  fireEvent.click(menu);
+  fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
+  fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Car B' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
+  try {
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    fireEvent.click(menu);
+    expect(screen.getByRole('button', { name: 'Edit' })).toBeDisabled();
+  } finally {
+    release();
+  }
+  const edit = screen.getByRole('button', { name: 'Edit' });
+  await waitFor(() => expect(edit).toBeEnabled());
+  fireEvent.click(edit);
+  expect(screen.getByLabelText('Name')).toHaveValue('Car B');
 });
