@@ -13,7 +13,7 @@ import { useUiStore } from '@/stores/ui';
 import { useCreateFillUp, useLatestOdometer } from '@/hooks';
 import { toast } from 'sonner';
 import { getUiErrorMessage } from '@/lib/api/client-errors';
-import CreatedRecordStep from './attachments/CreatedRecordStep';
+import CreatedRecordStep from '../attachments/CreatedRecordStep';
 import { formatDateFi } from '@/utils';
 
 export type FillUpFormProps = {

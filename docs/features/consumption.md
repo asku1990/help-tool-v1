@@ -74,8 +74,8 @@ vehicle-page content width so switching to Chart does not constrain the chart to
 - Full-history loading: `app/api/vehicles/[vehicleId]/summary/route.ts`.
 - Summary request and hook: `queries/vehicles/getVehicleSummary.ts` and
   `hooks/vehicles/useVehicleSummary.ts`.
-- Per-trip list: `components/car/FillUpList.tsx`.
-- Summary badges: `components/car/ConsumptionBadges.tsx`.
+- Per-trip list: `components/car/fillups/FillUpList.tsx`.
+- Summary badges: `components/car/vehicle-detail/ConsumptionBadges.tsx`.
 - Consumption chart: `components/car/charts/ConsumptionChart/`.
 
 List handlers, summaries, badges, and charts reuse the shared calculations instead of maintaining

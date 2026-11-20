@@ -11,7 +11,7 @@ import {
 } from '@/components/ui';
 import { toast } from 'sonner';
 import { getUiErrorMessage } from '@/lib/api/client-errors';
-import CreatedRecordStep from './attachments/CreatedRecordStep';
+import CreatedRecordStep from '../attachments/CreatedRecordStep';
 
 import { expenseCategories, type ExpenseCategory, addMonths, formatDateFi } from '@/utils';
 

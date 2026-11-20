@@ -1,6 +1,6 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import FillUpForm from '@/components/car/FillUpForm';
+import FillUpForm from '../FillUpForm';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { server } from '@/test/msw/server';
 import { http, HttpResponse } from 'msw';

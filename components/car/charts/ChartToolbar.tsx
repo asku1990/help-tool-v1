@@ -1,6 +1,6 @@
 'use client';
 
-import type { ChartOptions } from '@/components/car/charts/ConsumptionChart';
+import type { ChartOptions } from './ConsumptionChart';
 
 export default function ChartToolbar({
   options,

@@ -2,16 +2,20 @@
 
 import { useMemo, type ReactNode } from 'react';
 import { useInfiniteExpenses, useDeleteExpense } from '@/hooks';
-import { useListedRecordDialog } from './records/useListedRecordDialog';
+import { useListedRecordDialog } from '../records/useListedRecordDialog';
 import { Button } from '@/components/ui';
-import { ExpenseListSkeleton } from '@/components/car';
+import ExpenseListSkeleton from './ExpenseListSkeleton';
 import { useUiStore } from '@/stores/ui';
 import { formatDateFi } from '@/utils';
 import { toast } from 'sonner';
 import { getUiErrorMessage } from '@/lib/api/client-errors';
-import ExpenseDialog from './expenses/ExpenseDialog';
-import { destructiveRecordActionClass, recordActionClass, RecordActions } from './records';
-import { RecordSummaryButton } from './records/RecordSummaryButton';
+import ExpenseDialog from './ExpenseDialog';
+import {
+  destructiveRecordActionClass,
+  recordActionClass,
+  RecordActions,
+  RecordSummaryButton,
+} from '../records';
 
 export default function ExpenseList({ vehicleId }: { vehicleId: string }) {
   return <VehicleExpenseList key={vehicleId} vehicleId={vehicleId} />;

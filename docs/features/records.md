@@ -96,8 +96,10 @@ Filenames open in a new tab through the existing authenticated attachment endpoi
 See [attachment storage](../development/attachments.md#open-an-attachment) for access
 and signed-link behavior.
 
-Both lists use the date/summary trigger and saved fields from
-`components/car/records/RecordSummaryButton.tsx`. Both use `SavedRecordDialog`
+The `components/car/expenses/` and `components/car/fillups/` folders each own their form,
+list, dialog, and tests. Both lists use the date/summary trigger in
+`components/car/records/RecordSummaryButton.tsx`; `formatRecordFields.ts` formats
+the saved values for Details. Both use `SavedRecordDialog`
 for view, edit, and file management. Its shared `RecordEditForm` owns the field layout,
 save errors, and Save/Cancel actions; `ExpenseDialog` and `FillUpDialog` supply their fields,
 draft validation, and save requests. Both render

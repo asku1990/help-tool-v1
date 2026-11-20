@@ -7,7 +7,7 @@ import type { ExpenseDto } from '@/queries/expenses';
 import { expenseCategories, isValidExpenseCategory } from '@/utils/expenses';
 import { formatDateFi } from '@/utils';
 import RecordFields from '../records/RecordFields';
-import { recordFields } from '../records/RecordSummaryButton';
+import { recordFields } from '../records/formatRecordFields';
 import SavedRecordDialog from '../records/SavedRecordDialog';
 import type { ListedRecordDialogProps } from '../records/useListedRecordDialog';
 import { getExpenseDraftChanges, toExpenseDraft } from './expenseDraft';
@@ -54,7 +54,7 @@ export default function ExpenseDialog({
           toast.success('Expense updated');
         },
       }}
-      summary={<RecordFields fields={recordFields({ type: 'expense', item, vehicleId })} />}
+      summary={<RecordFields fields={recordFields({ type: 'expense', item })} />}
     >
       <label className="flex flex-col gap-1">
         <span className="text-sm">Date</span>

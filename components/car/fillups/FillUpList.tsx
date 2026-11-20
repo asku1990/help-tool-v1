@@ -4,15 +4,19 @@ import { useMemo, type ReactNode } from 'react';
 import { useInfiniteFillUps, useDeleteFillUp } from '@/hooks';
 import type { FillUpWithSegmentDto } from '@/queries/fillups';
 import { Button } from '@/components/ui';
-import { FillUpListSkeleton } from '@/components/car';
+import FillUpListSkeleton from './FillUpListSkeleton';
 import { useUiStore } from '@/stores/ui';
 import { formatDateFi } from '@/utils';
 import { toast } from 'sonner';
 import { getUiErrorMessage } from '@/lib/api/client-errors';
-import FillUpDialog from './fillups/FillUpDialog';
-import { useListedRecordDialog } from './records/useListedRecordDialog';
-import { RecordSummaryButton } from './records/RecordSummaryButton';
-import { destructiveRecordActionClass, recordActionClass, RecordActions } from './records';
+import FillUpDialog from './FillUpDialog';
+import { useListedRecordDialog } from '../records/useListedRecordDialog';
+import {
+  destructiveRecordActionClass,
+  recordActionClass,
+  RecordActions,
+  RecordSummaryButton,
+} from '../records';
 
 export default function FillUpList({ vehicleId }: { vehicleId: string }) {
   return <VehicleFillUpList key={vehicleId} vehicleId={vehicleId} />;

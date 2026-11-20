@@ -3,7 +3,12 @@
 import { useParams, useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { ChevronRight } from 'lucide-react';
-import BackToVehiclesLink from '@/components/car/BackToVehiclesLink';
+import {
+  BackToVehiclesLink,
+  LicensePlate,
+  InspectionBadge,
+  VehicleDialog,
+} from '@/components/car/vehicles';
 import {
   Button,
   Dialog,
@@ -16,19 +21,17 @@ import {
   Toaster,
 } from '@/components/ui';
 import { useEffect, useMemo, useRef, useState, type MouseEvent } from 'react';
-import FillUpForm from '@/components/car/FillUpForm';
-import ExpenseForm from '@/components/car/ExpenseForm';
-import CostSummary from '@/components/car/CostSummary';
-import FillUpList from '@/components/car/FillUpList';
-import ExpenseList from '@/components/car/ExpenseList';
-import ConsumptionBadges from '@/components/car/ConsumptionBadges';
-import { ConsumptionChart, ExportMenu, RestoreBackupDialog } from '@/components/car';
-import type { ChartOptions } from '@/components/car/charts/ConsumptionChart';
-import ChartToolbar from '@/components/car/ChartToolbar';
-import LicensePlate from '@/components/car/LicensePlate';
-import InspectionBadge from '@/components/car/InspectionBadge';
-import TireManager from '@/components/car/TireManager';
-import OilConsumptionChart from '@/components/car/charts/OilConsumptionChart';
+import { FillUpForm, FillUpList } from '@/components/car/fillups';
+import { ExpenseForm, ExpenseList } from '@/components/car/expenses';
+import { CostSummary, ConsumptionBadges } from '@/components/car/vehicle-detail';
+import { ExportMenu, RestoreBackupDialog } from '@/components/car';
+import {
+  ConsumptionChart,
+  OilConsumptionChart,
+  ChartToolbar,
+  type ChartOptions,
+} from '@/components/car/charts';
+import { TireManager } from '@/components/car/tires';
 import { useExpenses, useVehicleSummary, useVehicle, useDeleteVehicle } from '@/hooks';
 import { pickLastInspectionDateFromExpenses } from '@/utils';
 import { toast } from 'sonner';
@@ -39,7 +42,6 @@ import {
   destructiveRecordActionClass,
   recordActionClass,
 } from '@/components/car/records';
-import VehicleDialog from '@/components/car/vehicles/VehicleDialog';
 
 export default function VehiclePage() {
   const { status } = useSession();

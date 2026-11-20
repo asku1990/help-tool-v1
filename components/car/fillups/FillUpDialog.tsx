@@ -6,7 +6,7 @@ import { useUpdateFillUp } from '@/hooks';
 import type { FillUpWithSegmentDto } from '@/queries/fillups';
 import { formatDateFi } from '@/utils';
 import RecordFields from '../records/RecordFields';
-import { recordFields } from '../records/RecordSummaryButton';
+import { recordFields } from '../records/formatRecordFields';
 import SavedRecordDialog from '../records/SavedRecordDialog';
 import type { ListedRecordDialogProps } from '../records/useListedRecordDialog';
 import { getFillUpDraftChanges, toFillUpDraft } from './fillUpDraft';
@@ -52,7 +52,7 @@ export default function FillUpDialog({
           toast.success('Fill-up updated');
         },
       }}
-      summary={<RecordFields fields={recordFields({ type: 'fillup', item, vehicleId })} />}
+      summary={<RecordFields fields={recordFields({ type: 'fillup', item })} />}
     >
       <label className="flex flex-col gap-1">
         <span className="text-sm">Date</span>

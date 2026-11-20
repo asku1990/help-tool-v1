@@ -1,6 +1,6 @@
 import React from 'react';
 import { render, screen } from '@testing-library/react';
-import CostSummary from '@/components/car/CostSummary';
+import CostSummary from '../CostSummary';
 
 describe('CostSummary', () => {
   it('renders KPI values and breakdown bars', () => {

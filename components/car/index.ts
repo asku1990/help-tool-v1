@@ -1,13 +1,5 @@
-export { default as ConsumptionBadges } from './ConsumptionBadges';
 export { ConsumptionChart, OilConsumptionChart } from './charts';
-export { default as CostSummary } from './CostSummary';
-export { default as TireManager } from './TireManager';
-export { default as ExpenseForm } from './ExpenseForm';
-export { default as ExpenseList } from './ExpenseList';
-export { default as FillUpForm } from './FillUpForm';
-export { default as FillUpList } from './FillUpList';
-export { default as LicensePlate } from './LicensePlate';
-export { default as InspectionBadge } from './InspectionBadge';
+export { TireManager } from './tires';
 export { default as ExportMenu } from './exports/ExportMenu';
 export { default as RestoreBackupDialog } from './imports/RestoreBackupDialog';
 export * from './vehicles';

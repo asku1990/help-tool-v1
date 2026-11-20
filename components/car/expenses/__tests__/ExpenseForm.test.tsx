@@ -1,6 +1,6 @@
 import React from 'react';
 import { render, screen } from '@testing-library/react';
-import ExpenseForm from '@/components/car/ExpenseForm';
+import ExpenseForm from '../ExpenseForm';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 function renderWithProviders(ui: React.ReactElement) {

@@ -5,8 +5,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { http, HttpResponse } from 'msw';
 import { server } from '@/test/msw/server';
 import { useUiStore } from '@/stores/ui';
-import ExpenseForm from '../../ExpenseForm';
-import FillUpForm from '../../FillUpForm';
+import ExpenseForm from '../../expenses/ExpenseForm';
+import FillUpForm from '../../fillups/FillUpForm';
 import { listAttachments, uploadAttachment, type AttachmentDto } from '@/queries/attachments';
 
 vi.mock('@/queries/attachments', async importOriginal => ({

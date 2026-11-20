@@ -1,6 +1,6 @@
 import React from 'react';
 import { render, screen } from '@testing-library/react';
-import LicensePlate from '@/components/car/LicensePlate';
+import LicensePlate from '../LicensePlate';
 
 describe('LicensePlate', () => {
   it('renders uppercase value and aria label', () => {

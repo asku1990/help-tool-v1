@@ -1,6 +1,6 @@
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
-import ChartToolbar from '@/components/car/ChartToolbar';
+import ChartToolbar from '../ChartToolbar';
 
 describe('ChartToolbar', () => {
   it('renders and changes range', () => {

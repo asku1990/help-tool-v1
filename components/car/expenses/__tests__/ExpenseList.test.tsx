@@ -1,6 +1,6 @@
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
-import FillUpList from '@/components/car/FillUpList';
+import ExpenseList from '../ExpenseList';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 function renderWithProviders(ui: React.ReactElement) {
@@ -9,19 +9,23 @@ function renderWithProviders(ui: React.ReactElement) {
 }
 
 it('renders empty state and CTA opens dialog via store', async () => {
+  // Mock fetch to return empty expenses
   vi.spyOn(global, 'fetch').mockResolvedValue(
-    new Response(JSON.stringify({ data: { fillUps: [], nextCursor: null, canWrite: true } }), {
-      status: 200,
-      headers: { 'Content-Type': 'application/json' },
-    })
-  );
-  renderWithProviders(<FillUpList vehicleId="vid" />);
-  expect(
-    await screen.findByText(
-      /No fill-ups yet\. Add your first to see real consumption and cost\/km\./i
+    new Response(
+      JSON.stringify({
+        data: { expenses: [], expensesTotal: 0, nextCursor: null, canWrite: true },
+      }),
+      {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }
     )
+  );
+  renderWithProviders(<ExpenseList vehicleId="vid" />);
+  expect(
+    await screen.findByText(/No expenses yet\. Log one to track maintenance and total cost\./i)
   ).toBeInTheDocument();
-  const btn = screen.getByRole('button', { name: /add fill-up/i });
+  const btn = screen.getByRole('button', { name: /add expense/i });
   fireEvent.click(btn);
   vi.restoreAllMocks();
 });
