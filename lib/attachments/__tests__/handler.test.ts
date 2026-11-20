@@ -164,6 +164,14 @@ describe.each([
     expect(mocks.storage).not.toHaveBeenCalled();
   });
 
+  it('accepts a browser-confirmed same-origin upload behind a proxy', async () => {
+    const req = uploadRequest(pdf, 'application/pdf', {
+      origin: 'https://cars.example.test',
+      'sec-fetch-site': 'same-origin',
+    });
+    expect((await post(req)).status).toBe(201);
+  });
+
   it('rejects requests without vehicle membership', async () => {
     mocks.access.mockResolvedValue(null);
     expect((await get(new Request('http://localhost/api/attachments'))).status).toBe(404);

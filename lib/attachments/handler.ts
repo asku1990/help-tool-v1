@@ -36,10 +36,13 @@ export async function handleAttachments(req: Request, vehicleId: string, parent:
       // A browser can send a cross-origin multipart form without a preflight.
       const site = req.headers.get('sec-fetch-site');
       const origin = req.headers.get('origin');
+      // Browser-controlled fetch metadata describes the public origin even when
+      // a proxy rewrites req.url. Without it, retain the exact Origin check.
       if (
         site === 'cross-site' ||
         site === 'same-site' ||
-        (origin !== null && origin !== new URL(req.url).origin)
+        origin === 'null' ||
+        (site !== 'same-origin' && origin !== null && origin !== new URL(req.url).origin)
       ) {
         return forbidden('Cross-origin uploads are not allowed.');
       }

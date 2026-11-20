@@ -1,6 +1,7 @@
 import type { Prisma } from '@/generated/prisma';
 
-export type AttachmentParent = { type: 'vehicle' } | { type: 'expense' | 'fillup'; id: string };
+import type { AttachmentParent } from './types';
+export type { AttachmentParent } from './types';
 
 export function attachmentParentKey(vehicleId: string, parent: AttachmentParent) {
   switch (parent.type) {

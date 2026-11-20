@@ -363,3 +363,42 @@ it('returns an owner to the updated vehicle summary and preserves a zero odomete
   expect(patch).toHaveBeenCalledExactlyOnceWith({ name: 'Car B' });
   expect(dialog.getByRole('button', { name: 'Edit details' })).toHaveFocus();
 });
+
+it('waits for the saved vehicle to refresh before reopening More → Edit', async () => {
+  let saved = false;
+  let release!: () => void;
+  const refresh = new Promise<void>(resolve => {
+    release = resolve;
+  });
+  server.use(
+    http.get('/api/vehicles/v1', async () => {
+      if (saved) await refresh;
+      return HttpResponse.json({
+        data: {
+          vehicle: { id: 'v1', name: saved ? 'Car B' : 'Car A', canEdit: true, canWrite: true },
+        },
+      });
+    }),
+    http.patch('/api/vehicles/v1', () => {
+      saved = true;
+      return HttpResponse.json({ data: { id: 'v1' } });
+    })
+  );
+  renderWithProviders(<VehiclePage />);
+  const menu = await screen.findByRole('button', { name: 'More vehicle actions' });
+  fireEvent.click(menu);
+  fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
+  fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Car B' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
+  try {
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    fireEvent.click(menu);
+    expect(screen.getByRole('button', { name: 'Edit' })).toBeDisabled();
+  } finally {
+    release();
+  }
+  const edit = screen.getByRole('button', { name: 'Edit' });
+  await waitFor(() => expect(edit).toBeEnabled());
+  fireEvent.click(edit);
+  expect(screen.getByLabelText('Name')).toHaveValue('Car B');
+});

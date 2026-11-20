@@ -453,6 +453,7 @@ describe('Record attachments', () => {
     vi.mocked(listAttachments).mockRejectedValue(new Error('List unavailable.'));
     fireEvent.click(screen.getByRole('button', { name: 'Upload file' }));
     expect(await screen.findByRole('button', { name: 'Refresh attachments' })).toBeInTheDocument();
+    expect(screen.queryByText('No files yet.')).not.toBeInTheDocument();
     await waitFor(() =>
       expect(screen.queryByRole('button', { name: 'Retry upload' })).not.toBeInTheDocument()
     );

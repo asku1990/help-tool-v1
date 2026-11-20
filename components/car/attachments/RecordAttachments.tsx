@@ -416,11 +416,11 @@ export default function RecordAttachments({
                 </li>
               ))}
             </ul>
-          ) : (
+          ) : list.isSuccess ? (
             <p className="text-sm text-gray-500">
               {files ? 'No files yet.' : 'No attachments yet.'}
             </p>
-          )}
+          ) : null}
           {!viewingDetails && !list.data.canUpload ? (
             <p className="text-sm text-gray-500">
               View-only access. Only owners and editors may upload, rename, or delete.

@@ -62,6 +62,7 @@ export default function VehiclePage() {
   // Server state via TanStack Query, derived locally with useMemo (no duplication to local state)
   const vehicleQuery = useVehicle(vehicleId);
   const vehicle = vehicleQuery.data?.vehicle;
+  const vehicleFieldsReady = !vehicleQuery.isError && vehicleQuery.fetchStatus === 'idle';
   const deleteVehicleMutation = useDeleteVehicle(vehicleId || '');
   const [vehicleEntry, setVehicleEntry] = useState<'view' | 'edit' | null>(null);
   const vehicleDialogTrigger = useRef<HTMLElement | null>(null);
@@ -212,6 +213,7 @@ export default function VehiclePage() {
                       type="button"
                       variant="ghost"
                       className={recordActionClass}
+                      disabled={!vehicleFieldsReady}
                       onClick={event => openVehicleDialog(event, () => setVehicleEntry('edit'))}
                     >
                       Edit
@@ -377,7 +379,7 @@ export default function VehiclePage() {
           vehicle={vehicle}
           entry={vehicleEntry}
           canEdit={vehicle.canEdit === true}
-          available={!vehicleQuery.isError && vehicleQuery.fetchStatus === 'idle'}
+          available={vehicleFieldsReady}
           onClose={() => setVehicleEntry(null)}
           restoreFocus={() => vehicleDialogTrigger.current?.focus()}
         />
