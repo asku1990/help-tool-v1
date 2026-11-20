@@ -16,7 +16,7 @@ function renderWithProviders(
 describe('ExpenseList behavior', () => {
   it.each([
     { label: 'missing metrics', metrics: {}, expected: [] },
-    { label: 'zero odometer', metrics: { odometerKm: 0 }, expected: ['Odo: 0 km'] },
+    { label: 'zero odometer', metrics: { odometerKm: 0 }, expected: ['0 km'] },
     { label: 'oil consumption only', metrics: { oilConsumption: 0 }, expected: ['0.0 L/10k'] },
   ])('avoids empty metric cells while preserving $label', async ({ metrics, expected }) => {
     server.use(
@@ -46,12 +46,14 @@ describe('ExpenseList behavior', () => {
     expect(
       screen
         .getAllByRole('columnheader')
-        .slice(0, 2)
+        .slice(0, 3)
         .map(header => header.textContent)
-    ).toEqual(['Date', 'Odometer / oil']);
+    ).toEqual(['Date', 'Odometer / oil', 'Category / vendor']);
     expect(screen.getByRole('columnheader', { name: 'Notes' })).toBeInTheDocument();
     expect(screen.getByRole('columnheader', { name: 'Amount' })).toBeInTheDocument();
-    for (const value of expected) expect(within(row).getByText(value)).toBeInTheDocument();
+    for (const value of expected) {
+      expect(within(row).getAllByRole('cell')[1]).toHaveTextContent(value);
+    }
     expect(within(row).getByText(/10[.,]00/)).toHaveClass('lg:tabular-nums');
   });
 

@@ -139,20 +139,22 @@ function VehicleExpenseList({ vehicleId }: { vehicleId: string }) {
               </td>
               <td
                 role="cell"
-                className={`col-span-full min-w-0 text-muted-foreground lg:table-cell lg:tabular-nums ${e.odometerKm == null && e.oilConsumption == null ? 'hidden' : ''}`}
+                className={`col-span-full min-w-0 text-muted-foreground lg:table-cell lg:tabular-nums ${e.oilConsumption == null ? 'hidden' : ''}`}
               >
                 <span className="lg:block lg:truncate">
-                  {e.odometerKm != null ? <span>{`Odo: ${e.odometerKm} km`}</span> : null}
+                  {e.odometerKm != null ? (
+                    <span className="hidden lg:inline">{e.odometerKm} km</span>
+                  ) : null}
                   {e.oilConsumption != null ? (
-                    <span className="ml-2 text-xs text-amber-600">
+                    <span className="text-xs text-amber-600 lg:ml-2">
                       {e.oilConsumption.toFixed(1)} L/10k
                     </span>
                   ) : null}
                   {e.odometerKm == null && e.oilConsumption == null ? '—' : null}
                 </span>
               </td>
-              <td role="cell" className="hidden lg:table-cell">
-                <span className="block truncate">
+              <td role="cell" className="col-span-full min-w-0 lg:table-cell">
+                <span className="block wrap-anywhere text-xs text-muted-foreground lg:truncate lg:text-sm lg:text-foreground">
                   {e.category.replace(/_/g, ' ')}
                   {e.vendor ? ` · ${e.vendor}` : ''}
                 </span>
