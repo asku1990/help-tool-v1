@@ -3,22 +3,32 @@
 ## Vehicle Overview
 
 The overview header shows the vehicle name, registration plate, and one inspection status.
-On phones, the inspection status gets its own line. It shows the date when more than
-30 days away, and uses plain-language urgency when due soon or overdue.
-**Switch vehicle** appears on large screens only when another vehicle is available.
-On smaller screens, use **Back to vehicles** to switch.
+The plate and inspection status sit side by side when they fit and wrap on narrow screens.
+The status shows the date when more than 30 days away and uses plain-language urgency
+when due soon or overdue.
+To open a different vehicle, use **Back to vehicles** and choose it from the list.
 The summary groups and records share the same content width as the header. White panels
 on a blue-gray canvas distinguish sections without heavy borders in the light theme.
 
-**Add fill-up** and **Add expense** are the primary actions for owners and editors.
-**⋯** groups the less frequent actions: **Download backup** and **Download for spreadsheet**
+**Add fill-up**, **Add expense**, and **More** sit together to the right of the vehicle
+details on large screens and align left below them on smaller screens. The add buttons are
+available to owners and editors.
+**More** groups the less frequent actions: **Download backup** and **Download for spreadsheet**
 for anyone with read access, **Import backup** for owners and editors, and **Edit** and
 **Delete vehicle** for owners only. Vehicle deletion requires confirmation. Tap or click
-outside the menu to close it. Closing a menu dialog returns focus to **⋯**.
+outside the menu to close it. Closing a menu dialog returns focus to **More**.
 
 On the vehicles list, **Add vehicle** is visible and **Restore Backup** is in the
 **⋯** menu. Tap or click outside to close the menu. Closing the restore dialog
 returns focus to **⋯**.
+
+Manual iPhone Safari regression check: on the vehicles list, open **⋯** and tap
+the **Vehicles** heading. Then open a vehicle, open **More**, and tap the **Fill-ups**
+heading. Each menu should close on the first tap without opening a dialog or navigating.
+Use a real tap on the heading, not a button or link; synthetic events do not check
+whether Safari delivers the tap on non-interactive content.
+The [mobile WebKit test](../commands.md#tests) checks the same flow in emulation;
+it does not replace the real-device check.
 
 Use **Download backup** for restore, not for opening in a spreadsheet. Use **Download for
 spreadsheet** to view the records in a spreadsheet app. Import this copy as a comma-delimited

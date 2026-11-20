@@ -2,10 +2,21 @@ import * as React from 'react';
 import { cn } from '@/utils';
 
 type DivProps = React.HTMLAttributes<HTMLDivElement>;
+type CardProps = DivProps & { variant?: 'default' | 'subtle' };
 
-const Card = React.forwardRef<HTMLDivElement, DivProps>(({ className, ...props }, ref) => (
-  <div ref={ref} className={cn('rounded-xl border bg-white shadow-sm', className)} {...props} />
-));
+const Card = React.forwardRef<HTMLDivElement, CardProps>(
+  ({ className, variant = 'default', ...props }, ref) => (
+    <div
+      ref={ref}
+      className={cn(
+        'rounded-xl border shadow-sm',
+        variant === 'subtle' ? 'border-surface-border bg-card text-card-foreground' : 'bg-white',
+        className
+      )}
+      {...props}
+    />
+  )
+);
 Card.displayName = 'Card';
 
 const CardHeader = ({ className, ...props }: DivProps) => (

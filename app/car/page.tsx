@@ -94,7 +94,7 @@ export default function CarHomePage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
+    <div className="min-h-screen bg-canvas">
       <PageHeader
         title="Car Management"
         icon={<Car className="w-6 h-6" />}
@@ -128,12 +128,12 @@ export default function CarHomePage() {
       />
 
       <main className="container mx-auto px-4 py-8">
-        <Card>
+        <Card variant="subtle">
           <CardContent className="!p-4 sm:!p-6">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
               <div className="min-w-0">
                 <h2 className="text-lg font-semibold">Vehicles</h2>
-                <p className="text-sm text-gray-500">
+                <p className="text-sm text-muted-foreground">
                   Add your first vehicle to start tracking fuel and expenses.
                 </p>
               </div>
@@ -144,7 +144,7 @@ export default function CarHomePage() {
             <div className="mt-6 space-y-3" aria-busy={isVehiclesLoading}>
               {isVehiclesLoading && <VehicleListSkeleton rows={3} />}
               {!isVehiclesLoading && vehicles.length === 0 && (
-                <div className="text-gray-600 text-sm">No vehicles yet.</div>
+                <div className="text-sm text-muted-foreground">No vehicles yet.</div>
               )}
               {!isVehiclesLoading && vehicles.length > 0 && (
                 <ul className="divide-y">
@@ -152,16 +152,16 @@ export default function CarHomePage() {
                     <li key={v.id}>
                       <Link
                         href={`/car/${v.id}`}
-                        className="flex items-center justify-between py-3 px-2 rounded hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="flex items-center justify-between py-3 px-2 rounded hover:bg-accent focus:outline-none focus:ring-2 focus:ring-ring"
                       >
                         <div className="min-w-0">
                           <div className="font-medium truncate">{v.name}</div>
-                          <div className="text-xs text-gray-500 truncate">
+                          <div className="text-xs text-muted-foreground truncate">
                             {[v.make, v.model, v.year ?? ''].filter(Boolean).join(' ')}
                           </div>
                           {v.licensePlate ? (
                             <div className="mt-1">
-                              <span className="inline-block rounded-md border bg-white px-2 py-0.5 text-[10px] tracking-widest [letter-spacing:.12em]">
+                              <span className="inline-block rounded-md border bg-background px-2 py-0.5 text-[10px] tracking-widest [letter-spacing:.12em]">
                                 {v.licensePlate.toUpperCase()}
                               </span>
                             </div>
@@ -193,7 +193,7 @@ export default function CarHomePage() {
                               </span>
                             ) : null;
                           })()}
-                          <span className="text-sm text-blue-600">Open</span>
+                          <span className="text-sm text-primary">Open</span>
                         </div>
                       </Link>
                     </li>

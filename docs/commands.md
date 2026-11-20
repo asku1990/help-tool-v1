@@ -66,6 +66,17 @@ Integration and end-to-end tests may need a configured database, Docker, and env
 variables. Read the relevant test setup before running against an existing database.
 Test-only authentication bypasses must never be enabled for normal or production use.
 
+To run the header menu touch regression from the repository root:
+
+```bash
+pnpm exec playwright install webkit
+pnpm exec playwright test --config playwright.touch.config.ts
+```
+
+This starts a dedicated loopback-only dev server on port `3100` with test-only auth bypass
+and mocks browser API responses. No database is needed. The test uses iPhone emulation,
+not a physical device.
+
 With Docker running, execute the PostgreSQL integration suites:
 
 ```bash

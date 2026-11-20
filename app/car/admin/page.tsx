@@ -1,12 +1,12 @@
 'use client';
 
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { Button, Card, CardContent, Toaster } from '@/components/ui';
 import { toast } from 'sonner';
 import PageHeader from '@/components/layout/PageHeader';
+import BackToVehiclesLink from '@/components/car/BackToVehiclesLink';
 import { getUiErrorMessage } from '@/lib/api/client-errors';
 import {
   useAdminUsers,
@@ -128,24 +128,17 @@ export default function AdminPage() {
   if (status === 'unauthenticated') return null;
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
-      <PageHeader
-        title="Admin"
-        right={
-          <Link href="/car" className="text-sm text-blue-600 hover:underline">
-            Back to vehicles
-          </Link>
-        }
-      />
+    <div className="min-h-screen bg-canvas">
+      <PageHeader title="Admin" navigation={<BackToVehiclesLink />} />
 
       <main className="container mx-auto px-4 py-8 space-y-6">
-        <Card>
+        <Card variant="subtle">
           <CardContent className="!p-4 sm:!p-6">
             <h2 className="text-lg font-semibold">Users</h2>
             <div className="mt-3 overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="text-left border-b">
+                  <tr className="text-left border-b border-surface-border">
                     <th className="py-2 pr-4">Email</th>
                     <th className="py-2 pr-4">Username</th>
                     <th className="py-2 pr-4">Type</th>
@@ -153,7 +146,7 @@ export default function AdminPage() {
                 </thead>
                 <tbody>
                   {users.map(user => (
-                    <tr key={user.id} className="border-b last:border-0">
+                    <tr key={user.id} className="border-b border-surface-border last:border-0">
                       <td className="py-2 pr-4">{user.email}</td>
                       <td className="py-2 pr-4">{user.username}</td>
                       <td className="py-2 pr-4">{user.userType}</td>
@@ -165,13 +158,13 @@ export default function AdminPage() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card variant="subtle">
           <CardContent className="!p-4 sm:!p-6">
             <h2 className="text-lg font-semibold">Vehicles</h2>
             <div className="mt-3 overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="text-left border-b">
+                  <tr className="text-left border-b border-surface-border">
                     <th className="py-2 pr-4">Vehicle</th>
                     <th className="py-2 pr-4">Owner Email</th>
                     <th className="py-2 pr-4">Access Count</th>
@@ -179,7 +172,7 @@ export default function AdminPage() {
                 </thead>
                 <tbody>
                   {vehicles.map(vehicle => (
-                    <tr key={vehicle.id} className="border-b last:border-0">
+                    <tr key={vehicle.id} className="border-b border-surface-border last:border-0">
                       <td className="py-2 pr-4">
                         {[vehicle.name, vehicle.make, vehicle.model, vehicle.year ?? '']
                           .filter(Boolean)
@@ -195,7 +188,7 @@ export default function AdminPage() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card variant="subtle">
           <CardContent className="!p-4 sm:!p-6 space-y-4">
             <h2 className="text-lg font-semibold">Access Manager</h2>
 
@@ -265,7 +258,7 @@ export default function AdminPage() {
               <div className="mt-2 overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="text-left border-b">
+                    <tr className="text-left border-b border-surface-border">
                       <th className="py-2 pr-4">Email</th>
                       <th className="hidden py-2 pr-4 sm:table-cell">Username</th>
                       <th className="py-2 pr-4">Role</th>
@@ -274,14 +267,16 @@ export default function AdminPage() {
                   </thead>
                   <tbody>
                     {(accessData?.access || []).map(item => (
-                      <tr key={item.id} className="border-b last:border-0">
+                      <tr key={item.id} className="border-b border-surface-border last:border-0">
                         <td className="py-2 pr-4 wrap-anywhere">
                           {item.userEmail}
                           <span className="block text-muted-foreground sm:hidden">
                             {item.username}
                           </span>
                         </td>
-                        <td className="hidden py-2 pr-4 sm:table-cell">{item.username}</td>
+                        <td className="hidden py-2 pr-4 wrap-anywhere sm:table-cell">
+                          {item.username}
+                        </td>
                         <td className="py-2 pr-4">{item.role}</td>
                         <td className="py-2 sm:pr-4">
                           <Button
@@ -297,7 +292,7 @@ export default function AdminPage() {
                     ))}
                     {accessData && accessData.access.length === 0 ? (
                       <tr>
-                        <td colSpan={4} className="py-2 text-gray-500">
+                        <td colSpan={4} className="py-2 text-muted-foreground">
                           No access rows found for this vehicle.
                         </td>
                       </tr>

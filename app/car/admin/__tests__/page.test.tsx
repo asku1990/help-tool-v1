@@ -90,6 +90,10 @@ it('loads users, vehicles, and access list', async () => {
 
   renderWithProviders(<AdminPage />);
 
+  expect(await screen.findByRole('link', { name: 'Back to vehicles' })).toHaveAttribute(
+    'href',
+    '/car'
+  );
   expect(await screen.findByText('Users')).toBeInTheDocument();
   expect(await screen.findByText('Vehicles')).toBeInTheDocument();
   expect(await screen.findByText('Access Manager')).toBeInTheDocument();

@@ -1,7 +1,15 @@
 'use client';
 
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { MoreHorizontal } from 'lucide-react';
+import { ChevronDown, MoreHorizontal } from 'lucide-react';
+import { buttonVariants } from '@/components/ui/button';
+import { cn } from '@/utils';
+
+const placementClasses = {
+  row: 'relative col-start-2 row-start-1 justify-self-end sm:col-start-5',
+  card: 'relative shrink-0',
+  toolbar: 'shrink-0 lg:relative',
+};
 
 export const recordActionClass = 'min-h-11 w-full justify-start px-3';
 export const destructiveRecordActionClass =
@@ -9,12 +17,14 @@ export const destructiveRecordActionClass =
 
 export default function RecordActions({
   label,
+  triggerText,
   children,
   placement = 'row',
 }: {
   label: string;
+  triggerText?: string;
   children: ReactNode;
-  placement?: 'row' | 'card';
+  placement?: keyof typeof placementClasses;
 }) {
   const details = useRef<HTMLDetailsElement>(null);
   const [open, setOpen] = useState(false);
@@ -48,13 +58,10 @@ export default function RecordActions({
   return (
     <details
       ref={details}
+      data-record-actions=""
       open={open}
       onToggle={event => setOpen(event.currentTarget.open)}
-      className={
-        placement === 'row'
-          ? 'relative col-start-2 row-start-1 justify-self-end sm:col-start-5'
-          : 'relative shrink-0'
-      }
+      className={placementClasses[placement]}
       onClick={event => {
         const action =
           event.target instanceof Element ? event.target.closest('button, a[href]') : null;
@@ -74,9 +81,23 @@ export default function RecordActions({
           event.preventDefault();
           setOpen(current => !current);
         }}
-        className="flex h-11 w-11 cursor-pointer list-none items-center justify-center rounded-md hover:bg-gray-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 [&::-webkit-details-marker]:hidden"
+        className={
+          triggerText
+            ? cn(
+                buttonVariants({ variant: 'outline' }),
+                'h-11 list-none gap-1 py-0 transition-colors has-[>svg]:px-2 max-lg:border-0 max-lg:bg-transparent max-lg:shadow-none max-lg:hover:bg-accent lg:has-[>svg]:px-4 dark:max-lg:bg-transparent dark:max-lg:hover:bg-accent [&::-webkit-details-marker]:hidden'
+              )
+            : 'flex h-11 w-11 cursor-pointer list-none items-center justify-center rounded-md hover:bg-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 [&::-webkit-details-marker]:hidden'
+        }
       >
-        <MoreHorizontal className="size-5" aria-hidden="true" />
+        {triggerText ? (
+          <>
+            {triggerText}
+            <ChevronDown className="size-4" aria-hidden="true" />
+          </>
+        ) : (
+          <MoreHorizontal className="size-5" aria-hidden="true" />
+        )}
       </summary>
       <div
         hidden={!open}
