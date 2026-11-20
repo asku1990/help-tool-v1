@@ -25,8 +25,6 @@ type Props = {
   onBusyChange?: (_busy: boolean) => void;
   disabled?: boolean;
   context:
-    | 'preview'
-    | 'editor'
     | 'creation'
     | {
         kind: 'details';
@@ -46,11 +44,9 @@ export default function RecordAttachments({
   const upload = useUploadAttachment(vehicleId, record);
   const deletion = useDeleteAttachment(vehicleId, record);
   const rename = useRenameAttachment(vehicleId, record);
-  const files = typeof context === 'object';
+  const files = context !== 'creation';
   const managing = files && context.mode === 'manage';
-  const uploadFirst = files || context === 'editor';
   const title = files ? 'Files' : 'Attachments';
-  const readOnly = context === 'preview' || (files && !managing);
   const denied =
     list.error instanceof ApiClientError && [401, 403, 404].includes(list.error.status);
   const viewingDetails = files && !managing;
@@ -103,7 +99,7 @@ export default function RecordAttachments({
 
   const full = list.data?.remainingCapacity === 0;
   const busy = upload.isPending || deletion.isPending || rename.isPending;
-  const canWrite = !readOnly && !denied && list.data?.canUpload;
+  const canWrite = !viewingDetails && !denied && list.data?.canUpload;
   const canUpload = canWrite && !list.isError;
   const mutationBlocked = !canUpload || disabled || busy || list.isFetching;
 
@@ -181,7 +177,7 @@ export default function RecordAttachments({
       ) : null}
       <div
         className={
-          uploadFirst ? 'grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end' : 'space-y-2'
+          files ? 'grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end' : 'space-y-2'
         }
       >
         <label className="flex min-w-0 flex-col gap-1 text-sm">
@@ -192,15 +188,15 @@ export default function RecordAttachments({
             accept={attachmentAccept}
             disabled={disabled || busy || full || list.isFetching}
             onChange={event => selectFile(event.target.files?.[0] ?? null)}
-            className={`w-full min-w-0 rounded-md border px-3 py-2${uploadFirst ? ' min-h-11' : ''}`}
+            className={`w-full min-w-0 rounded-md border px-3 py-2${files ? ' min-h-11' : ''}`}
             aria-invalid={Boolean(fileError)}
           />
         </label>
         <Button
           type="button"
           variant="outline"
-          size={uploadFirst ? 'default' : 'sm'}
-          className={uploadFirst ? 'min-h-11' : undefined}
+          size={files ? 'default' : 'sm'}
+          className={files ? 'min-h-11' : undefined}
           disabled={disabled || !file || Boolean(fileError) || busy || full || list.isFetching}
           onClick={() => {
             void submitUpload();
@@ -210,14 +206,11 @@ export default function RecordAttachments({
             ? 'Uploading…'
             : uploadError
               ? 'Retry upload'
-              : uploadFirst
+              : files
                 ? 'Upload file'
                 : 'Upload'}
         </Button>
       </div>
-      {uploadFirst && !files ? (
-        <p className="text-xs text-gray-500">Attachment changes are saved separately.</p>
-      ) : null}
       {file ? <p className="break-all text-xs text-gray-500">Selected file: {file.name}</p> : null}
       {fileError ? (
         <p role="alert" className="text-sm text-red-600">
@@ -248,10 +241,10 @@ export default function RecordAttachments({
           </Button>
         ) : null}
       </div>
-      {files && managing && (
+      {managing && (
         <p className="text-sm text-muted-foreground">File changes are saved immediately.</p>
       )}
-      {!readOnly ? (
+      {!viewingDetails ? (
         <p className="text-xs text-gray-500">
           {attachmentFormatList} · Max {MAX_ATTACHMENT_BYTES / 1_000_000} MB
         </p>
@@ -265,7 +258,7 @@ export default function RecordAttachments({
         <div className="space-y-2">
           <p role="alert" className="text-sm text-red-600">
             {getUiErrorMessage(list.error, 'Could not load attachments.')}
-            {!readOnly ? ' Refresh the list before uploading, renaming, or deleting.' : null}
+            {!viewingDetails ? ' Refresh the list before uploading, renaming, or deleting.' : null}
           </p>
           <Button
             type="button"
@@ -282,12 +275,12 @@ export default function RecordAttachments({
       ) : null}
       {list.data && !denied ? (
         <>
-          {!readOnly ? (
+          {!viewingDetails ? (
             <p className="text-sm text-gray-600">
               {list.data.remainingCapacity} of {list.data.maxAttachments} attachment slots remaining
             </p>
           ) : null}
-          {uploadFirst ? uploadControls : null}
+          {files ? uploadControls : null}
           {list.data.attachments.length ? (
             <ul
               className={files ? 'divide-y text-sm' : 'space-y-1 text-sm'}
@@ -428,14 +421,14 @@ export default function RecordAttachments({
               {files ? 'No files yet.' : 'No attachments yet.'}
             </p>
           )}
-          {!readOnly && !list.data.canUpload ? (
+          {!viewingDetails && !list.data.canUpload ? (
             <p className="text-sm text-gray-500">
               View-only access. Only owners and editors may upload, rename, or delete.
             </p>
           ) : null}
         </>
       ) : null}
-      {!uploadFirst ? uploadControls : null}
+      {!files ? uploadControls : null}
       {upload.isPending ? (
         <div className="space-y-1" role="status">
           <progress
