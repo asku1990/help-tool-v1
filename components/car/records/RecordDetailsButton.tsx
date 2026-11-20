@@ -26,7 +26,9 @@ export default function RecordDetailsButton(props: Props) {
   const category = props.type === 'expense' ? props.item.category.replace(/_/g, ' ') : '';
   const summary =
     props.type === 'expense'
-      ? `${category}${props.item.vendor ? ` · ${props.item.vendor}` : ''}`
+      ? [category, props.item.vendor, props.item.odometerKm != null ? odometer : null]
+          .filter(Boolean)
+          .join(' · ')
       : odometer;
   const fields: [string, string][] = [
     ['Date', date],

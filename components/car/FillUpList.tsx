@@ -142,7 +142,7 @@ function VehicleFillUpList({ vehicleId }: { vehicleId: string }) {
                 <RecordDetailsButton vehicleId={vehicleId} type="fillup" item={f} />
               </td>
               <td role="cell" className="hidden tabular-nums lg:table-cell">
-                {f.odometerKm} km
+                <span className="lg:block lg:truncate">{f.odometerKm} km</span>
               </td>
               <td
                 role="cell"

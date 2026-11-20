@@ -79,7 +79,7 @@ describe.each([
               {
                 id: 'parent',
                 date: '2026-11-16',
-                odometerKm: 100,
+                odometerKm: longValues ? -2147483648 : 100,
                 liters: longValues ? 12345.67 : 10,
                 pricePerLiter: longValues ? 12.345 : 2,
                 totalCost: longValues ? 152407.3 : 20,
@@ -148,6 +148,12 @@ describe.each([
         ? within(screen.getAllByRole('cell')[1]).getByText('2147483647 km').parentElement
         : screen.getByText(/12345\.67 L @ 12\.345/);
     expect(preview).toHaveClass('lg:block', 'lg:truncate');
+    if (type === 'fillup') {
+      expect(within(screen.getAllByRole('cell')[1]).getByText('-2147483648 km')).toHaveClass(
+        'lg:block',
+        'lg:truncate'
+      );
+    }
 
     fireEvent.click(details);
     const dialog = within(await screen.findByRole('dialog', { name: title }));
@@ -155,6 +161,7 @@ describe.each([
       type === 'expense'
         ? ['2147483647 km', '12345.6 L/10,000 km']
         : [
+            '-2147483648 km',
             '12345.67 L',
             '12.345 €/L',
             new Intl.NumberFormat(undefined, { style: 'currency', currency: 'EUR' }).format(
@@ -169,6 +176,7 @@ describe.each([
     const details = await screen.findByRole('button', { name: /View .* details for/ });
     const odometer = type === 'expense' ? '0 km' : '100 km';
     const cells = screen.getAllByRole('cell');
+    expect(details).toHaveAccessibleName(expect.stringContaining(odometer));
     expect(within(details).getByText(odometer)).toHaveClass('lg:hidden');
     expect(cells[1]).toHaveTextContent(odometer);
     if (type === 'expense') expect(cells[2]).toHaveTextContent('OIL TOP UP');

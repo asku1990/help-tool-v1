@@ -80,7 +80,8 @@ with the rest of the entry, the **⋯** menu stays at the top right, and the rem
 details use the full width underneath. On desktop, both lists are tables with visible
 column headings aligned to the start of each cell, one line per record, and a narrow actions
 column. Odometer follows Date in both lists, before the expense category. Readings
-include `km`. Missing values are marked with a dash on desktop without shifting other columns.
+include `km` and are part of the Details button’s accessible name. Missing values are
+marked with a dash on desktop without shifting other columns.
 The lists retain their existing values. Note previews use at most two lines on mobile
 and one on desktop; Details keeps the full notes. Long fuel purchase and odometer/oil
 previews truncate on desktop; open Details from the date to see the full values.
