@@ -99,7 +99,7 @@ export default function CarHomePage() {
         title="Car Management"
         icon={<Car className="w-6 h-6" />}
         right={
-          <RecordActions label="Vehicle list actions" placement="card">
+          <RecordActions label="Vehicle list actions" placement="card" unmountOnClose>
             <Button
               type="button"
               variant="ghost"

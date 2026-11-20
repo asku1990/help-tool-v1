@@ -20,11 +20,13 @@ export default function RecordActions({
   triggerText,
   children,
   placement = 'row',
+  unmountOnClose = false,
 }: {
   label: string;
   triggerText?: string;
   children: ReactNode;
   placement?: keyof typeof placementClasses;
+  unmountOnClose?: boolean;
 }) {
   const details = useRef<HTMLDetailsElement>(null);
   const [open, setOpen] = useState(false);
@@ -58,9 +60,7 @@ export default function RecordActions({
   return (
     <details
       ref={details}
-      data-record-actions=""
       open={open}
-      onToggle={event => setOpen(event.currentTarget.open)}
       className={placementClasses[placement]}
       onClick={event => {
         const action =
@@ -99,12 +99,14 @@ export default function RecordActions({
           <MoreHorizontal className="size-5" aria-hidden="true" />
         )}
       </summary>
-      <div
-        hidden={!open}
-        className="absolute right-0 top-full z-20 mt-1 min-w-36 rounded-md border bg-background p-1 shadow-md"
-      >
-        {children}
-      </div>
+      {(open || !unmountOnClose) && (
+        <div
+          hidden={!open}
+          className="absolute right-0 top-full z-20 mt-1 min-w-36 rounded-md border bg-background p-1 shadow-md"
+        >
+          {children}
+        </div>
+      )}
     </details>
   );
 }

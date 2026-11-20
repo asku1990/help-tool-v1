@@ -14,10 +14,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body>
         <SessionProvider>
           <QueryProvider>
-            {/* iOS Safari may not deliver delegated clicks from non-interactive content. */}
-            <main className="pointer-coarse:has-[header_[data-record-actions][open]]:cursor-pointer">
-              {children}
-            </main>
+            <main>{children}</main>
           </QueryProvider>
         </SessionProvider>
       </body>

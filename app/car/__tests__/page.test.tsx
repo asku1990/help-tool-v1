@@ -109,7 +109,7 @@ it('closes the actions menu when the vehicles heading is clicked', async () => {
 
   fireEvent.click(heading);
   expect(menu).toHaveAttribute('aria-expanded', 'false');
-  expect(signOutButton).not.toBeVisible();
+  expect(signOutButton).not.toBeInTheDocument();
 });
 
 it('restores records to an existing vehicle without clearing it', async () => {

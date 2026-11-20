@@ -161,7 +161,7 @@ it.each([
 
   press(screen.getByRole('main'));
   expect(menu).toHaveAttribute('aria-expanded', 'false');
-  expect(download).not.toBeVisible();
+  expect(download).not.toBeInTheDocument();
 });
 
 it.each([
