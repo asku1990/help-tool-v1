@@ -86,6 +86,13 @@ Extend an existing feature folder when it fits. Give new reusable feature folder
 barrels. Colocate tests in the owning feature's `__tests__/` folder. Use `test/` for shared
 test infrastructure and `e2e/` for Playwright scenarios.
 
+Within `components/car/`, put UI with the feature that owns it. For example, `expenses/`
+and `fillups/` each own their forms, lists, dialogs, and tests. Use `vehicle-detail/` for
+page-level summaries and `vehicles/` for reusable vehicle UI. When several record types
+share a dialog layout or interaction, put it in `records/`; shared file-management UI
+belongs in `attachments/`. `components/car/index.ts` exposes feature exports to callers.
+See [records](features/records.md) for how the dialogs behave.
+
 ## Dependency Flow
 
 ```text
