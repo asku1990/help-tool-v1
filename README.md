@@ -1,7 +1,7 @@
-# Help Tool v1
+# Car Management
 
-A personal help tool built with Next.js and PostgreSQL. The current implemented scope is
-car management; additional feature areas are a longer-term goal.
+A personal car management app built with Next.js and PostgreSQL. Track vehicles,
+fuel fill-ups, maintenance, and running costs in one place.
 
 ## Features
 

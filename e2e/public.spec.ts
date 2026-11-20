@@ -1,11 +1,20 @@
 import { test, expect } from '@playwright/test';
 
-test('landing page renders', async ({ page }: { page: any }) => {
-  await page.goto('/', { waitUntil: 'networkidle' });
-  await expect(page.getByRole('heading', { name: /personal helper tools/i })).toBeVisible();
+type PageFixture = {
+  page: {
+    goto(_url: string): Promise<unknown>;
+    getByRole(_role: 'heading', _options: { name: string }): unknown;
+  };
+};
+
+test('landing page renders', async ({ page }: PageFixture) => {
+  await page.goto('/');
+  await expect(page.getByRole('heading', { name: 'Car Management' })).toBeVisible();
 });
 
-test('protected routes redirect', async ({ page }: { page: any }) => {
-  await page.goto('/dashboard', { waitUntil: 'networkidle' });
-  await expect(page).toHaveURL(/callbackUrl=/);
-});
+for (const route of ['/car', '/dashboard']) {
+  test(`${route} requires sign-in`, async ({ page }: PageFixture) => {
+    await page.goto(route);
+    await expect(page).toHaveURL(/callbackUrl=/);
+  });
+}

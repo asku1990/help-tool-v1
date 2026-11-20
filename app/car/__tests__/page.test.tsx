@@ -6,9 +6,11 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { http, HttpResponse } from 'msw';
 import { server } from '@/test/msw/server';
 import { useUiStore } from '@/stores/ui';
+import { signOut } from 'next-auth/react';
 
 vi.mock('next-auth/react', () => ({
   useSession: () => ({ data: { user: { email: 'u@e' } }, status: 'authenticated' }),
+  signOut: vi.fn(),
 }));
 vi.mock('next/navigation', async () => {
   const actual = await vi.importActual<typeof import('next/navigation')>('next/navigation');
@@ -67,6 +69,24 @@ it('keeps car home actions mobile-friendly', async () => {
   expect(addVehicleButton).toHaveClass('sm:w-auto');
 });
 
+it('lets users sign out directly from the vehicle list', () => {
+  server.use(
+    http.get('/api/admin/me', () => HttpResponse.json({ data: { isAdmin: false } })),
+    http.get('/api/vehicles', () => HttpResponse.json({ data: { vehicles: [] } }))
+  );
+  renderWithProviders(<CarHomePage />);
+
+  expect(screen.queryByRole('button', { name: 'Sign out' })).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Account actions' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Sign out' }));
+
+  expect(signOut).toHaveBeenCalledWith({ callbackUrl: '/' });
+  expect(screen.getByRole('button', { name: 'Account actions' })).toHaveAttribute(
+    'aria-expanded',
+    'false'
+  );
+});
+
 it('restores records to an existing vehicle without clearing it', async () => {
   const clearRecords = vi.fn(() => HttpResponse.json({ data: {} }));
   server.use(
@@ -109,7 +129,8 @@ it('shows admin link for admin user', async () => {
     http.get('/api/vehicles', () => HttpResponse.json({ data: { vehicles: [] } }))
   );
   renderWithProviders(<CarHomePage />);
-  expect(await screen.findByText('Admin', { selector: 'a' })).toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Account actions' }));
+  expect(await screen.findByRole('link', { name: 'Admin' })).toHaveAttribute('href', '/car/admin');
 });
 
 it('hides admin link for non-admin user', async () => {
@@ -119,6 +140,7 @@ it('hides admin link for non-admin user', async () => {
   );
   renderWithProviders(<CarHomePage />);
   await waitFor(() => expect(screen.getByText(/vehicles/i)).toBeInTheDocument());
+  fireEvent.click(screen.getByRole('button', { name: 'Account actions' }));
   expect(screen.queryByRole('link', { name: /admin/i })).not.toBeInTheDocument();
 });
 
