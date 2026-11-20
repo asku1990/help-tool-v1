@@ -14,10 +14,9 @@ see [fuel consumption and summaries](features/consumption.md).
 
 ## System Overview
 
-Help Tool is a Next.js App Router application backed by PostgreSQL through Prisma.
-The implemented domain is car management: vehicles, fuel fill-ups, expenses, maintenance,
-tires, and related consumption and cost insights. The longer-term product can contain
-other domains; do not introduce their abstractions before they are needed.
+Car Management is a Next.js App Router application backed by PostgreSQL through Prisma.
+It covers vehicles, fuel fill-ups, expenses, maintenance, tires, and related consumption
+and cost insights.
 
 - Next.js route handlers expose the server interface under `app/api/`.
 - React UI uses TanStack Query for server state.

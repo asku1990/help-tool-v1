@@ -148,6 +148,20 @@ it('opens the edit vehicle dialog from the actions menu for an owner', async () 
   expect(await screen.findByLabelText(/Edit vehicle dialog/i)).toBeInTheDocument();
 });
 
+it('dismisses the header actions on an outside touch without a pointer event', async () => {
+  renderWithProviders(<VehiclePage />);
+  const menu = await screen.findByRole('button', { name: 'Vehicle actions' });
+
+  fireEvent.click(menu);
+  const download = screen.getByRole('link', { name: 'Download backup' });
+  fireEvent.touchStart(download);
+  expect(menu).toHaveAttribute('aria-expanded', 'true');
+
+  fireEvent.touchStart(screen.getByRole('main'));
+  expect(menu).toHaveAttribute('aria-expanded', 'false');
+  expect(download).not.toBeVisible();
+});
+
 it.each([
   ['owner', true],
   ['editor', false],

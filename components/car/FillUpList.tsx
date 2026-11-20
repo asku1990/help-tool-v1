@@ -113,7 +113,7 @@ function VehicleFillUpList({ vehicleId }: { vehicleId: string }) {
               Date
             </th>
             <th role="columnheader" scope="col" className="w-28">
-              Odometer (km)
+              Odometer
             </th>
             <th role="columnheader" scope="col" className="w-44">
               Fuel purchase
@@ -142,7 +142,7 @@ function VehicleFillUpList({ vehicleId }: { vehicleId: string }) {
                 <RecordDetailsButton vehicleId={vehicleId} type="fillup" item={f} />
               </td>
               <td role="cell" className="hidden tabular-nums lg:table-cell">
-                {f.odometerKm}
+                <span className="lg:block lg:truncate">{f.odometerKm} km</span>
               </td>
               <td
                 role="cell"

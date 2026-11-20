@@ -44,22 +44,15 @@ beforeEach(() => {
 });
 
 describe('Main Page', () => {
-  it('renders main sections correctly', () => {
+  it('presents Car Management and keeps sign-in and source available', () => {
     render(
       <SessionProvider>
         <Page />
       </SessionProvider>
     );
 
-    // Check hero section
-    expect(screen.getByText('Personal Project')).toBeInTheDocument();
-    expect(screen.getByText('Personal Helper Tools')).toBeInTheDocument();
-
-    // Check current project section
-    expect(screen.getByText('Car Expenses')).toBeInTheDocument();
-    expect(screen.getByText('Currently Building')).toBeInTheDocument();
-
-    // Check buttons
+    expect(screen.getByRole('heading', { level: 1, name: 'Car Management' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Login' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /view source/i })).toHaveAttribute(
       'href',
       'https://github.com/asku1990/help-tool-v1'
@@ -74,10 +67,10 @@ describe('Main Page', () => {
     );
 
     const features = [
-      'Add vehicles',
+      'Manage your vehicles',
       'Log fuel fill-ups',
-      'Track expenses',
-      'L/100km and cost/km stats',
+      'Track maintenance and expenses',
+      'See fuel consumption and cost per kilometer',
     ];
 
     features.forEach(feature => {
@@ -85,34 +78,7 @@ describe('Main Page', () => {
     });
   });
 
-  it('shows tech stack items', () => {
-    render(
-      <SessionProvider>
-        <Page />
-      </SessionProvider>
-    );
-
-    const techStack = ['Next.js', 'TypeScript', 'Tailwind CSS', 'shadcn/ui'];
-
-    techStack.forEach(tech => {
-      expect(screen.getByText(tech)).toBeInTheDocument();
-    });
-  });
-
-  it('displays future plans', () => {
-    render(
-      <SessionProvider>
-        <Page />
-      </SessionProvider>
-    );
-
-    expect(screen.getByText('Recipe Collection')).toBeInTheDocument();
-    expect(screen.getByText('Workout App')).toBeInTheDocument();
-    expect(screen.getByText(/future plan: personal cookbook/i)).toBeInTheDocument();
-    expect(screen.getByText(/future plan: track sets, weights, and notes/i)).toBeInTheDocument();
-  });
-
-  it('redirects to /dashboard when authenticated', async () => {
+  it('opens the vehicle list directly when authenticated', async () => {
     // Reset module cache so our next-auth mock applies to a fresh import
     vi.resetModules();
 
@@ -141,6 +107,6 @@ describe('Main Page', () => {
 
     const { default: AuthedPage } = await import('../page');
     render(<AuthedPage />);
-    await waitFor(() => expect(pushMock).toHaveBeenCalledWith('/dashboard'));
+    await waitFor(() => expect(pushMock).toHaveBeenCalledWith('/car'));
   });
 });

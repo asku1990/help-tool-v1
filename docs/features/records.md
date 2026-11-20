@@ -13,8 +13,8 @@ on a blue-gray canvas distinguish sections without heavy borders in the light th
 **Add fill-up** and **Add expense** are the primary actions for owners and editors.
 **⋯** groups the less frequent actions: **Download backup** and **Download for spreadsheet**
 for anyone with read access, **Import backup** for owners and editors, and **Edit** and
-**Delete vehicle** for owners only. Vehicle deletion requires confirmation. Closing a menu
-dialog returns focus to **⋯**.
+**Delete vehicle** for owners only. Vehicle deletion requires confirmation. Tap or click
+outside the menu to close it. Closing a menu dialog returns focus to **⋯**.
 
 Use **Download backup** for restore, not for opening in a spreadsheet. Use **Download for
 spreadsheet** to view the records in a spreadsheet app. Import this copy as a comma-delimited
@@ -43,6 +43,8 @@ keyboard-accessible button with a chevron, not an invisible
 click handler on the whole row. Details opens a read-only dialog with the saved record
 information, full notes, and attachment links. Fill-ups also show completed-trip figures when those are available
 in the list response; the dialog does not calculate new consumption values.
+Both dialogs show Odometer directly below Date, with `km` on the reading. Consumption in
+Details is shown in `L/100 km` for fuel and `L/10,000 km` for oil.
 
 Details contains no record form, Save action, or attachment upload, rename, or delete
 controls, including for owners and editors. Opening and closing it does not save anything.
@@ -77,8 +79,9 @@ On mobile, each entry is outlined and spaced from the next. The date and summary
 with the rest of the entry, the **⋯** menu stays at the top right, and the remaining
 details use the full width underneath. On desktop, both lists are tables with visible
 column headings aligned to the start of each cell, one line per record, and a narrow actions
-column. Odometer follows Date in both tables. Missing values are marked with a dash
-without shifting other columns.
+column. Odometer follows Date in both lists, before the expense category. Readings
+include `km` and are part of the Details button’s accessible name. Missing values are
+marked with a dash on desktop without shifting other columns.
 The lists retain their existing values. Note previews use at most two lines on mobile
 and one on desktop; Details keeps the full notes. Long fuel purchase and odometer/oil
 previews truncate on desktop; open Details from the date to see the full values.

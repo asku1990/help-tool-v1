@@ -22,29 +22,34 @@ export default function RecordDetailsButton(props: Props) {
   const [open, setOpen] = useState(false);
   const title = props.type === 'expense' ? 'Expense details' : 'Fill-up details';
   const date = formatDateFi(new Date(props.item.date));
+  const odometer = props.item.odometerKm != null ? `${props.item.odometerKm} km` : '—';
+  const category = props.type === 'expense' ? props.item.category.replace(/_/g, ' ') : '';
   const summary =
     props.type === 'expense'
-      ? `${props.item.category.replace(/_/g, ' ')}${props.item.vendor ? ` · ${props.item.vendor}` : ''}`
-      : `Odo: ${props.item.odometerKm} km`;
-  const fields: [string, string][] = [['Date', formatDateFi(new Date(props.item.date))]];
+      ? [category, props.item.vendor, props.item.odometerKm != null ? odometer : null]
+          .filter(Boolean)
+          .join(' · ')
+      : odometer;
+  const fields: [string, string][] = [
+    ['Date', date],
+    ['Odometer', odometer],
+  ];
 
   if (props.type === 'expense') {
     const { item } = props;
     fields.push(
-      ['Category', item.category],
+      ['Category', category],
       ['Amount', currency(item.amount)],
       ['Vendor', item.vendor || '—'],
-      ['Odometer', item.odometerKm != null ? `${item.odometerKm} km` : '—'],
       ['Liters', item.liters != null ? `${item.liters} L` : '—'],
       [
         'Oil consumption',
-        item.oilConsumption != null ? `${item.oilConsumption.toFixed(1)} L/10k` : '—',
+        item.oilConsumption != null ? `${item.oilConsumption.toFixed(1)} L/10,000 km` : '—',
       ]
     );
   } else {
     const { item } = props;
     fields.push(
-      ['Odometer', `${item.odometerKm} km`],
       ['Liters', `${item.liters} L`],
       ['Price per liter', `${item.pricePerLiter.toFixed(3)} €/L`],
       ['Total cost', currency(item.totalCost)],
@@ -54,14 +59,14 @@ export default function RecordDetailsButton(props: Props) {
       fields.push(
         ['Trip distance', `${item.segment.distanceKm.toFixed(0)} km`],
         ['Trip fuel used', `${item.segment.litersUsed} L`],
-        ['Trip consumption', `${item.segment.lPer100.toFixed(2)} L/100km`],
+        ['Trip consumption', `${item.segment.lPer100.toFixed(2)} L/100 km`],
         ['Trip fuel cost', currency(item.segment.fuelCost)],
         ['Trip cost per 100 km', currency(item.segment.costPer100)]
       );
       if (item.segment.prevLPer100 != null) {
         fields.push([
           'Previous trip consumption',
-          `${item.segment.prevLPer100.toFixed(2)} L/100km`,
+          `${item.segment.prevLPer100.toFixed(2)} L/100 km`,
         ]);
       }
     }
@@ -80,9 +85,11 @@ export default function RecordDetailsButton(props: Props) {
             {date}
             <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
           </span>
-          <span className="max-w-full wrap-anywhere text-xs text-muted-foreground lg:hidden">
-            {summary}
-          </span>
+          {props.item.odometerKm != null ? (
+            <span className="max-w-full wrap-anywhere text-xs text-muted-foreground lg:hidden">
+              {odometer}
+            </span>
+          ) : null}
         </button>
       </DialogTrigger>
       <DetailsDialogContent title={title} fields={fields}>

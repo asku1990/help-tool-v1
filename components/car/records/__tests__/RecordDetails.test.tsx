@@ -79,7 +79,7 @@ describe.each([
               {
                 id: 'parent',
                 date: '2026-11-16',
-                odometerKm: 100,
+                odometerKm: longValues ? -2147483648 : 100,
                 liters: longValues ? 12345.67 : 10,
                 pricePerLiter: longValues ? 12.345 : 2,
                 totalCost: longValues ? 152407.3 : 20,
@@ -135,7 +135,7 @@ describe.each([
     expect(fullNotes).not.toHaveClass('sm:line-clamp-1');
     if (type === 'fillup') {
       expect(dialog.getByText('Full tank')).toBeInTheDocument();
-      expect(dialog.getByText('7.50 L/100km')).toBeInTheDocument();
+      expect(dialog.getByText('7.50 L/100 km')).toBeInTheDocument();
     }
   });
 
@@ -145,16 +145,23 @@ describe.each([
     const details = await screen.findByRole('button', { name: /View .* details for/ });
     const preview =
       type === 'expense'
-        ? screen.getByText('Odo: 2147483647 km').parentElement
+        ? within(screen.getAllByRole('cell')[1]).getByText('2147483647 km').parentElement
         : screen.getByText(/12345\.67 L @ 12\.345/);
     expect(preview).toHaveClass('lg:block', 'lg:truncate');
+    if (type === 'fillup') {
+      expect(within(screen.getAllByRole('cell')[1]).getByText('-2147483648 km')).toHaveClass(
+        'lg:block',
+        'lg:truncate'
+      );
+    }
 
     fireEvent.click(details);
     const dialog = within(await screen.findByRole('dialog', { name: title }));
     const values =
       type === 'expense'
-        ? ['2147483647 km', '12345.6 L/10k']
+        ? ['2147483647 km', '12345.6 L/10,000 km']
         : [
+            '-2147483648 km',
             '12345.67 L',
             '12.345 €/L',
             new Intl.NumberFormat(undefined, { style: 'currency', currency: 'EUR' }).format(
@@ -162,6 +169,27 @@ describe.each([
             ),
           ];
     for (const value of values) expect(dialog.getByText(value)).toBeVisible();
+  });
+
+  it('shows the odometer with km in the list column and directly below Date in Details', async () => {
+    renderList();
+    const details = await screen.findByRole('button', { name: /View .* details for/ });
+    const odometer = type === 'expense' ? '0 km' : '100 km';
+    const cells = screen.getAllByRole('cell');
+    expect(details).toHaveAccessibleName(expect.stringContaining(odometer));
+    expect(within(details).getByText(odometer)).toHaveClass('lg:hidden');
+    expect(cells[1]).toHaveTextContent(odometer);
+    if (type === 'expense') expect(cells[2]).toHaveTextContent('OIL TOP UP');
+
+    fireEvent.click(details);
+    const dialog = within(await screen.findByRole('dialog', { name: title }));
+    expect(
+      dialog
+        .getAllByRole('term')
+        .slice(0, 2)
+        .map(term => term.textContent)
+    ).toEqual(['Date', 'Odometer']);
+    expect(dialog.getByText(odometer)).toBeVisible();
   });
 
   it.each([true, false])(
@@ -179,16 +207,16 @@ describe.each([
       expect(view.getByText('Saved notes Second line')).toBeInTheDocument();
       expect(view.getByText('Date')).toBeInTheDocument();
       if (type === 'expense') {
-        expect(view.getByText('OIL_TOP_UP')).toBeInTheDocument();
+        expect(view.getByText('OIL TOP UP')).toBeInTheDocument();
         expect(view.getByText('Test workshop')).toBeInTheDocument();
         expect(view.getByText('0 km')).toBeInTheDocument();
         expect(view.getByText('0 L')).toBeInTheDocument();
-        expect(view.getByText('0.0 L/10k')).toBeInTheDocument();
+        expect(view.getByText('0.0 L/10,000 km')).toBeInTheDocument();
       } else {
         expect(view.getByText('2.000 €/L')).toBeInTheDocument();
         expect(view.getByText('Full tank')).toBeInTheDocument();
-        expect(view.getByText('7.50 L/100km')).toBeInTheDocument();
-        expect(view.getByText('6.50 L/100km')).toBeInTheDocument();
+        expect(view.getByText('7.50 L/100 km')).toBeInTheDocument();
+        expect(view.getByText('6.50 L/100 km')).toBeInTheDocument();
       }
       const link = await view.findByRole('link', { name: 'Open receipt.pdf in a new tab' });
       expect(link).toHaveAttribute(

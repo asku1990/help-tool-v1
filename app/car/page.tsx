@@ -13,7 +13,7 @@ import {
   CardContent,
   Toaster,
 } from '@/components/ui';
-import { Car, Plus } from 'lucide-react';
+import { Car, Plus, Shield } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useVehicles, useIsAdmin } from '@/hooks';
 import { apiPost } from '@/lib/api/client';
@@ -24,6 +24,8 @@ import { VehicleListSkeleton } from '@/components/car';
 import { RestoreBackupDialog } from '@/components/car/imports';
 import { toast } from 'sonner';
 import { getUiErrorMessage } from '@/lib/api/client-errors';
+import { SignOutButton } from '@/components/buttons/SignOutButton';
+import RecordActions, { recordActionClass } from '@/components/car/records/RecordActions';
 
 export default function CarHomePage() {
   const { status } = useSession();
@@ -92,19 +94,20 @@ export default function CarHomePage() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
       <PageHeader
-        title="Car Expenses"
+        title="Car Management"
         icon={<Car className="w-6 h-6" />}
         right={
-          <div className="flex items-center gap-3">
-            <Link href="/dashboard" className="text-sm text-blue-600 hover:underline">
-              Back to dashboard
-            </Link>
+          <RecordActions label="Account actions" placement="card">
             {isAdmin ? (
-              <Link href="/car/admin" className="text-sm text-blue-600 hover:underline">
-                Admin
-              </Link>
+              <Button asChild variant="ghost" className={recordActionClass}>
+                <Link href="/car/admin">
+                  <Shield aria-hidden="true" />
+                  Admin
+                </Link>
+              </Button>
             ) : null}
-          </div>
+            <SignOutButton inMenu />
+          </RecordActions>
         }
       />
 
