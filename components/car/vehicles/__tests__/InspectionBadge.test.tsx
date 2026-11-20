@@ -1,6 +1,6 @@
 import React from 'react';
 import { render, screen } from '@testing-library/react';
-import InspectionBadge from '@/components/car/InspectionBadge';
+import InspectionBadge from '../InspectionBadge';
 
 describe('InspectionBadge', () => {
   beforeEach(() => {

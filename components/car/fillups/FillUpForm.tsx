@@ -13,7 +13,8 @@ import { useUiStore } from '@/stores/ui';
 import { useCreateFillUp, useLatestOdometer } from '@/hooks';
 import { toast } from 'sonner';
 import { getUiErrorMessage } from '@/lib/api/client-errors';
-import RecordAttachments from './attachments/RecordAttachments';
+import CreatedRecordStep from '../attachments/CreatedRecordStep';
+import { formatDateFi } from '@/utils';
 
 export type FillUpFormProps = {
   vehicleId: string;
@@ -108,7 +109,7 @@ export default function FillUpForm({ vehicleId, onCreated }: FillUpFormProps) {
   }
 
   const busy = submitting || createFillUp.isPending || uploading;
-  const fieldsDisabled = busy || Boolean(savedRecord);
+  const fieldsDisabled = busy;
   const title = savedRecord ? 'Fill-up saved' : 'Add fill-up';
   return (
     <Dialog
@@ -123,6 +124,14 @@ export default function FillUpForm({ vehicleId, onCreated }: FillUpFormProps) {
       <DialogContent
         aria-label={`${title} dialog`}
         aria-describedby={undefined}
+        closeDisabled={busy}
+        onEscapeKeyDown={event => {
+          if (
+            busy ||
+            (event.target instanceof HTMLElement && event.target.hasAttribute('data-file-rename'))
+          )
+            event.preventDefault();
+        }}
         onOpenAutoFocus={event => {
           event.preventDefault();
           heading.current?.focus({ preventScroll: true });
@@ -133,105 +142,118 @@ export default function FillUpForm({ vehicleId, onCreated }: FillUpFormProps) {
             {title}
           </DialogTitle>
         </DialogHeader>
-        <form
-          aria-label={savedRecord ? 'Saved fill-up' : 'Fill-up information'}
-          className="space-y-4"
-          onSubmit={e => {
-            e.preventDefault();
-            const submitter = (e.nativeEvent as SubmitEvent).submitter;
-            void submit(
-              submitter instanceof HTMLButtonElement && submitter.value === 'attachments'
-            );
-          }}
-        >
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <label className="flex flex-col gap-1">
-              <span className="text-sm">Date</span>
-              <input
-                type="date"
-                disabled={fieldsDisabled}
-                value={date}
-                onChange={e => setDate(e.target.value)}
-                className="border rounded-md px-3 py-2"
-                required
-              />
-            </label>
-            <label className="flex flex-col gap-1">
-              <span className="text-sm">Odometer km</span>
-              <input
-                type="number"
-                disabled={fieldsDisabled}
-                inputMode="numeric"
-                min="0"
-                value={odometerKm}
-                onChange={e => {
-                  setOdometerKm(e.target.value);
-                  setOdometerEdited(true);
-                }}
-                className={`border rounded-md px-3 py-2 ${
-                  !odometerEdited && odometerKm ? 'bg-gray-100 text-gray-500' : ''
-                }`}
-                required
-              />
-              {lastOdometer !== null && odometerKm && parseInt(odometerKm, 10) < lastOdometer ? (
-                <span className="text-xs text-amber-600">
-                  Entered value is lower than last recorded odometer ({lastOdometer} km).
-                </span>
-              ) : null}
-            </label>
-            <label className="flex flex-col gap-1">
-              <span className="text-sm">Liters</span>
-              <input
-                type="text"
-                inputMode="decimal"
-                value={liters}
-                disabled={fieldsDisabled}
-                onChange={e => setLiters(e.target.value)}
-                className="border rounded-md px-3 py-2"
-                required
-              />
-            </label>
-            <label className="flex flex-col gap-1">
-              <span className="text-sm">Price per liter</span>
-              <input
-                type="text"
-                inputMode="decimal"
-                value={pricePerLiter}
-                disabled={fieldsDisabled}
-                onChange={e => setPricePerLiter(e.target.value)}
-                className="border rounded-md px-3 py-2"
-                required
-              />
-            </label>
-            <div className="flex items-center gap-2">
-              <input
-                id="isFull"
-                disabled={fieldsDisabled}
-                type="checkbox"
-                checked={isFull}
-                onChange={e => setIsFull(e.target.checked)}
-                className="h-4 w-4"
-              />
-              <label htmlFor="isFull" className="text-sm">
-                Full tank?
-              </label>
-            </div>
-          </div>
-          <label className="flex flex-col gap-1">
-            <span className="text-sm">Notes (optional)</span>
-            <textarea
-              disabled={fieldsDisabled}
-              value={notes}
-              onChange={e => setNotes(e.target.value)}
-              className="border rounded-md px-3 py-2"
-              rows={3}
+        {savedRecord ? (
+          open && (
+            <CreatedRecordStep
+              vehicleId={vehicleId}
+              record={
+                savedRecord.addAttachments ? { type: 'fillup', id: savedRecord.id } : undefined
+              }
+              summary={`${odometerKm} km · ${formatDateFi(new Date(date))} · ${new Intl.NumberFormat(undefined, { style: 'currency', currency: 'EUR' }).format(Number(totalCost))}`}
+              busy={busy}
+              onBusyChange={setUploading}
+              onDone={() => setOpen(false)}
             />
-          </label>
-          <div className="flex flex-wrap items-center justify-between gap-2 pt-2">
-            <div className="text-sm text-gray-500" aria-live="polite">
-              Total: {totalCost}
+          )
+        ) : (
+          <form
+            aria-label="Fill-up information"
+            className="space-y-4"
+            onSubmit={e => {
+              e.preventDefault();
+              const submitter = (e.nativeEvent as SubmitEvent).submitter;
+              void submit(
+                submitter instanceof HTMLButtonElement && submitter.value === 'attachments'
+              );
+            }}
+          >
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <label className="flex flex-col gap-1">
+                <span className="text-sm">Date</span>
+                <input
+                  type="date"
+                  disabled={fieldsDisabled}
+                  value={date}
+                  onChange={e => setDate(e.target.value)}
+                  className="border rounded-md px-3 py-2"
+                  required
+                />
+              </label>
+              <label className="flex flex-col gap-1">
+                <span className="text-sm">Odometer km</span>
+                <input
+                  type="number"
+                  disabled={fieldsDisabled}
+                  inputMode="numeric"
+                  min="0"
+                  value={odometerKm}
+                  onChange={e => {
+                    setOdometerKm(e.target.value);
+                    setOdometerEdited(true);
+                  }}
+                  className={`border rounded-md px-3 py-2 ${
+                    !odometerEdited && odometerKm ? 'bg-gray-100 text-gray-500' : ''
+                  }`}
+                  required
+                />
+                {lastOdometer !== null && odometerKm && parseInt(odometerKm, 10) < lastOdometer ? (
+                  <span className="text-xs text-amber-600">
+                    Entered value is lower than last recorded odometer ({lastOdometer} km).
+                  </span>
+                ) : null}
+              </label>
+              <label className="flex flex-col gap-1">
+                <span className="text-sm">Liters</span>
+                <input
+                  type="text"
+                  inputMode="decimal"
+                  value={liters}
+                  disabled={fieldsDisabled}
+                  onChange={e => setLiters(e.target.value)}
+                  className="border rounded-md px-3 py-2"
+                  required
+                />
+              </label>
+              <label className="flex flex-col gap-1">
+                <span className="text-sm">Price per liter</span>
+                <input
+                  type="text"
+                  inputMode="decimal"
+                  value={pricePerLiter}
+                  disabled={fieldsDisabled}
+                  onChange={e => setPricePerLiter(e.target.value)}
+                  className="border rounded-md px-3 py-2"
+                  required
+                />
+              </label>
+              <div className="flex items-center gap-2">
+                <input
+                  id="isFull"
+                  disabled={fieldsDisabled}
+                  type="checkbox"
+                  checked={isFull}
+                  onChange={e => setIsFull(e.target.checked)}
+                  className="h-4 w-4"
+                />
+                <label htmlFor="isFull" className="text-sm">
+                  Full tank?
+                </label>
+              </div>
             </div>
-            {!savedRecord ? (
+            <label className="flex flex-col gap-1">
+              <span className="text-sm">Notes (optional)</span>
+              <textarea
+                disabled={fieldsDisabled}
+                value={notes}
+                onChange={e => setNotes(e.target.value)}
+                className="border rounded-md px-3 py-2"
+                rows={3}
+              />
+            </label>
+            <div className="flex flex-wrap items-center justify-between gap-2 pt-2">
+              <div className="text-sm text-gray-500" aria-live="polite">
+                Total: {totalCost}
+              </div>
               <div className="flex flex-wrap justify-end gap-2">
                 <Button
                   type="button"
@@ -253,29 +275,9 @@ export default function FillUpForm({ vehicleId, onCreated }: FillUpFormProps) {
                   Save &amp; add attachments
                 </Button>
               </div>
-            ) : null}
-          </div>
-        </form>
-        {savedRecord ? (
-          <>
-            <p role="status" className="text-sm">
-              Fill-up saved. Add attachments below, or choose Done.
-            </p>
-            {open && savedRecord.addAttachments ? (
-              <RecordAttachments
-                vehicleId={vehicleId}
-                record={{ type: 'fillup', id: savedRecord.id }}
-                onUploadingChange={setUploading}
-                disabled={submitting}
-              />
-            ) : null}
-            <div className="flex justify-end">
-              <Button type="button" disabled={busy} onClick={() => setOpen(false)}>
-                Done
-              </Button>
             </div>
-          </>
-        ) : null}
+          </form>
+        )}
       </DialogContent>
     </Dialog>
   );

@@ -5,8 +5,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { http, HttpResponse } from 'msw';
 import { server } from '@/test/msw/server';
 import { useUiStore } from '@/stores/ui';
-import ExpenseForm from '../../ExpenseForm';
-import FillUpForm from '../../FillUpForm';
+import ExpenseForm from '../../expenses/ExpenseForm';
+import FillUpForm from '../../fillups/FillUpForm';
 import { listAttachments, uploadAttachment, type AttachmentDto } from '@/queries/attachments';
 
 vi.mock('@/queries/attachments', async importOriginal => ({
@@ -23,7 +23,7 @@ const receipt: AttachmentDto = {
   createdAtUtc: '2026-11-16T00:00:00.000Z',
   updatedAtUtc: '2026-11-16T00:00:00.000Z',
 };
-const metadata = { attachments: [], canUpload: true, maxAttachments: 5, remainingCapacity: 5 };
+const metadata = { attachments: [], canUpload: true, maxAttachments: 10, remainingCapacity: 10 };
 
 describe.each([
   { type: 'expense', Component: ExpenseForm, label: 'expense', resource: 'expenses' },
@@ -130,7 +130,7 @@ describe.each([
     await act(async () =>
       complete(HttpResponse.json({ data: { id: 'saved-record' } }, { status: 201 }))
     );
-    expect(await screen.findByRole('region', { name: 'Attachments' })).toBeInTheDocument();
+    expect(await screen.findByRole('region', { name: 'Files' })).toBeInTheDocument();
     expect(create).toHaveBeenCalledOnce();
   });
 
@@ -143,21 +143,25 @@ describe.each([
     expect(create).toHaveBeenCalledOnce();
   });
 
-  it('uses the saved ID, locks record fields, and keeps attachments outside the form', async () => {
+  it('replaces the form with a focused saved summary and file manager in the same dialog', async () => {
     const { onCreated } = await openForm();
     expect(listAttachments).not.toHaveBeenCalled();
+    const original = screen.getByRole('dialog');
     const { dialog, input } = await saveWithAttachments();
+    expect(dialog).toBe(original);
     expect(listAttachments).toHaveBeenCalledWith(
       'car',
       { type, id: 'saved-record' },
       expect.any(AbortSignal)
     );
-    const saved = within(dialog).getByRole('form', {
-      name: type === 'expense' ? 'Saved expense' : 'Saved fill-up',
-    });
-    for (const field of saved.querySelectorAll('input, select, textarea')) {
-      expect(field).toBeDisabled();
-    }
+    expect(within(dialog).queryByRole('form')).toBeNull();
+    expect(
+      within(dialog).getByText(
+        type === 'expense' ? /MAINTENANCE · .*10[.,]00/ : /1000 km · .*45[.,]00/
+      )
+    ).toHaveFocus();
+    expect(within(dialog).getByText('10 of 10 attachment slots remaining')).toBeVisible();
+    expect(within(dialog).getByText('File changes are saved immediately.')).toBeVisible();
     expect(input.closest('form')).toBeNull();
     expect(within(dialog).queryByRole('button', { name: `Save ${label}` })).not.toBeInTheDocument();
     expect(onCreated).toHaveBeenCalledOnce();
@@ -165,9 +169,9 @@ describe.each([
     vi.mocked(listAttachments).mockResolvedValue({
       ...metadata,
       attachments: [receipt],
-      remainingCapacity: 4,
+      remainingCapacity: 9,
     });
-    fireEvent.click(screen.getByRole('button', { name: 'Upload' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Upload file' }));
     expect(await screen.findByText('Attachment uploaded.')).toBeInTheDocument();
     expect(create).toHaveBeenCalledOnce();
     expect(uploadAttachment).toHaveBeenCalledWith(
@@ -179,7 +183,7 @@ describe.each([
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
     fireEvent.click(screen.getByRole('button', { name: `Add ${label}` }));
     expect(await screen.findByRole('button', { name: `Save ${label}` })).toBeInTheDocument();
-    expect(screen.queryByRole('region', { name: 'Attachments' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: 'Files' })).not.toBeInTheDocument();
   });
 
   it('retries a failed upload without creating the record or notifying creation again', async () => {
@@ -187,7 +191,7 @@ describe.each([
     const { input } = await saveWithAttachments();
     selectFile(input);
     vi.mocked(uploadAttachment).mockRejectedValueOnce(new Error('Upload failed.'));
-    fireEvent.click(screen.getByRole('button', { name: 'Upload' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Upload file' }));
     const retry = await screen.findByRole('button', { name: 'Retry upload' });
     await waitFor(() => expect(retry).toBeEnabled());
     expect(screen.getByRole('alert')).toHaveTextContent('Upload failed.');
@@ -209,7 +213,7 @@ describe.each([
         })
     );
     selectFile(input);
-    fireEvent.click(screen.getByRole('button', { name: 'Upload' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Upload file' }));
     await waitFor(() => expect(uploadAttachment).toHaveBeenCalledOnce());
     expect(screen.getByRole('button', { name: 'Done' })).toBeDisabled();
     fireEvent.keyDown(dialog, { key: 'Escape' });
@@ -270,12 +274,11 @@ describe.each([
         );
         expect(screen.getByRole('button', { name: 'Done' })).toBeEnabled();
         expect(screen.queryByRole('button', { name: 'Save expense' })).not.toBeInTheDocument();
-        const form = screen.getByRole('form', { name: 'Saved expense' });
-        fireEvent.submit(form);
+        expect(screen.queryByRole('form')).toBeNull();
         expect(create).toHaveBeenCalledOnce();
         expect(update).toHaveBeenCalledOnce();
         expect(onCreated).toHaveBeenCalledOnce();
-        expect(Boolean(screen.queryByRole('region', { name: 'Attachments' }))).toBe(addAttachments);
+        expect(Boolean(screen.queryByRole('region', { name: 'Files' }))).toBe(addAttachments);
       }
     );
   }

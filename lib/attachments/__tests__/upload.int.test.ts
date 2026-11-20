@@ -4,7 +4,8 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vites
 import { PostgreSqlContainer } from '@testcontainers/postgresql';
 import { execa } from 'execa';
 import { PrismaClient } from '@/generated/prisma';
-import { uploadAttachment, type AttachmentParent } from '../upload';
+import { listAttachments, uploadAttachment } from '../upload';
+import { attachmentParentScope, type AttachmentParent } from '../parent';
 import type { AttachmentStorage } from '../storage';
 
 type TestDatabase = { getConnectionUri(): string; stop(): Promise<unknown> };
@@ -60,6 +61,7 @@ describe.skipIf(process.env.RUN_INTEGRATION !== '1')('Attachment upload concurre
   }, 30_000);
 
   function parent(type: AttachmentParent['type']): AttachmentParent {
+    if (type === 'vehicle') return { type };
     return { type, id: type === 'expense' ? expenseId : fuelFillUpId };
   }
 
@@ -70,13 +72,14 @@ describe.skipIf(process.env.RUN_INTEGRATION !== '1')('Attachment upload concurre
     };
   }
 
-  it.each(['expense', 'fillup'] as const)(
+  it.each(['vehicle', 'expense', 'fillup'] as const)(
     'allows only one of two concurrent uploads into the last %s slot',
     async type => {
       const target = parent(type);
-      const where = type === 'expense' ? { expenseId } : { fuelFillUpId };
+      const where =
+        type === 'vehicle' ? { vehicleId } : type === 'expense' ? { expenseId } : { fuelFillUpId };
       await db.attachment.createMany({
-        data: Array.from({ length: 4 }, () => ({
+        data: Array.from({ length: 9 }, () => ({
           ...where,
           filename: file.filename,
           contentType: file.contentType,
@@ -128,11 +131,31 @@ describe.skipIf(process.env.RUN_INTEGRATION !== '1')('Attachment upload concurre
       expect(results.filter(result => result.status === 'fulfilled')).toHaveLength(1);
       const rejected = results.find(result => result.status === 'rejected');
       expect(rejected).toMatchObject({ reason: { code: 'ATTACHMENT_LIMIT', status: 409 } });
-      expect(await db.attachment.count({ where })).toBe(5);
+      expect(await db.attachment.count({ where })).toBe(10);
       expect(store.put).toHaveBeenCalledOnce();
     },
     15_000
   );
+
+  it('lists only direct vehicle attachments and excludes nested IDs from the shared item scope', async () => {
+    const store = storage();
+    const direct = await uploadAttachment(db, store, vehicleId, parent('vehicle'), file);
+    const expense = await uploadAttachment(db, store, vehicleId, parent('expense'), file);
+    const fillup = await uploadAttachment(db, store, vehicleId, parent('fillup'), file);
+
+    await expect(listAttachments(db, vehicleId, parent('vehicle'))).resolves.toMatchObject({
+      attachments: [direct],
+      maxAttachments: 10,
+      remainingCapacity: 9,
+    });
+    for (const { id } of [expense, fillup]) {
+      await expect(
+        db.attachment.findFirst({
+          where: { id, ...attachmentParentScope(vehicleId, parent('vehicle')) },
+        })
+      ).resolves.toBeNull();
+    }
+  });
 
   it.each(['expense', 'fillup'] as const)(
     'does not consume a %s slot when storage fails',
@@ -160,12 +183,15 @@ describe.skipIf(process.env.RUN_INTEGRATION !== '1')('Attachment upload concurre
     expect(await db.attachment.count()).toBe(0);
   });
 
-  it.each(['expense', 'fillup'] as const)('cannot upload to another vehicle’s %s', async type => {
-    const store = storage();
-    await expect(
-      uploadAttachment(db, store, randomUUID(), parent(type), file)
-    ).rejects.toMatchObject({ status: 404 });
-    expect(store.put).not.toHaveBeenCalled();
-    expect(await db.attachment.count()).toBe(0);
-  });
+  it.each(['vehicle', 'expense', 'fillup'] as const)(
+    'cannot upload to a missing or unauthorized %s parent',
+    async type => {
+      const store = storage();
+      await expect(
+        uploadAttachment(db, store, randomUUID(), parent(type), file)
+      ).rejects.toMatchObject({ status: 404 });
+      expect(store.put).not.toHaveBeenCalled();
+      expect(await db.attachment.count()).toBe(0);
+    }
+  );
 });

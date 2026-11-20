@@ -5,7 +5,7 @@ import { getSessionUserId, getVehicleAccess, hasPermission } from '@/lib/api/veh
 import { badRequest, notFound, ok, serverError, unauthorized } from '@/lib/api/response';
 import { checkRateLimit, rateLimitHeaders, rateLimitKey } from '@/lib/api/rate-limit';
 import { logger } from '@/lib/logger';
-import type { AttachmentParent } from './upload';
+import { attachmentParentScope, type AttachmentParent } from './parent';
 
 export async function renameAttachment(
   req: Request,
@@ -33,9 +33,7 @@ export async function renameAttachment(
 
     const where = {
       id: attachmentId,
-      ...(parent.type === 'expense'
-        ? { expenseId: parent.id, expense: { vehicleId: access.vehicle.id } }
-        : { fuelFillUpId: parent.id, fuelFillUp: { vehicleId: access.vehicle.id } }),
+      ...attachmentParentScope(access.vehicle.id, parent),
     };
     const attachment = await prisma.attachment.findFirst({
       where,
@@ -81,7 +79,7 @@ export async function renameAttachment(
     logger.error('Attachment rename failed', {
       vehicleId,
       parentType: parent.type,
-      parentId: parent.id,
+      parentId: parent.type === 'vehicle' ? vehicleId : parent.id,
       attachmentId,
       errorName: error instanceof Error ? error.name : 'Unknown error',
     });

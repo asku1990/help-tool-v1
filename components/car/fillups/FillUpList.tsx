@@ -1,23 +1,22 @@
 'use client';
 
-import { useId, useMemo, useRef, useState, type ReactNode } from 'react';
-import { useInfiniteFillUps, useUpdateFillUp, useDeleteFillUp } from '@/hooks';
-import type { FillUpDto, FillUpWithSegmentDto } from '@/queries/fillups';
+import { useMemo, type ReactNode } from 'react';
+import { useInfiniteFillUps, useDeleteFillUp } from '@/hooks';
+import type { FillUpWithSegmentDto } from '@/queries/fillups';
 import { Button } from '@/components/ui';
-import { FillUpListSkeleton } from '@/components/car';
+import FillUpListSkeleton from './FillUpListSkeleton';
 import { useUiStore } from '@/stores/ui';
 import { formatDateFi } from '@/utils';
 import { toast } from 'sonner';
 import { getUiErrorMessage } from '@/lib/api/client-errors';
-import RecordAttachments from './attachments/RecordAttachments';
+import FillUpDialog from './FillUpDialog';
+import { useListedRecordDialog } from '../records/useListedRecordDialog';
 import {
   destructiveRecordActionClass,
   recordActionClass,
   RecordActions,
-  RecordDetailsButton,
-} from './records';
-import { getFillUpDraftChanges, toFillUpDraft } from './fillups/fillUpDraft';
-import RecordEditDialog from './records/RecordEditDialog';
+  RecordSummaryButton,
+} from '../records';
 
 export default function FillUpList({ vehicleId }: { vehicleId: string }) {
   return <VehicleFillUpList key={vehicleId} vehicleId={vehicleId} />;
@@ -35,9 +34,8 @@ function VehicleFillUpList({ vehicleId }: { vehicleId: string }) {
     isFetchingNextPage,
     fetchStatus,
     refetch,
+    dataUpdatedAt,
   } = useInfiniteFillUps(vehicleId, 5);
-  const [edit, setEdit] = useState<{ item: FillUpDto; trigger: HTMLElement } | null>(null);
-  const list = useRef<HTMLDivElement>(null);
 
   const items = useMemo<FillUpWithSegmentDto[]>(
     () => (data?.pages || []).flatMap(p => p.fillUps),
@@ -45,6 +43,12 @@ function VehicleFillUpList({ vehicleId }: { vehicleId: string }) {
   );
   const totalFuelCost = useMemo(() => items.reduce((s, f) => s + f.totalCost, 0), [items]);
   const canWrite = data?.pages[0]?.canWrite === true;
+  const { list, open, dialog } = useListedRecordDialog(items, {
+    isError,
+    fetchStatus,
+    refetch,
+    dataUpdatedAt,
+  });
 
   // Keep the active editor mounted even if the refreshed page no longer contains its row.
   function withEditor(content: ReactNode) {
@@ -53,16 +57,7 @@ function VehicleFillUpList({ vehicleId }: { vehicleId: string }) {
         <div ref={list} tabIndex={-1}>
           {content}
         </div>
-        {edit ? (
-          <FillUpEditor
-            vehicleId={vehicleId}
-            item={edit.item}
-            onClose={() => setEdit(null)}
-            restoreFocus={saved =>
-              (!saved && edit.trigger.isConnected ? edit.trigger : list.current)?.focus()
-            }
-          />
-        ) : null}
+        {dialog && <FillUpDialog vehicleId={vehicleId} canWrite={canWrite} {...dialog} />}
       </>
     );
   }
@@ -139,7 +134,12 @@ function VehicleFillUpList({ vehicleId }: { vehicleId: string }) {
               className="grid grid-cols-[minmax(0,1fr)_auto] gap-2 rounded-lg border border-slate-200 px-3 py-3 dark:border-border lg:table-row lg:rounded-none lg:border-x-0 lg:border-b-0 lg:whitespace-nowrap lg:[&>td]:px-2"
             >
               <td role="cell" className="col-start-1 row-start-1 min-w-0">
-                <RecordDetailsButton vehicleId={vehicleId} type="fillup" item={f} />
+                <RecordSummaryButton
+                  vehicleId={vehicleId}
+                  type="fillup"
+                  item={f}
+                  onOpen={trigger => open({ item: f, entry: 'view', trigger })}
+                />
               </td>
               <td role="cell" className="hidden tabular-nums lg:table-cell">
                 <span className="lg:block lg:truncate">{f.odometerKm} km</span>
@@ -203,7 +203,8 @@ function VehicleFillUpList({ vehicleId }: { vehicleId: string }) {
                       className={recordActionClass}
                       disabled={fetchStatus !== 'idle'}
                       onClick={event =>
-                        setEdit({
+                        open({
+                          entry: 'edit',
                           item: f,
                           trigger:
                             event.currentTarget.closest('details')?.querySelector('summary') ??
@@ -288,141 +289,6 @@ function Delta({ now, prev }: { now: number; prev: number }) {
       Δ {sign}
       {abs}
     </span>
-  );
-}
-
-function FillUpEditor({
-  vehicleId,
-  item,
-  onClose,
-  restoreFocus,
-}: {
-  vehicleId: string;
-  item: FillUpDto;
-  onClose: () => void;
-  restoreFocus: (_saved: boolean) => void;
-}) {
-  const formId = useId();
-  const saved = useRef(false);
-  const [uploading, setUploading] = useState(false);
-  const [state, setState] = useState(() => toFillUpDraft(item));
-  const { patch, invalidOdometer, hasChanges, total } = getFillUpDraftChanges(item, state);
-  const update = useUpdateFillUp(vehicleId, item.id);
-  return (
-    <RecordEditDialog
-      title="Edit fill-up"
-      open
-      onClose={onClose}
-      restoreFocus={() => restoreFocus(saved.current)}
-      formId={formId}
-      hasChanges={hasChanges}
-      invalid={invalidOdometer}
-      saving={update.isPending}
-      attachmentBusy={uploading}
-    >
-      <form
-        id={formId}
-        className="space-y-4"
-        onSubmit={async e => {
-          e.preventDefault();
-          if (uploading || update.isPending || !hasChanges || invalidOdometer) return;
-          try {
-            await update.mutateAsync(patch);
-            saved.current = true;
-            toast.success('Fill-up updated');
-            onClose();
-          } catch (error) {
-            toast.error(getUiErrorMessage(error, 'Failed to update fill-up'));
-          }
-        }}
-      >
-        <fieldset disabled={update.isPending} className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <label className="flex flex-col gap-1">
-            <span className="text-sm">Date</span>
-            <input
-              type="date"
-              className="border rounded-md px-3 py-2"
-              value={state.date}
-              onChange={e => setState(s => ({ ...s, date: e.target.value }))}
-              required
-            />
-          </label>
-          <label className="flex flex-col gap-1">
-            <span className="text-sm">Odometer km</span>
-            <input
-              inputMode="numeric"
-              aria-invalid={invalidOdometer}
-              aria-describedby={invalidOdometer ? `${formId}-odometer-error` : undefined}
-              className="border rounded-md px-3 py-2"
-              value={state.odometerKm}
-              onChange={e => setState(s => ({ ...s, odometerKm: e.target.value }))}
-              required
-            />
-          </label>
-          <label className="flex flex-col gap-1">
-            <span className="text-sm">Liters</span>
-            <input
-              type="number"
-              inputMode="decimal"
-              step="0.01"
-              className="border rounded-md px-3 py-2"
-              value={state.liters}
-              onChange={e => setState(s => ({ ...s, liters: e.target.value }))}
-              required
-            />
-          </label>
-          <label className="flex flex-col gap-1">
-            <span className="text-sm">Price per liter</span>
-            <input
-              type="number"
-              inputMode="decimal"
-              step="0.001"
-              className="border rounded-md px-3 py-2"
-              value={state.pricePerLiter}
-              onChange={e => setState(s => ({ ...s, pricePerLiter: e.target.value }))}
-              required
-            />
-          </label>
-          <div className="flex items-center gap-2">
-            <input
-              id={`isFull-${item.id}`}
-              type="checkbox"
-              className="h-4 w-4"
-              checked={state.isFull}
-              onChange={e => setState(s => ({ ...s, isFull: e.target.checked }))}
-            />
-            <label htmlFor={`isFull-${item.id}`} className="text-sm">
-              Full tank?
-            </label>
-          </div>
-          <label className="flex flex-col gap-1 sm:col-span-2">
-            <span className="text-sm">Notes</span>
-            <textarea
-              className="border rounded-md px-3 py-2"
-              rows={3}
-              value={state.notes}
-              onChange={e => setState(s => ({ ...s, notes: e.target.value }))}
-            />
-          </label>
-        </fieldset>
-        {invalidOdometer ? (
-          <p id={`${formId}-odometer-error`} className="text-sm text-red-600">
-            Enter a whole number from −2,147,483,648 to 2,147,483,647.
-          </p>
-        ) : null}
-        <p className="text-sm text-gray-500">
-          Total: {Number.isFinite(total) ? total.toFixed(2) : '0.00'}
-        </p>
-      </form>
-      <RecordAttachments
-        key={item.id}
-        vehicleId={vehicleId}
-        record={{ type: 'fillup', id: item.id }}
-        uploadFirst
-        onUploadingChange={setUploading}
-        disabled={update.isPending}
-      />
-    </RecordEditDialog>
   );
 }
 

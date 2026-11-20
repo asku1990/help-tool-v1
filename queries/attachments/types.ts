@@ -1,4 +1,4 @@
-export type AttachmentRecord = { type: 'expense' | 'fillup'; id: string };
+export type { AttachmentParent as AttachmentRecord } from '@/lib/attachments/types';
 
 export type AttachmentDto = {
   id: string;

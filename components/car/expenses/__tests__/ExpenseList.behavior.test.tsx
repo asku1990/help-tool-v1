@@ -1,7 +1,7 @@
 import React from 'react';
 import { act, render, screen, waitFor, fireEvent, within } from '@testing-library/react';
 import { onlineManager, QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import ExpenseList from '@/components/car/ExpenseList';
+import ExpenseList from '../ExpenseList';
 import { http, HttpResponse } from 'msw';
 import { server } from '@/test/msw/server';
 import { expenseKeys } from '@/queries/keys';

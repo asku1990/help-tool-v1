@@ -6,7 +6,7 @@ import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { Button, Card, CardContent, Toaster } from '@/components/ui';
 import { toast } from 'sonner';
 import PageHeader from '@/components/layout/PageHeader';
-import BackToVehiclesLink from '@/components/car/BackToVehiclesLink';
+import BackToVehiclesLink from '@/components/car/vehicles/BackToVehiclesLink';
 import { getUiErrorMessage } from '@/lib/api/client-errors';
 import {
   useAdminUsers,

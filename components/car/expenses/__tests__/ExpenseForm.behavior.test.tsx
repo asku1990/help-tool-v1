@@ -1,6 +1,6 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import ExpenseForm from '@/components/car/ExpenseForm';
+import ExpenseForm from '../ExpenseForm';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { server } from '@/test/msw/server';
 import { http, HttpResponse } from 'msw';

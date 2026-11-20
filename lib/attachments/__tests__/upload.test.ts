@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { Prisma, type PrismaClient } from '@/generated/prisma';
 import { logger } from '@/lib/logger';
 import { listAttachments, uploadAttachment } from '../upload';
+import type { AttachmentParent } from '../parent';
 import type { AttachmentStorage } from '../storage';
 
 vi.mock('@/lib/logger', () => ({ logger: { error: vi.fn() } }));
@@ -48,6 +49,18 @@ function setup() {
 
 describe('Attachment upload coordination', () => {
   beforeEach(() => vi.clearAllMocks());
+
+  it('locks the authorized vehicle and uses its ID for counting and writing direct attachments', async () => {
+    const { db, tx, storage } = setup();
+    await uploadAttachment(db, storage, 'car', { type: 'vehicle' }, file);
+    expect(tx.$queryRaw).toHaveBeenCalledWith(
+      expect.objectContaining({ values: ['car'], sql: expect.stringContaining('"Vehicle"') })
+    );
+    expect(tx.attachment.count).toHaveBeenCalledWith({ where: { vehicleId: 'car' } });
+    expect(tx.attachment.create).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ vehicleId: 'car' }) })
+    );
+  });
 
   it.each(['expense', 'fillup'] as const)(
     'locks the authorized %s and saves safe metadata',
@@ -105,12 +118,28 @@ describe('Attachment upload coordination', () => {
     expect(storage.delete).not.toHaveBeenCalled();
   });
 
-  it('rejects full records before storing an object', async () => {
+  const parents: AttachmentParent[] = [
+    { type: 'vehicle' },
+    { type: 'expense', id: 'parent' },
+    { type: 'fillup', id: 'parent' },
+  ];
+
+  it.each(parents)('accepts the tenth $type attachment', async parent => {
     const { db, tx, storage } = setup();
-    tx.attachment.count.mockResolvedValue(5);
-    await expect(
-      uploadAttachment(db, storage, 'car', { type: 'expense', id: 'parent' }, file)
-    ).rejects.toMatchObject({ code: 'ATTACHMENT_LIMIT', status: 409 });
+    tx.attachment.count.mockResolvedValue(9);
+    await expect(uploadAttachment(db, storage, 'car', parent, file)).resolves.toMatchObject({
+      id: saved.id,
+    });
+    expect(storage.put).toHaveBeenCalledOnce();
+  });
+
+  it.each(parents)('rejects an eleventh $type attachment', async parent => {
+    const { db, tx, storage } = setup();
+    tx.attachment.count.mockResolvedValue(10);
+    await expect(uploadAttachment(db, storage, 'car', parent, file)).rejects.toMatchObject({
+      code: 'ATTACHMENT_LIMIT',
+      status: 409,
+    });
     expect(storage.put).not.toHaveBeenCalled();
     expect(storage.delete).not.toHaveBeenCalled();
   });
@@ -162,14 +191,14 @@ describe('Attachment upload coordination', () => {
 
   it('lists only safe metadata with remaining capacity', async () => {
     const { db, findMany } = setup();
-    const result = await listAttachments(db, { type: 'fillup', id: 'parent' });
+    const result = await listAttachments(db, 'car', { type: 'fillup', id: 'parent' });
     expect(findMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { fuelFillUpId: 'parent' },
+        where: { fuelFillUpId: 'parent', fuelFillUp: { vehicleId: 'car' } },
         select: expect.not.objectContaining({ objectKey: true }),
       })
     );
-    expect(result.remainingCapacity).toBe(4);
+    expect(result).toMatchObject({ maxAttachments: 10, remainingCapacity: 9 });
     expect(result.attachments[0]).not.toHaveProperty('objectKey');
     expect(result.attachments[0]?.createdAtUtc).toBe('2026-11-16T00:00:00.000Z');
   });

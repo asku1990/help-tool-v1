@@ -11,9 +11,9 @@ import {
 } from '@/components/ui';
 import { toast } from 'sonner';
 import { getUiErrorMessage } from '@/lib/api/client-errors';
-import RecordAttachments from './attachments/RecordAttachments';
+import CreatedRecordStep from '../attachments/CreatedRecordStep';
 
-import { expenseCategories, type ExpenseCategory, addMonths } from '@/utils';
+import { expenseCategories, type ExpenseCategory, addMonths, formatDateFi } from '@/utils';
 
 export type ExpenseFormProps = {
   vehicleId: string;
@@ -174,7 +174,7 @@ export default function ExpenseForm({ vehicleId, onCreated }: ExpenseFormProps) 
   }
 
   const busy = submitting || createExpense.isPending || uploading;
-  const fieldsDisabled = busy || Boolean(savedRecord);
+  const fieldsDisabled = busy;
   const title = savedRecord ? 'Expense saved' : 'Add expense';
   return (
     <Dialog
@@ -191,6 +191,14 @@ export default function ExpenseForm({ vehicleId, onCreated }: ExpenseFormProps) 
       <DialogContent
         aria-label={`${title} dialog`}
         aria-describedby={undefined}
+        closeDisabled={busy}
+        onEscapeKeyDown={event => {
+          if (
+            busy ||
+            (event.target instanceof HTMLElement && event.target.hasAttribute('data-file-rename'))
+          )
+            event.preventDefault();
+        }}
         onOpenAutoFocus={event => {
           event.preventDefault();
           heading.current?.focus({ preventScroll: true });
@@ -201,149 +209,163 @@ export default function ExpenseForm({ vehicleId, onCreated }: ExpenseFormProps) 
             {title}
           </DialogTitle>
         </DialogHeader>
-        <form
-          aria-label={savedRecord ? 'Saved expense' : 'Expense information'}
-          className="space-y-4"
-          onSubmit={e => {
-            e.preventDefault();
-            const submitter = (e.nativeEvent as SubmitEvent).submitter;
-            void submit(
-              submitter instanceof HTMLButtonElement && submitter.value === 'attachments'
-            );
-          }}
-        >
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <label className="flex flex-col gap-1">
-              <span className="text-sm">Date</span>
-              <input
-                type="date"
-                disabled={fieldsDisabled}
-                value={date}
-                onChange={e => setDate(e.target.value)}
-                className="border rounded-md px-3 py-2"
-                required
-              />
-            </label>
-            <label className="flex flex-col gap-1">
-              <span className="text-sm">Category</span>
-              <select
-                disabled={fieldsDisabled}
-                value={category}
-                onChange={e => setCategory(e.target.value as ExpenseCategory)}
-                className="border rounded-md px-3 py-2"
-                aria-label="Expense category"
-              >
-                {expenseCategories.map(c => (
-                  <option key={c} value={c}>
-                    {c}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="flex flex-col gap-1">
-              <span className="text-sm">Amount</span>
-              <input
-                type="text"
-                inputMode="decimal"
-                value={amount}
-                disabled={fieldsDisabled}
-                onChange={e => setAmount(e.target.value)}
-                className="border rounded-md px-3 py-2"
-                required={false}
-              />
-            </label>
-            <label className="flex flex-col gap-1">
-              <span className="text-sm">Vendor (optional)</span>
-              <input
-                type="text"
-                value={vendor}
-                disabled={fieldsDisabled}
-                onChange={e => setVendor(e.target.value)}
-                className="border rounded-md px-3 py-2"
-                placeholder="Shop/Mechanic"
-              />
-            </label>
-            <label className="flex flex-col gap-1">
-              <span className="text-sm">Odometer km (optional)</span>
-              <input
-                type="number"
-                inputMode="numeric"
-                min="0"
-                value={odometerKm}
-                disabled={fieldsDisabled}
-                onChange={e => {
-                  setOdometerKm(e.target.value);
-                  setOdometerEdited(true);
-                }}
-                className={`border rounded-md px-3 py-2 ${
-                  !odometerEdited && odometerKm ? 'bg-gray-100 text-gray-500' : ''
-                }`}
-              />
-            </label>
-            <label className="flex flex-col gap-1">
-              <span className="text-sm">Liters (optional)</span>
-              <input
-                type="text"
-                inputMode="decimal"
-                value={liters}
-                disabled={fieldsDisabled}
-                onChange={e => setLiters(e.target.value)}
-                className="border rounded-md px-3 py-2"
-                placeholder="For oil/fluid"
-              />
-            </label>
-          </div>
-          <label className="flex flex-col gap-1">
-            <span className="text-sm">Notes (optional)</span>
-            <textarea
-              disabled={fieldsDisabled}
-              value={notes}
-              onChange={e => setNotes(e.target.value)}
-              className="border rounded-md px-3 py-2"
-              rows={3}
-              placeholder="Describe parts/repair details"
+        {savedRecord ? (
+          open && (
+            <CreatedRecordStep
+              vehicleId={vehicleId}
+              record={
+                savedRecord.addAttachments ? { type: 'expense', id: savedRecord.id } : undefined
+              }
+              summary={`${vendor.trim() || category.replace(/_/g, ' ')} · ${formatDateFi(new Date(date))} · ${new Intl.NumberFormat(undefined, { style: 'currency', currency: 'EUR' }).format(Number(amount))}`}
+              warning={inspectionError}
+              busy={busy}
+              onBusyChange={setUploading}
+              onDone={() => setOpen(false)}
             />
-          </label>
-          {/* Show inspection date fields when category is INSPECTION */}
-          {category === 'INSPECTION' ? (
-            <div className="space-y-2 pt-2">
-              <p className="text-sm text-gray-600">Set next inspection due date:</p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <label className="flex flex-col gap-1">
-                  <span className="text-sm">Next inspection due</span>
-                  <input
-                    type="date"
-                    disabled={fieldsDisabled}
-                    className="border rounded-md px-3 py-2"
-                    value={nextInspectionDue}
-                    onChange={e => {
-                      setNextInspectionDue(e.target.value);
-                      setInspectionDueEdited(true);
-                    }}
-                  />
-                </label>
-                <label className="flex flex-col gap-1">
-                  <span className="text-sm">Interval (months)</span>
-                  <input
-                    type="number"
-                    disabled={fieldsDisabled}
-                    inputMode="numeric"
-                    min="1"
-                    max="60"
-                    className="border rounded-md px-3 py-2"
-                    value={intervalMonthsInput}
-                    onChange={e => setIntervalMonthsInput(e.target.value)}
-                    placeholder={
-                      vehicleQuery.data?.vehicle?.inspectionIntervalMonths
-                        ? String(vehicleQuery.data.vehicle.inspectionIntervalMonths)
-                        : '12'
-                    }
-                  />
-                </label>
-              </div>
+          )
+        ) : (
+          <form
+            aria-label="Expense information"
+            className="space-y-4"
+            onSubmit={e => {
+              e.preventDefault();
+              const submitter = (e.nativeEvent as SubmitEvent).submitter;
+              void submit(
+                submitter instanceof HTMLButtonElement && submitter.value === 'attachments'
+              );
+            }}
+          >
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <label className="flex flex-col gap-1">
+                <span className="text-sm">Date</span>
+                <input
+                  type="date"
+                  disabled={fieldsDisabled}
+                  value={date}
+                  onChange={e => setDate(e.target.value)}
+                  className="border rounded-md px-3 py-2"
+                  required
+                />
+              </label>
+              <label className="flex flex-col gap-1">
+                <span className="text-sm">Category</span>
+                <select
+                  disabled={fieldsDisabled}
+                  value={category}
+                  onChange={e => setCategory(e.target.value as ExpenseCategory)}
+                  className="border rounded-md px-3 py-2"
+                  aria-label="Expense category"
+                >
+                  {expenseCategories.map(c => (
+                    <option key={c} value={c}>
+                      {c}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="flex flex-col gap-1">
+                <span className="text-sm">Amount</span>
+                <input
+                  type="text"
+                  inputMode="decimal"
+                  value={amount}
+                  disabled={fieldsDisabled}
+                  onChange={e => setAmount(e.target.value)}
+                  className="border rounded-md px-3 py-2"
+                  required={false}
+                />
+              </label>
+              <label className="flex flex-col gap-1">
+                <span className="text-sm">Vendor (optional)</span>
+                <input
+                  type="text"
+                  value={vendor}
+                  disabled={fieldsDisabled}
+                  onChange={e => setVendor(e.target.value)}
+                  className="border rounded-md px-3 py-2"
+                  placeholder="Shop/Mechanic"
+                />
+              </label>
+              <label className="flex flex-col gap-1">
+                <span className="text-sm">Odometer km (optional)</span>
+                <input
+                  type="number"
+                  inputMode="numeric"
+                  min="0"
+                  value={odometerKm}
+                  disabled={fieldsDisabled}
+                  onChange={e => {
+                    setOdometerKm(e.target.value);
+                    setOdometerEdited(true);
+                  }}
+                  className={`border rounded-md px-3 py-2 ${
+                    !odometerEdited && odometerKm ? 'bg-gray-100 text-gray-500' : ''
+                  }`}
+                />
+              </label>
+              <label className="flex flex-col gap-1">
+                <span className="text-sm">Liters (optional)</span>
+                <input
+                  type="text"
+                  inputMode="decimal"
+                  value={liters}
+                  disabled={fieldsDisabled}
+                  onChange={e => setLiters(e.target.value)}
+                  className="border rounded-md px-3 py-2"
+                  placeholder="For oil/fluid"
+                />
+              </label>
             </div>
-          ) : null}
-          {!savedRecord ? (
+            <label className="flex flex-col gap-1">
+              <span className="text-sm">Notes (optional)</span>
+              <textarea
+                disabled={fieldsDisabled}
+                value={notes}
+                onChange={e => setNotes(e.target.value)}
+                className="border rounded-md px-3 py-2"
+                rows={3}
+                placeholder="Describe parts/repair details"
+              />
+            </label>
+            {/* Show inspection date fields when category is INSPECTION */}
+            {category === 'INSPECTION' ? (
+              <div className="space-y-2 pt-2">
+                <p className="text-sm text-gray-600">Set next inspection due date:</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <label className="flex flex-col gap-1">
+                    <span className="text-sm">Next inspection due</span>
+                    <input
+                      type="date"
+                      disabled={fieldsDisabled}
+                      className="border rounded-md px-3 py-2"
+                      value={nextInspectionDue}
+                      onChange={e => {
+                        setNextInspectionDue(e.target.value);
+                        setInspectionDueEdited(true);
+                      }}
+                    />
+                  </label>
+                  <label className="flex flex-col gap-1">
+                    <span className="text-sm">Interval (months)</span>
+                    <input
+                      type="number"
+                      disabled={fieldsDisabled}
+                      inputMode="numeric"
+                      min="1"
+                      max="60"
+                      className="border rounded-md px-3 py-2"
+                      value={intervalMonthsInput}
+                      onChange={e => setIntervalMonthsInput(e.target.value)}
+                      placeholder={
+                        vehicleQuery.data?.vehicle?.inspectionIntervalMonths
+                          ? String(vehicleQuery.data.vehicle.inspectionIntervalMonths)
+                          : '12'
+                      }
+                    />
+                  </label>
+                </div>
+              </div>
+            ) : null}
             <div className="flex flex-wrap justify-end gap-2 pt-2">
               <Button
                 type="button"
@@ -365,36 +387,8 @@ export default function ExpenseForm({ vehicleId, onCreated }: ExpenseFormProps) 
                 Save &amp; add attachments
               </Button>
             </div>
-          ) : null}
-        </form>
-        {savedRecord ? (
-          <>
-            <p role="status" className="text-sm">
-              Expense saved.{' '}
-              {savedRecord.addAttachments
-                ? 'Add attachments below, or choose Done.'
-                : 'Choose Done to close.'}
-            </p>
-            {inspectionError ? (
-              <p role="alert" className="text-sm text-red-600">
-                {inspectionError}
-              </p>
-            ) : null}
-            {open && savedRecord.addAttachments ? (
-              <RecordAttachments
-                vehicleId={vehicleId}
-                record={{ type: 'expense', id: savedRecord.id }}
-                onUploadingChange={setUploading}
-                disabled={submitting}
-              />
-            ) : null}
-            <div className="flex justify-end">
-              <Button type="button" disabled={busy} onClick={() => setOpen(false)}>
-                Done
-              </Button>
-            </div>
-          </>
-        ) : null}
+          </form>
+        )}
       </DialogContent>
     </Dialog>
   );

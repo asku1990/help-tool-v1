@@ -1,7 +1,7 @@
 import { fileTypeFromBuffer, type FileTypeResult } from 'file-type';
-import { MAX_ATTACHMENT_BYTES, MAX_ATTACHMENTS } from './limits';
+import { attachmentFormatList, matchesAttachmentUploadFormat } from './formats';
+import { MAX_ATTACHMENT_BYTES } from './limits';
 
-export { MAX_ATTACHMENT_BYTES, MAX_ATTACHMENTS };
 // Leave bounded room for the multipart boundary and filename, not additional files.
 const MAX_REQUEST_BYTES = MAX_ATTACHMENT_BYTES + 100_000;
 
@@ -17,13 +17,6 @@ export class AttachmentError extends Error {
   }
 }
 
-const extensions: Record<string, readonly string[]> = {
-  'application/pdf': ['pdf'],
-  'image/jpeg': ['jpg', 'jpeg'],
-  'image/png': ['png'],
-  'image/webp': ['webp'],
-};
-
 export type ValidatedAttachment = {
   filename: string;
   contentType: string;
@@ -32,7 +25,11 @@ export type ValidatedAttachment = {
 
 export async function validateAttachment(file: File): Promise<ValidatedAttachment> {
   if (file.size > MAX_ATTACHMENT_BYTES) {
-    throw new AttachmentError('FILE_TOO_LARGE', 'Files must not exceed 4,000,000 bytes.', 413);
+    throw new AttachmentError(
+      'FILE_TOO_LARGE',
+      `Files must not exceed ${MAX_ATTACHMENT_BYTES.toLocaleString('en-US')} bytes.`,
+      413
+    );
   }
   if (file.size === 0) {
     throw new AttachmentError('INVALID_FILE', 'Empty files are not supported.', 400);
@@ -64,15 +61,14 @@ export async function validateAttachment(file: File): Promise<ValidatedAttachmen
       415
     );
   }
-  const extension = filename.split('.').pop()?.toLowerCase() ?? '';
   if (
     !detected ||
-    !extensions[detected.mime]?.includes(extension) ||
+    !matchesAttachmentUploadFormat(filename, detected.mime) ||
     (file.type && file.type !== 'application/octet-stream' && file.type !== detected.mime)
   ) {
     throw new AttachmentError(
       'INVALID_FILE_TYPE',
-      'Upload a PDF, JPEG, PNG, or WebP whose filename and content match.',
+      `Upload a file (${attachmentFormatList}) whose filename and content match.`,
       415
     );
   }

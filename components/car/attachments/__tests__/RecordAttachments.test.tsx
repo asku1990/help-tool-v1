@@ -31,22 +31,30 @@ const receipt: AttachmentDto = {
   updatedAtUtc: '2026-11-16T00:00:00.000Z',
 };
 function metadata(attachments: AttachmentDto[] = [], canUpload = true): AttachmentListDto {
-  return { attachments, canUpload, maxAttachments: 5, remainingCapacity: 5 - attachments.length };
+  return { attachments, canUpload, maxAttachments: 10, remainingCapacity: 10 - attachments.length };
 }
-function renderPanel(record: AttachmentRecord = { type: 'expense', id: 'e1' }, readOnly = false) {
-  const client = new QueryClient({
+function renderPanel(
+  record: AttachmentRecord = { type: 'expense', id: 'e1' },
+  initialMode: 'view' | 'manage' = 'manage',
+  client = new QueryClient({
     defaultOptions: { queries: { retry: false, gcTime: 0 }, mutations: { retry: false } },
-  });
+  })
+) {
   const onUploadingChange = vi.fn();
-  const result = render(
-    <QueryClientProvider client={client}>
+  function DetailsPanel() {
+    const [mode, onModeChange] = React.useState(initialMode);
+    return (
       <RecordAttachments
         vehicleId="car"
         record={record}
-        onUploadingChange={onUploadingChange}
-        readOnly={readOnly}
-        uploadFirst
+        onBusyChange={onUploadingChange}
+        context={{ kind: 'details', mode, onModeChange }}
       />
+    );
+  }
+  const result = render(
+    <QueryClientProvider client={client}>
+      <DetailsPanel />
     </QueryClientProvider>
   );
   return { ...result, client, onUploadingChange };
@@ -82,6 +90,7 @@ describe('Record attachments', () => {
 
     const saved = await screen.findByRole('list', { name: 'Saved attachments' });
     const picker = screen.getByLabelText('Attachment file');
+    expect(picker).toHaveAttribute('accept', '.pdf,.jpg,.jpeg,.png,.webp');
     const upload = screen.getByRole('button', { name: 'Upload file' });
     expect(picker.compareDocumentPosition(upload) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(upload.compareDocumentPosition(saved) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
@@ -95,7 +104,7 @@ describe('Record attachments', () => {
     vi.mocked(listAttachments).mockResolvedValue(metadata([receipt]));
     renderPanel();
     expect(await screen.findByText('receipt.pdf')).toBeInTheDocument();
-    expect(screen.getByText('4 of 5 attachment slots remaining')).toBeInTheDocument();
+    expect(screen.getByText('9 of 10 attachment slots remaining')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Upload file' })).toBeDisabled();
     const open = screen.getByRole('link', { name: 'Open receipt.pdf in a new tab' });
     expect(open).toHaveAttribute('href', '/api/vehicles/car/expenses/e1/attachments/a1/open');
@@ -104,25 +113,20 @@ describe('Record attachments', () => {
     expect(open).toHaveAttribute('referrerpolicy', 'no-referrer');
     expect(open).not.toHaveAttribute('download');
     expect(open).toHaveTextContent('receipt.pdf');
-    expect(open).toHaveClass('inline-flex', 'items-center', 'min-h-0');
     expect(screen.getByRole('button', { name: 'Delete receipt.pdf' })).toHaveAttribute(
       'type',
       'button'
     );
-    expect(screen.getByRole('button', { name: 'Delete receipt.pdf' })).toHaveClass(
-      'h-6',
-      'min-h-0',
-      'min-w-6'
-    );
+    expect(screen.getByRole('button', { name: 'Delete receipt.pdf' })).toHaveTextContent('Delete');
     expect(screen.queryByRole('button', { name: 'Open' })).not.toBeInTheDocument();
     expect(
       screen.queryByRole('button', { name: /remove|download|preview/i })
     ).not.toBeInTheDocument();
   });
 
-  it('offers only attachment links in read-only mode even when the caller can write', async () => {
+  it('shows links in Details and reveals file controls only after choosing Manage files', async () => {
     vi.mocked(listAttachments).mockResolvedValue(metadata([receipt]));
-    renderPanel({ type: 'expense', id: 'e1' }, true);
+    renderPanel({ type: 'expense', id: 'e1' }, 'view');
     expect(
       await screen.findByRole('link', { name: 'Open receipt.pdf in a new tab' })
     ).toBeInTheDocument();
@@ -132,6 +136,9 @@ describe('Record attachments', () => {
     expect(uploadAttachment).not.toHaveBeenCalled();
     expect(renameAttachment).not.toHaveBeenCalled();
     expect(deleteAttachment).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Manage files' }));
+    expect(screen.getByRole('button', { name: 'Upload file' })).toBeVisible();
+    expect(screen.getByRole('button', { name: 'Rename receipt.pdf' })).toBeVisible();
   });
 
   it('does not delete when confirmation is cancelled', async () => {
@@ -223,7 +230,7 @@ describe('Record attachments', () => {
         await screen.findByRole('link', { name: 'Open Service receipt.pdf in a new tab' })
       ).toBeInTheDocument();
       expect(screen.queryByRole('textbox', { name: 'Attachment name' })).not.toBeInTheDocument();
-      expect(screen.getByText('4 of 5 attachment slots remaining')).toBeInTheDocument();
+      expect(screen.getByText('9 of 10 attachment slots remaining')).toBeInTheDocument();
       expect(onUploadingChange).toHaveBeenLastCalledWith(false);
       expect(listAttachments).toHaveBeenCalledTimes(2);
     }
@@ -319,8 +326,8 @@ describe('Record attachments', () => {
       expect(onUploadingChange).toHaveBeenCalledWith(true);
       vi.mocked(listAttachments).mockResolvedValue(metadata());
       await act(async () => complete({ id: 'a1' }));
-      expect(await screen.findByText('No attachments yet.')).toBeInTheDocument();
-      expect(screen.getByText('5 of 5 attachment slots remaining')).toBeInTheDocument();
+      expect(await screen.findByText('No files yet.')).toBeInTheDocument();
+      expect(screen.getByText('10 of 10 attachment slots remaining')).toBeInTheDocument();
       expect(onUploadingChange).toHaveBeenLastCalledWith(false);
       expect(listAttachments).toHaveBeenCalledTimes(2);
     }
@@ -337,7 +344,7 @@ describe('Record attachments', () => {
     expect(onUploadingChange).toHaveBeenLastCalledWith(false);
     vi.mocked(listAttachments).mockResolvedValue(metadata());
     fireEvent.click(screen.getByRole('button', { name: 'Delete receipt.pdf' }));
-    expect(await screen.findByText('No attachments yet.')).toBeInTheDocument();
+    expect(await screen.findByText('No files yet.')).toBeInTheDocument();
     expect(deleteAttachment).toHaveBeenCalledTimes(2);
   });
 
@@ -351,7 +358,7 @@ describe('Record attachments', () => {
     expect(button).toBeDisabled();
     vi.mocked(listAttachments).mockResolvedValue(metadata());
     fireEvent.click(screen.getByRole('button', { name: 'Refresh attachments' }));
-    expect(await screen.findByText('No attachments yet.')).toBeInTheDocument();
+    expect(await screen.findByText('No files yet.')).toBeInTheDocument();
   });
 
   it('fails offline without queuing deletion or leaving the dialog locked', async () => {
@@ -387,7 +394,7 @@ describe('Record attachments', () => {
       }
     );
     expect(screen.getByText('receipt.pdf')).toBeInTheDocument();
-    expect(screen.getByText('4 of 5 attachment slots remaining')).toBeInTheDocument();
+    expect(screen.getByText('9 of 10 attachment slots remaining')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Upload file' })).toBeDisabled();
   });
 
@@ -446,6 +453,7 @@ describe('Record attachments', () => {
     vi.mocked(listAttachments).mockRejectedValue(new Error('List unavailable.'));
     fireEvent.click(screen.getByRole('button', { name: 'Upload file' }));
     expect(await screen.findByRole('button', { name: 'Refresh attachments' })).toBeInTheDocument();
+    expect(screen.queryByText('No files yet.')).not.toBeInTheDocument();
     await waitFor(() =>
       expect(screen.queryByRole('button', { name: 'Retry upload' })).not.toBeInTheDocument()
     );
@@ -497,7 +505,7 @@ describe('Record attachments', () => {
     vi.mocked(listAttachments).mockResolvedValue(metadata([receipt], false));
     renderPanel();
     expect(await screen.findByText('receipt.pdf')).toBeInTheDocument();
-    expect(screen.getByText(/View-only access/)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Manage files' })).not.toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Open receipt.pdf in a new tab' })).toBeInTheDocument();
     expect(screen.queryByLabelText('Attachment file')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Delete receipt.pdf' })).not.toBeInTheDocument();
@@ -505,10 +513,56 @@ describe('Record attachments', () => {
     expect(uploadAttachment).not.toHaveBeenCalled();
   });
 
-  it('disables uploads when five attachments are present', async () => {
+  it('manages direct vehicle files and refreshes only the vehicle document list', async () => {
+    const renamed = { ...receipt, filename: 'Service receipt.pdf' };
+    vi.mocked(listAttachments).mockResolvedValue(metadata([receipt]));
+    const target = { type: 'vehicle' } as const;
+    renderPanel(target);
+
+    await select(new File(['%PDF-1.4'], 'second.pdf'));
+    const second = { ...receipt, id: 'a2', filename: 'second.pdf' };
+    vi.mocked(uploadAttachment).mockResolvedValue(second);
+    vi.mocked(listAttachments).mockResolvedValue(metadata([receipt, second]));
+    fireEvent.click(screen.getByRole('button', { name: 'Upload file' }));
+    expect(await screen.findByText('Attachment uploaded.')).toBeVisible();
+    expect(uploadAttachment).toHaveBeenCalledWith('car', target, expect.any(Object));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Rename receipt.pdf' }));
+    fireEvent.change(screen.getByRole('textbox', { name: 'Attachment name' }), {
+      target: { value: 'Service receipt' },
+    });
+    vi.mocked(listAttachments).mockResolvedValue(metadata([renamed, second]));
+    fireEvent.click(screen.getByRole('button', { name: 'Save name' }));
+    const remove = await screen.findByRole('button', { name: 'Delete Service receipt.pdf' });
+    await waitFor(() => expect(remove).toBeEnabled());
+    vi.mocked(listAttachments).mockResolvedValue(metadata([second]));
+    fireEvent.click(remove);
+    await waitFor(() => expect(remove).not.toBeInTheDocument());
+    expect(renameAttachment).toHaveBeenCalledWith(
+      'car',
+      target,
+      receipt.id,
+      'Service receipt',
+      expect.any(AbortSignal)
+    );
+    expect(deleteAttachment).toHaveBeenCalledWith(
+      'car',
+      target,
+      receipt.id,
+      expect.any(AbortSignal)
+    );
+    expect(vi.mocked(listAttachments).mock.calls.length).toBeGreaterThanOrEqual(4);
+    for (const [vehicleId, record] of vi.mocked(listAttachments).mock.calls) {
+      expect([vehicleId, record]).toEqual(['car', target]);
+    }
+
+    expect(screen.getByRole('link', { name: 'Open second.pdf in a new tab' })).toBeVisible();
+  });
+
+  it('disables uploads and displays the server-reported limit when full', async () => {
     vi.mocked(listAttachments).mockResolvedValue(
       metadata(
-        Array.from({ length: 5 }, (_, i) => ({
+        Array.from({ length: 10 }, (_, i) => ({
           ...receipt,
           id: `a${i}`,
           filename: `receipt-${i}.pdf`,
@@ -516,7 +570,10 @@ describe('Record attachments', () => {
       )
     );
     renderPanel();
-    expect(await screen.findByText('0 of 5 attachment slots remaining')).toBeInTheDocument();
+    expect(await screen.findByText('0 of 10 attachment slots remaining')).toBeInTheDocument();
+    expect(
+      screen.getByText('This record has reached its limit of 10 attachments.')
+    ).toBeInTheDocument();
     expect(screen.getByLabelText('Attachment file')).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Upload file' })).toBeDisabled();
   });
@@ -529,7 +586,7 @@ describe('Record attachments', () => {
     await select();
     vi.mocked(listAttachments).mockResolvedValue(
       metadata(
-        Array.from({ length: 5 }, (_, i) => ({
+        Array.from({ length: 10 }, (_, i) => ({
           ...receipt,
           id: `a${i}`,
           filename: `receipt-${i}.pdf`,
@@ -538,7 +595,7 @@ describe('Record attachments', () => {
     );
     fireEvent.click(screen.getByRole('button', { name: 'Upload file' }));
     expect(await screen.findByRole('button', { name: 'Retry upload' })).toBeDisabled();
-    expect(screen.getByText('0 of 5 attachment slots remaining')).toBeInTheDocument();
+    expect(screen.getByText('0 of 10 attachment slots remaining')).toBeInTheDocument();
     expect(uploadAttachment).toHaveBeenCalledOnce();
   });
 
@@ -567,17 +624,9 @@ describe('Record attachments', () => {
     await screen.findByLabelText('Attachment file');
     unmount();
     vi.mocked(listAttachments).mockResolvedValue(metadata([receipt]));
-    render(
-      <QueryClientProvider client={client}>
-        <RecordAttachments
-          vehicleId="car"
-          record={{ type: 'expense', id: 'e1' }}
-          onUploadingChange={vi.fn()}
-        />
-      </QueryClientProvider>
-    );
+    renderPanel({ type: 'expense', id: 'e1' }, 'manage', client);
     expect(await screen.findByText('receipt.pdf')).toBeInTheDocument();
-    expect(screen.getByText('4 of 5 attachment slots remaining')).toBeInTheDocument();
+    expect(screen.getByText('9 of 10 attachment slots remaining')).toBeInTheDocument();
     expect(listAttachments).toHaveBeenCalledTimes(2);
   });
 

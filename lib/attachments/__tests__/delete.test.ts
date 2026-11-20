@@ -1,5 +1,6 @@
 // @vitest-environment node
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { DELETE as deleteVehicle } from '@/app/api/vehicles/[vehicleId]/attachments/[attachmentId]/route';
 import { DELETE as deleteExpense } from '@/app/api/vehicles/[vehicleId]/expenses/[expenseId]/attachments/[attachmentId]/route';
 import { DELETE as deleteFillUp } from '@/app/api/vehicles/[vehicleId]/fillups/[fillUpId]/attachments/[attachmentId]/route';
 
@@ -33,6 +34,13 @@ const objectKey = 'attachments/private-key';
 
 describe.each([
   {
+    type: 'vehicle',
+    remove: ({ vehicleId, attachmentId }: Ids) =>
+      deleteVehicle(new Request('http://localhost/attachment', { method: 'DELETE' }), {
+        params: Promise.resolve({ vehicleId, attachmentId }),
+      }),
+  },
+  {
     type: 'expense',
     remove: ({ vehicleId, parentId, attachmentId }: Ids) =>
       deleteExpense(new Request('http://localhost/attachment', { method: 'DELETE' }), {
@@ -49,9 +57,11 @@ describe.each([
 ])('$type attachment deletion', ({ type, remove }) => {
   const expectedWhere = {
     id: 'attachment',
-    ...(type === 'expense'
-      ? { expenseId: 'parent', expense: { vehicleId: 'car' } }
-      : { fuelFillUpId: 'parent', fuelFillUp: { vehicleId: 'car' } }),
+    ...(type === 'vehicle'
+      ? { vehicleId: 'car' }
+      : type === 'expense'
+        ? { expenseId: 'parent', expense: { vehicleId: 'car' } }
+        : { fuelFillUpId: 'parent', fuelFillUp: { vehicleId: 'car' } }),
   };
   beforeEach(() => {
     vi.resetAllMocks();
@@ -103,7 +113,7 @@ describe.each([
   );
 
   it.each([
-    { parentId: 'wrong-parent' },
+    ...(type === 'vehicle' ? [] : [{ parentId: 'wrong-parent' }]),
     { attachmentId: 'foreign-attachment' },
     { vehicleId: 'another-authorized-car' },
   ])('rejects mismatched vehicle, parent, or attachment IDs: %j', async ids => {

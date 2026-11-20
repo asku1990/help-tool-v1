@@ -12,7 +12,7 @@ export function useDeleteAttachment(vehicleId: string, record: AttachmentRecord)
     // A lost response can still mean deletion committed. Always reconcile the list.
     onSettled: () =>
       client.invalidateQueries({
-        queryKey: attachmentKeys.byRecord(vehicleId, record.type, record.id),
+        queryKey: attachmentKeys.byRecord(vehicleId, record),
       }),
   });
 }
