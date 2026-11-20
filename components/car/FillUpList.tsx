@@ -30,6 +30,7 @@ function VehicleFillUpList({ vehicleId }: { vehicleId: string }) {
     isFetchingNextPage,
     fetchStatus,
     refetch,
+    dataUpdatedAt,
   } = useInfiniteFillUps(vehicleId, 5);
 
   const items = useMemo<FillUpWithSegmentDto[]>(
@@ -38,7 +39,12 @@ function VehicleFillUpList({ vehicleId }: { vehicleId: string }) {
   );
   const totalFuelCost = useMemo(() => items.reduce((s, f) => s + f.totalCost, 0), [items]);
   const canWrite = data?.pages[0]?.canWrite === true;
-  const { list, open, dialog } = useListedRecordDialog(items, !isError && fetchStatus === 'idle');
+  const { list, open, dialog } = useListedRecordDialog(items, {
+    isError,
+    fetchStatus,
+    refetch,
+    dataUpdatedAt,
+  });
 
   // Keep the active editor mounted even if the refreshed page no longer contains its row.
   function withEditor(content: ReactNode) {

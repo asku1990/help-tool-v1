@@ -17,6 +17,7 @@ export default function FillUpDialog({
   entry,
   canWrite,
   canStartEdit,
+  listRefresh,
   onClose,
   restoreFocus,
 }: ListedRecordDialogProps<FillUpWithSegmentDto>) {
@@ -28,6 +29,7 @@ export default function FillUpDialog({
   return (
     <SavedRecordDialog
       name="fill-up"
+      listRefresh={listRefresh}
       entry={entry}
       vehicleId={vehicleId}
       record={{ type: 'fillup', id: item.id }}

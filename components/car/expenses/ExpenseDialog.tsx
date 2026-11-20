@@ -18,6 +18,7 @@ export default function ExpenseDialog({
   entry,
   canWrite,
   canStartEdit,
+  listRefresh,
   onClose,
   restoreFocus,
 }: ListedRecordDialogProps<ExpenseDto>) {
@@ -30,6 +31,7 @@ export default function ExpenseDialog({
   return (
     <SavedRecordDialog
       name="expense"
+      listRefresh={listRefresh}
       entry={entry}
       vehicleId={vehicleId}
       record={{ type: 'expense', id: item.id }}

@@ -119,6 +119,54 @@ describe.each([
   }
 
   const name = type === 'expense' ? 'expense' : 'fill-up';
+  it.each(['moved', 'retry'])('reconciles Details after saving: %s', async outcome => {
+    renderList();
+    fireEvent.click(await screen.findByRole('button', { name: /View .* details/ }));
+    const view = within(screen.getByRole('dialog'));
+    fireEvent.click(view.getByRole('button', { name: 'Edit details' }));
+    let reads = 0;
+    const saved = vi.fn(() => HttpResponse.json({ data: { id: 'parent' } }));
+    server.use(
+      http.patch(`/api/vehicles/car/${resource}/parent`, saved),
+      http.get(`/api/vehicles/car/${resource}`, () => {
+        reads++;
+        if (outcome === 'retry' && reads === 1) return HttpResponse.json({}, { status: 500 });
+        const row = {
+          id: outcome === 'moved' ? 'other' : 'parent',
+          date: '2026-11-01',
+          notes: 'From refreshed list',
+          category: 'OTHER',
+          amount: 10,
+          odometerKm: 100,
+          liters: 10,
+          pricePerLiter: 2,
+          totalCost: 20,
+          isFull: true,
+        };
+        return HttpResponse.json({
+          data: {
+            [type === 'expense' ? 'expenses' : 'fillUps']: [row],
+            expensesTotal: 10,
+            nextCursor: null,
+            canWrite: true,
+          },
+        });
+      })
+    );
+    fireEvent.change(view.getByLabelText('Date'), { target: { value: '2026-11-01' } });
+    fireEvent.click(view.getByRole('button', { name: 'Save changes' }));
+    if (outcome === 'moved') {
+      await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+      await waitFor(() =>
+        expect(screen.getByRole('table').closest('[tabindex="-1"]')).toHaveFocus()
+      );
+    } else {
+      fireEvent.click(await view.findByRole('button', { name: 'Retry refresh' }));
+      expect(await view.findByText('From refreshed list', { selector: 'dd' })).toBeVisible();
+    }
+    expect(saved).toHaveBeenCalledOnce();
+    expect(reads).toBe(outcome === 'moved' ? 1 : 2);
+  });
   it('keeps the draft after a failed save and asks before discarding it back to Details', async () => {
     server.use(
       http.patch(`/api/vehicles/car/${resource}/parent`, () =>

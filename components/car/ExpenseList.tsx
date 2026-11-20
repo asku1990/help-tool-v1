@@ -29,6 +29,7 @@ function VehicleExpenseList({ vehicleId }: { vehicleId: string }) {
     isFetchingNextPage,
     fetchStatus,
     refetch,
+    dataUpdatedAt,
   } = useInfiniteExpenses(vehicleId, 5);
 
   const items = useMemo(() => (data?.pages || []).flatMap(p => p.expenses), [data]);
@@ -38,7 +39,7 @@ function VehicleExpenseList({ vehicleId }: { vehicleId: string }) {
     list,
     open: setActive,
     dialog,
-  } = useListedRecordDialog(items, !isError && fetchStatus === 'idle');
+  } = useListedRecordDialog(items, { isError, fetchStatus, refetch, dataUpdatedAt });
 
   // Keep the active editor mounted even if the refreshed page no longer contains its row.
   function withEditor(content: ReactNode) {

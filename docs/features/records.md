@@ -137,6 +137,10 @@ discarding unsaved form changes; tapping outside does not dismiss the editor. Re
 starts from the saved values. Attachment actions save separately and are not undone by
 discarding form changes. Saving or processing an attachment action blocks dismissal.
 
+When saving from Details, the refreshed row supplies the summary. If it is no
+longer on the current page, Details closes and returns focus to the list. If the
+refresh fails, **Retry refresh** reloads the summary without repeating the save.
+
 The menu editor closes once the server confirms the save. **Edit** and **Load more** wait for the
 list refresh, which reloads saved fields and derived figures together. Fill-up rows and their
 trip figures are read from the same database snapshot. If the refresh fails,
