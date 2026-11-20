@@ -29,13 +29,7 @@ import LicensePlate from '@/components/car/LicensePlate';
 import InspectionBadge from '@/components/car/InspectionBadge';
 import TireManager from '@/components/car/TireManager';
 import OilConsumptionChart from '@/components/car/charts/OilConsumptionChart';
-import {
-  useExpenses,
-  useVehicleSummary,
-  useVehicle,
-  useUpdateVehicle,
-  useDeleteVehicle,
-} from '@/hooks';
+import { useExpenses, useVehicleSummary, useVehicle, useDeleteVehicle } from '@/hooks';
 import { pickLastInspectionDateFromExpenses } from '@/utils';
 import { toast } from 'sonner';
 import { getUiErrorMessage } from '@/lib/api/client-errors';
@@ -45,7 +39,7 @@ import {
   destructiveRecordActionClass,
   recordActionClass,
 } from '@/components/car/records';
-import VehicleDetailsDialog from './VehicleDetailsDialog';
+import VehicleDialog from '@/components/car/vehicles/VehicleDialog';
 
 export default function VehiclePage() {
   const { status } = useSession();
@@ -68,41 +62,11 @@ export default function VehiclePage() {
   // Server state via TanStack Query, derived locally with useMemo (no duplication to local state)
   const vehicleQuery = useVehicle(vehicleId);
   const vehicle = vehicleQuery.data?.vehicle;
-  const updateVehicleMutation = useUpdateVehicle(vehicleId || '');
   const deleteVehicleMutation = useDeleteVehicle(vehicleId || '');
-  const [isEditOpen, setEditOpen] = useState(false);
-  const [isDetailsOpen, setDetailsOpen] = useState(false);
+  const [vehicleEntry, setVehicleEntry] = useState<'view' | 'edit' | null>(null);
   const vehicleDialogTrigger = useRef<HTMLElement | null>(null);
   const [isDeleteOpen, setDeleteOpen] = useState(false);
   const [isImportOpen, setImportOpen] = useState(false);
-  const [editForm, setEditForm] = useState({
-    name: '',
-    make: '',
-    model: '',
-    year: '',
-    licensePlate: '',
-    inspectionDueDate: '',
-    inspectionIntervalMonths: '',
-    initialOdometer: '',
-  });
-
-  useEffect(() => {
-    const v = vehicleQuery.data?.vehicle;
-    if (v) {
-      setEditForm({
-        name: v.name || '',
-        make: v.make || '',
-        model: v.model || '',
-        year: v.year ? String(v.year) : '',
-        licensePlate: v.licensePlate || '',
-        inspectionDueDate: v.inspectionDueDate ? v.inspectionDueDate.slice(0, 10) : '',
-        inspectionIntervalMonths: v.inspectionIntervalMonths
-          ? String(v.inspectionIntervalMonths)
-          : '',
-        initialOdometer: v.initialOdometer ? String(v.initialOdometer) : '',
-      });
-    }
-  }, [vehicleQuery.data]);
 
   const summaryQuery = useVehicleSummary(vehicleId || '');
   const summary = summaryQuery.data;
@@ -181,7 +145,7 @@ export default function VehiclePage() {
                     aria-haspopup="dialog"
                     aria-describedby="vehicle-name-action"
                     className="inline-flex min-h-11 max-w-full cursor-pointer items-center gap-2 rounded-sm text-left hover:text-primary focus-visible:outline-2 focus-visible:outline-offset-2"
-                    onClick={event => openVehicleDialog(event, () => setDetailsOpen(true))}
+                    onClick={event => openVehicleDialog(event, () => setVehicleEntry('view'))}
                   >
                     <span className="min-w-0">{vehicle.name}</span>
                     <ChevronRight
@@ -248,7 +212,7 @@ export default function VehiclePage() {
                       type="button"
                       variant="ghost"
                       className={recordActionClass}
-                      onClick={event => openVehicleDialog(event, () => setEditOpen(true))}
+                      onClick={event => openVehicleDialog(event, () => setVehicleEntry('edit'))}
                     >
                       Edit
                     </Button>
@@ -407,153 +371,17 @@ export default function VehiclePage() {
           </div>
         </DialogContent>
       </Dialog>
-      {vehicle ? (
-        <VehicleDetailsDialog
+      {vehicle && vehicleEntry ? (
+        <VehicleDialog
+          key={`details-${vehicle.id}`}
           vehicle={vehicle}
-          open={isDetailsOpen}
-          onOpenChange={setDetailsOpen}
-          onCloseAutoFocus={restoreVehicleDialogFocus}
+          entry={vehicleEntry}
+          canEdit={vehicle.canEdit === true}
+          available={!vehicleQuery.isError && vehicleQuery.fetchStatus === 'idle'}
+          onClose={() => setVehicleEntry(null)}
+          restoreFocus={() => vehicleDialogTrigger.current?.focus()}
         />
       ) : null}
-      <Dialog open={isEditOpen} onOpenChange={setEditOpen}>
-        <DialogContent
-          aria-label="Edit vehicle dialog"
-          aria-describedby={undefined}
-          onCloseAutoFocus={restoreVehicleDialogFocus}
-        >
-          <DialogHeader>
-            <DialogTitle>Edit vehicle</DialogTitle>
-          </DialogHeader>
-          <form
-            className="space-y-4"
-            onSubmit={async e => {
-              e.preventDefault();
-              try {
-                await updateVehicleMutation.mutateAsync({
-                  name: editForm.name || undefined,
-                  make: editForm.make || undefined,
-                  model: editForm.model || undefined,
-                  year: editForm.year ? parseInt(editForm.year, 10) : undefined,
-                  licensePlate: editForm.licensePlate || null,
-                  inspectionDueDate: editForm.inspectionDueDate || null,
-                  inspectionIntervalMonths: editForm.inspectionIntervalMonths
-                    ? parseInt(editForm.inspectionIntervalMonths, 10)
-                    : null,
-                  initialOdometer: editForm.initialOdometer
-                    ? parseInt(editForm.initialOdometer, 10)
-                    : null,
-                });
-                toast.success('Vehicle updated');
-                setEditOpen(false);
-              } catch (error) {
-                toast.error(getUiErrorMessage(error, 'Failed to update vehicle'));
-              }
-            }}
-          >
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <label className="flex flex-col gap-1 sm:col-span-2">
-                <span className="text-sm">Name</span>
-                <input
-                  className="border rounded-md px-3 py-2"
-                  value={editForm.name}
-                  onChange={e => setEditForm(f => ({ ...f, name: e.target.value }))}
-                  required
-                />
-              </label>
-              <label className="flex flex-col gap-1">
-                <span className="text-sm">Make</span>
-                <input
-                  className="border rounded-md px-3 py-2"
-                  value={editForm.make}
-                  onChange={e => setEditForm(f => ({ ...f, make: e.target.value }))}
-                />
-              </label>
-              <label className="flex flex-col gap-1">
-                <span className="text-sm">Model</span>
-                <input
-                  className="border rounded-md px-3 py-2"
-                  value={editForm.model}
-                  onChange={e => setEditForm(f => ({ ...f, model: e.target.value }))}
-                />
-              </label>
-              <label className="flex flex-col gap-1">
-                <span className="text-sm">Year</span>
-                <input
-                  type="number"
-                  inputMode="numeric"
-                  min="1900"
-                  className="border rounded-md px-3 py-2"
-                  value={editForm.year}
-                  onChange={e => setEditForm(f => ({ ...f, year: e.target.value }))}
-                />
-              </label>
-              <label className="flex flex-col gap-1">
-                <span className="text-sm">License plate</span>
-                <input
-                  className="border rounded-md px-3 py-2 uppercase"
-                  maxLength={16}
-                  value={editForm.licensePlate}
-                  onChange={e => setEditForm(f => ({ ...f, licensePlate: e.target.value }))}
-                  placeholder="ABC-123"
-                />
-              </label>
-              <label className="flex flex-col gap-1">
-                <span className="text-sm">Inspection due date</span>
-                <input
-                  type="date"
-                  className="border rounded-md px-3 py-2"
-                  value={editForm.inspectionDueDate}
-                  onChange={e => setEditForm(f => ({ ...f, inspectionDueDate: e.target.value }))}
-                />
-              </label>
-              <label className="flex flex-col gap-1">
-                <span className="text-sm">Inspection interval (months)</span>
-                <input
-                  type="number"
-                  inputMode="numeric"
-                  min="1"
-                  max="60"
-                  className="border rounded-md px-3 py-2"
-                  value={editForm.inspectionIntervalMonths}
-                  onChange={e =>
-                    setEditForm(f => ({ ...f, inspectionIntervalMonths: e.target.value }))
-                  }
-                  placeholder="12"
-                />
-              </label>
-              <label className="flex flex-col gap-1">
-                <span className="text-sm">Initial Odometer</span>
-                <input
-                  type="number"
-                  inputMode="numeric"
-                  min="0"
-                  className="border rounded-md px-3 py-2"
-                  value={editForm.initialOdometer}
-                  onChange={e => setEditForm(f => ({ ...f, initialOdometer: e.target.value }))}
-                  placeholder="0"
-                />
-              </label>
-            </div>
-            <div className="flex justify-end gap-2 pt-4">
-              <Button
-                type="button"
-                variant="outline"
-                className="min-h-11 cursor-pointer"
-                onClick={() => setEditOpen(false)}
-              >
-                Cancel
-              </Button>
-              <Button
-                type="submit"
-                className="min-h-11 cursor-pointer"
-                disabled={updateVehicleMutation.isPending}
-              >
-                {updateVehicleMutation.isPending ? 'Saving…' : 'Save'}
-              </Button>
-            </div>
-          </form>
-        </DialogContent>
-      </Dialog>
       <Toaster />
     </div>
   );

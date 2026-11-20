@@ -44,7 +44,7 @@ function renderPanel(record: AttachmentRecord = { type: 'expense', id: 'e1' }, r
         vehicleId="car"
         record={record}
         onBusyChange={onUploadingChange}
-        context={readOnly ? 'preview' : record.type === 'vehicle' ? 'documents' : 'editor'}
+        context={readOnly ? 'preview' : 'editor'}
       />
     </QueryClientProvider>
   );
@@ -511,14 +511,11 @@ describe('Record attachments', () => {
     const target = { type: 'vehicle' } as const;
     renderPanel(target);
 
-    const manage = await screen.findByRole('button', { name: 'Manage documents' });
-    expect(screen.queryByLabelText('Attachment file')).not.toBeInTheDocument();
-    fireEvent.click(manage);
     await select(new File(['%PDF-1.4'], 'second.pdf'));
     const second = { ...receipt, id: 'a2', filename: 'second.pdf' };
     vi.mocked(uploadAttachment).mockResolvedValue(second);
     vi.mocked(listAttachments).mockResolvedValue(metadata([receipt, second]));
-    fireEvent.click(screen.getByRole('button', { name: 'Upload' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Upload file' }));
     expect(await screen.findByText('Attachment uploaded.')).toBeVisible();
     expect(uploadAttachment).toHaveBeenCalledWith('car', target, expect.any(Object));
 
@@ -551,10 +548,6 @@ describe('Record attachments', () => {
       expect([vehicleId, record]).toEqual(['car', target]);
     }
 
-    const done = screen.getByRole('button', { name: 'Done managing' });
-    await waitFor(() => expect(done).toBeEnabled());
-    fireEvent.click(done);
-    expect(screen.queryByLabelText('Attachment file')).not.toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Open second.pdf in a new tab' })).toBeVisible();
   });
 

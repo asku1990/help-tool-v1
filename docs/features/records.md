@@ -45,16 +45,17 @@ in the Tires tab.
 
 Select the vehicle name to see saved basic information without opening the edit form.
 Closing Details returns focus to the name. The registration plate stays selectable text.
-The read-only dialog shows the saved inspection due date
+The summary shows the saved inspection due date
 and interval, not an estimate based on maintenance entries. Missing values display as
 `—`; a saved initial odometer of zero displays as `0 km`.
 Vehicle, fill-up, and expense Details share the same field layout and Close controls.
 
-The **Documents** section loads when Vehicle Details opens. Anyone with vehicle read
+The **Files** section loads when Vehicle Details opens. Anyone with vehicle read
 access can open a file in a new tab. If the list fails, vehicle information stays
-visible and the list can be refreshed. Owners and editors can choose **Manage
-documents** to upload, rename, or permanently delete a file, then **Done managing**
-to return to the read-only list. File changes do not require editing the vehicle.
+visible and the list can be refreshed. Owners and editors can choose **Manage files**
+to upload, rename, or permanently delete a file, then **Done** to return to Details.
+Only owners see **Edit details**. Save or Cancel there returns to Details;
+entering via **More → Edit** instead closes back to More.
 
 ## Fill-ups and Expenses
 

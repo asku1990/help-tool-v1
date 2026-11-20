@@ -74,9 +74,9 @@ and WebP.
 The vehicle attachment routes use the same permissions, formats, and ten-slot limit
 as expenses and fill-ups. Direct vehicle attachments have their own slots and are
 not included in expense or fill-up lists. Browser uploads must come from the app's
-own origin. To check the vehicle flow, open **Vehicle Details → Manage documents**
+own origin. To check the vehicle flow, open **Vehicle Details → Manage files**
 as an owner or editor, then upload, open, rename, and delete a disposable file.
-Check that a viewer can open files but does not see **Manage documents**.
+Check that a viewer can open files but does not see **Manage files**.
 See the [manual checks in the feature plan](../plan/file-upload.md#slice-3-ui-and-manual-staging-check).
 
 ## Attachments During the Creation Workflow

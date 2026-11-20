@@ -28,7 +28,6 @@ type Props = {
     | 'preview'
     | 'editor'
     | 'creation'
-    | 'documents'
     | {
         kind: 'details';
         mode: 'view' | 'manage';
@@ -47,21 +46,18 @@ export default function RecordAttachments({
   const upload = useUploadAttachment(vehicleId, record);
   const deletion = useDeleteAttachment(vehicleId, record);
   const rename = useRenameAttachment(vehicleId, record);
-  const [vehicleManaging, setVehicleManaging] = useState(false);
   const files = typeof context === 'object';
-  const vehicleDocuments = context === 'documents';
-  const managing = files ? context.mode === 'manage' : vehicleDocuments && vehicleManaging;
+  const managing = files && context.mode === 'manage';
   const uploadFirst = files || context === 'editor';
-  const title = files ? 'Files' : vehicleDocuments ? 'Documents' : 'Attachments';
-  const readOnly = context === 'preview' || ((vehicleDocuments || files) && !managing);
+  const title = files ? 'Files' : 'Attachments';
+  const readOnly = context === 'preview' || (files && !managing);
   const denied =
     list.error instanceof ApiClientError && [401, 403, 404].includes(list.error.status);
-  const viewingDetails = (files || vehicleDocuments) && !managing;
+  const viewingDetails = files && !managing;
   const onFilesChange = files ? context.onModeChange : undefined;
   useEffect(() => {
     if (managing && (denied || list.data?.canUpload === false)) {
-      if (onFilesChange) onFilesChange('view');
-      else setVehicleManaging(false);
+      onFilesChange?.('view');
     }
   }, [denied, list.data?.canUpload, managing, onFilesChange]);
   const [editing, setEditing] = useState<{ id: string; name: string; extension: string } | null>(
@@ -237,8 +233,7 @@ export default function RecordAttachments({
           {title}
           {files && list.data && !list.isError ? ` (${list.data.attachments.length})` : ''}
         </h3>
-        {(vehicleDocuments || (files && !managing)) &&
-        (managing || (list.data?.canUpload && !list.isFetching && !list.isError)) ? (
+        {viewingDetails && list.data?.canUpload && !list.isFetching && !list.isError ? (
           <Button
             type="button"
             data-manage-files
@@ -246,11 +241,10 @@ export default function RecordAttachments({
             size="sm"
             disabled={disabled || busy}
             onClick={() => {
-              if (files) context.onModeChange('manage');
-              else setVehicleManaging(!managing);
+              context.onModeChange('manage');
             }}
           >
-            {files ? 'Manage files' : managing ? 'Done managing' : 'Manage documents'}
+            Manage files
           </Button>
         ) : null}
       </div>
@@ -431,11 +425,7 @@ export default function RecordAttachments({
             </ul>
           ) : (
             <p className="text-sm text-gray-500">
-              {files
-                ? 'No files yet.'
-                : vehicleDocuments
-                  ? 'No documents yet.'
-                  : 'No attachments yet.'}
+              {files ? 'No files yet.' : 'No attachments yet.'}
             </p>
           )}
           {!readOnly && !list.data.canUpload ? (
