@@ -22,6 +22,14 @@ On the vehicles list, **Add vehicle** is visible and **Restore Backup** is in th
 **⋯** menu. Tap or click outside to close the menu. Closing the restore dialog
 returns focus to **⋯**.
 
+Manual iPhone Safari regression check: on the vehicles list, open **⋯** and tap
+the **Vehicles** heading. Then open a vehicle, open **More**, and tap the **Fill-ups**
+heading. Each menu should close on the first tap without opening a dialog or navigating.
+Use a real tap on the heading, not a button or link; synthetic events do not check
+whether Safari delivers the tap on non-interactive content.
+The [mobile WebKit test](../commands.md#tests) checks the same flow in emulation;
+it does not replace the real-device check.
+
 Use **Download backup** for restore, not for opening in a spreadsheet. Use **Download for
 spreadsheet** to view the records in a spreadsheet app. Import this copy as a comma-delimited
 CSV. It prefixes formula-like text with `Text:` so the spreadsheet treats it as text, and
