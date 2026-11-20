@@ -25,9 +25,19 @@ test('a touch outside either vehicle header menu dismisses it', async ({ page })
       : route.abort();
   });
 
-  for (const { path, menuName, heading } of [
-    { path: '/car', menuName: 'Vehicle list actions', heading: 'Vehicles' },
-    { path: '/car/v1', menuName: 'More vehicle actions', heading: 'Fill-ups' },
+  for (const { path, menuName, heading, action } of [
+    {
+      path: '/car',
+      menuName: 'Vehicle list actions',
+      heading: 'Vehicles',
+      action: 'Restore Backup',
+    },
+    {
+      path: '/car/v1',
+      menuName: 'More vehicle actions',
+      heading: 'Fill-ups',
+      action: 'Download backup',
+    },
   ]) {
     await test.step(menuName, async () => {
       await page.goto(path);
@@ -35,9 +45,12 @@ test('a touch outside either vehicle header menu dismisses it', async ({ page })
       const menu = page.getByRole('button', { name: menuName });
       const outside = page.getByRole('heading', { name: heading, exact: true });
       await menu.tap();
+      const menuAction = page.getByText(action, { exact: true });
+      await expect(menuAction).toBeVisible();
       await expect(menu).toHaveAttribute('aria-expanded', 'true');
       await outside.tap({ position: { x: 8, y: 8 } });
       await expect(menu).toHaveAttribute('aria-expanded', 'false');
+      await expect(menuAction).not.toBeAttached();
       await expect(page.getByRole('dialog')).toHaveCount(0);
       await expect(page).toHaveURL(originalUrl);
     });
