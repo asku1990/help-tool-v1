@@ -5,7 +5,7 @@ import { toast } from 'sonner';
 import { useUpdateFillUp } from '@/hooks';
 import type { FillUpWithSegmentDto } from '@/queries/fillups';
 import { formatDateFi } from '@/utils';
-import { RecordFields } from '../records/DetailsDialogContent';
+import RecordFields from '../records/RecordFields';
 import { recordFields } from '../records/RecordSummaryButton';
 import SavedRecordDialog from '../records/SavedRecordDialog';
 import type { ListedRecordDialogProps } from '../records/useListedRecordDialog';

@@ -177,7 +177,8 @@ and management controls. At capacity, disable upload but leave deletion availabl
 
 ### Reuse and review checkpoint
 
-- Adapt `DetailsDialogContent` for the shared shell, mode transitions and focus.
+- `SavedRecordDialog` and `SavedRecordDialogShell` own mode transitions and focus;
+  `RecordFields` renders the shared label/value layout.
   The feature supplies its summary, existing field form, and edit permission.
   Preserve the forms' validation and save logic; remove each old Edit shell as
   its two entry points migrate.

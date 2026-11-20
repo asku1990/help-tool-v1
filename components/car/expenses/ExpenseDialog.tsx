@@ -6,7 +6,7 @@ import { useUpdateExpense } from '@/hooks';
 import type { ExpenseDto } from '@/queries/expenses';
 import { expenseCategories, isValidExpenseCategory } from '@/utils/expenses';
 import { formatDateFi } from '@/utils';
-import { RecordFields } from '../records/DetailsDialogContent';
+import RecordFields from '../records/RecordFields';
 import { recordFields } from '../records/RecordSummaryButton';
 import SavedRecordDialog from '../records/SavedRecordDialog';
 import type { ListedRecordDialogProps } from '../records/useListedRecordDialog';

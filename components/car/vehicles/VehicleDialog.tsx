@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { toast } from 'sonner';
 import SavedRecordDialog from '@/components/car/records/SavedRecordDialog';
-import { RecordFields } from '@/components/car/records/DetailsDialogContent';
+import RecordFields from '../records/RecordFields';
 import { useUpdateVehicle } from '@/hooks';
 import type { VehicleDto } from '@/queries/vehicles';
 

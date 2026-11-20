@@ -4,4 +4,4 @@ export {
   recordActionClass,
   destructiveRecordActionClass,
 } from './RecordActions';
-export { default as DetailsDialogContent } from './DetailsDialogContent';
+export { default as RecordFields } from './RecordFields';
