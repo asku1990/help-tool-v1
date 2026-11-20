@@ -10,6 +10,11 @@ import {
   useUploadAttachment,
 } from '@/hooks/attachments';
 import { MAX_ATTACHMENT_BYTES } from '@/lib/attachments/limits';
+import {
+  attachmentAccept,
+  attachmentFormatList,
+  matchesAttachmentUploadFormat,
+} from '@/lib/attachments/formats';
 import { getUiErrorMessage } from '@/lib/api/client-errors';
 import { attachmentOpenUrl, type AttachmentRecord } from '@/queries/attachments';
 
@@ -56,9 +61,11 @@ export default function RecordAttachments({
     setFile(selected);
     if (!selected) return;
     if (selected.size === 0 || selected.size > MAX_ATTACHMENT_BYTES) {
-      setFileError('Choose a non-empty file of at most 4,000,000 bytes.');
-    } else if (!/\.(pdf|jpe?g|png|webp)$/i.test(selected.name)) {
-      setFileError('Choose a PDF, JPEG, PNG, or WebP file.');
+      setFileError(
+        `Choose a non-empty file of at most ${MAX_ATTACHMENT_BYTES.toLocaleString('en-US')} bytes.`
+      );
+    } else if (!matchesAttachmentUploadFormat(selected.name.trim())) {
+      setFileError(`Choose a file in one of these formats: ${attachmentFormatList}.`);
     }
   }
 
@@ -171,7 +178,11 @@ export default function RecordAttachments({
   const canUpload = canWrite && !list.isError;
   const uploadControls = canUpload ? (
     <div className="space-y-2">
-      {full ? <p className="text-sm">This record has reached its five-attachment limit.</p> : null}
+      {full && list.data ? (
+        <p className="text-sm">
+          This record has reached its limit of {list.data.maxAttachments} attachments.
+        </p>
+      ) : null}
       <div
         className={
           uploadFirst ? 'grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end' : 'space-y-2'
@@ -182,7 +193,7 @@ export default function RecordAttachments({
           <input
             ref={input}
             type="file"
-            accept=".pdf,.jpg,.jpeg,.png,.webp"
+            accept={attachmentAccept}
             disabled={disabled || busy || full || list.isFetching}
             onChange={event => selectFile(event.target.files?.[0] ?? null)}
             className={`w-full min-w-0 rounded-md border px-3 py-2${uploadFirst ? ' min-h-11' : ''}`}

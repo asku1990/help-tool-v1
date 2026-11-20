@@ -1,7 +1,8 @@
 import { randomUUID } from 'node:crypto';
 import { Prisma, type PrismaClient } from '@/generated/prisma';
 import { logger } from '@/lib/logger';
-import { AttachmentError, MAX_ATTACHMENTS, type ValidatedAttachment } from './validation';
+import { AttachmentError, type ValidatedAttachment } from './validation';
+import { MAX_ATTACHMENTS } from './limits';
 import type { AttachmentStorage } from './storage';
 
 export type AttachmentParent = { type: 'expense' | 'fillup'; id: string };
@@ -81,7 +82,7 @@ export async function uploadAttachment(
         if (count >= MAX_ATTACHMENTS) {
           throw new AttachmentError(
             'ATTACHMENT_LIMIT',
-            'This record already has five attachments.',
+            `This record already has ${MAX_ATTACHMENTS} attachments.`,
             409
           );
         }

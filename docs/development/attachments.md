@@ -67,7 +67,9 @@ Saving record edits is not required. Reopen the record to confirm the filename a
 remaining capacity persist. In the R2 dashboard, a new object should appear under
 `attachments/` with a random key, not the original filename.
 
-Viewers can list filenames but cannot upload, rename, or delete. There are five slots per record.
+Viewers can list filenames but cannot upload, rename, or delete. Each expense and fill-up
+has ten attachment slots. The supported formats are PDF, JPEG (`.jpg` and `.jpeg`), PNG,
+and WebP.
 See the [manual checks in the feature plan](../plan/file-upload.md#slice-3-ui-and-manual-staging-check).
 
 ## Attachments During the Creation Workflow

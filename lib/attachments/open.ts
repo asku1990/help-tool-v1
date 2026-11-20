@@ -4,10 +4,9 @@ import { getSessionUserId, getVehicleAccess, hasPermission } from '@/lib/api/veh
 import { notFound, serverError, unauthorized } from '@/lib/api/response';
 import { checkRateLimit, rateLimitHeaders, rateLimitKey } from '@/lib/api/rate-limit';
 import { logger } from '@/lib/logger';
+import { canOpenAttachmentInline } from './formats';
 import { createAttachmentStorage } from './storage';
 import type { AttachmentParent } from './upload';
-
-const inlineTypes = new Set(['application/pdf', 'image/jpeg', 'image/png', 'image/webp']);
 
 function privateResponse(response: Response) {
   response.headers.set('Cache-Control', 'private, no-store');
@@ -46,7 +45,7 @@ export async function openAttachment(
       },
       select: { objectKey: true, filename: true, contentType: true },
     });
-    if (!attachment || !inlineTypes.has(attachment.contentType)) {
+    if (!attachment || !canOpenAttachmentInline(attachment.contentType)) {
       return privateResponse(notFound());
     }
     const location = await createAttachmentStorage().getOpenUrl(

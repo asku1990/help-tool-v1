@@ -76,7 +76,7 @@ describe.skipIf(process.env.RUN_INTEGRATION !== '1')('Attachment upload concurre
       const target = parent(type);
       const where = type === 'expense' ? { expenseId } : { fuelFillUpId };
       await db.attachment.createMany({
-        data: Array.from({ length: 4 }, () => ({
+        data: Array.from({ length: 9 }, () => ({
           ...where,
           filename: file.filename,
           contentType: file.contentType,
@@ -128,7 +128,7 @@ describe.skipIf(process.env.RUN_INTEGRATION !== '1')('Attachment upload concurre
       expect(results.filter(result => result.status === 'fulfilled')).toHaveLength(1);
       const rejected = results.find(result => result.status === 'rejected');
       expect(rejected).toMatchObject({ reason: { code: 'ATTACHMENT_LIMIT', status: 409 } });
-      expect(await db.attachment.count({ where })).toBe(5);
+      expect(await db.attachment.count({ where })).toBe(10);
       expect(store.put).toHaveBeenCalledOnce();
     },
     15_000

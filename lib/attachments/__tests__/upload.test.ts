@@ -105,11 +105,20 @@ describe('Attachment upload coordination', () => {
     expect(storage.delete).not.toHaveBeenCalled();
   });
 
-  it('rejects full records before storing an object', async () => {
+  it.each(['expense', 'fillup'] as const)('accepts the tenth %s attachment', async type => {
     const { db, tx, storage } = setup();
-    tx.attachment.count.mockResolvedValue(5);
+    tx.attachment.count.mockResolvedValue(9);
     await expect(
-      uploadAttachment(db, storage, 'car', { type: 'expense', id: 'parent' }, file)
+      uploadAttachment(db, storage, 'car', { type, id: 'parent' }, file)
+    ).resolves.toMatchObject({ id: saved.id });
+    expect(storage.put).toHaveBeenCalledOnce();
+  });
+
+  it.each(['expense', 'fillup'] as const)('rejects an eleventh %s attachment', async type => {
+    const { db, tx, storage } = setup();
+    tx.attachment.count.mockResolvedValue(10);
+    await expect(
+      uploadAttachment(db, storage, 'car', { type, id: 'parent' }, file)
     ).rejects.toMatchObject({ code: 'ATTACHMENT_LIMIT', status: 409 });
     expect(storage.put).not.toHaveBeenCalled();
     expect(storage.delete).not.toHaveBeenCalled();
@@ -169,7 +178,7 @@ describe('Attachment upload coordination', () => {
         select: expect.not.objectContaining({ objectKey: true }),
       })
     );
-    expect(result.remainingCapacity).toBe(4);
+    expect(result).toMatchObject({ maxAttachments: 10, remainingCapacity: 9 });
     expect(result.attachments[0]).not.toHaveProperty('objectKey');
     expect(result.attachments[0]?.createdAtUtc).toBe('2026-11-16T00:00:00.000Z');
   });

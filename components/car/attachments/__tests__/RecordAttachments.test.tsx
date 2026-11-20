@@ -31,7 +31,7 @@ const receipt: AttachmentDto = {
   updatedAtUtc: '2026-11-16T00:00:00.000Z',
 };
 function metadata(attachments: AttachmentDto[] = [], canUpload = true): AttachmentListDto {
-  return { attachments, canUpload, maxAttachments: 5, remainingCapacity: 5 - attachments.length };
+  return { attachments, canUpload, maxAttachments: 10, remainingCapacity: 10 - attachments.length };
 }
 function renderPanel(record: AttachmentRecord = { type: 'expense', id: 'e1' }, readOnly = false) {
   const client = new QueryClient({
@@ -82,6 +82,7 @@ describe('Record attachments', () => {
 
     const saved = await screen.findByRole('list', { name: 'Saved attachments' });
     const picker = screen.getByLabelText('Attachment file');
+    expect(picker).toHaveAttribute('accept', '.pdf,.jpg,.jpeg,.png,.webp');
     const upload = screen.getByRole('button', { name: 'Upload file' });
     expect(picker.compareDocumentPosition(upload) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(upload.compareDocumentPosition(saved) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
@@ -95,7 +96,7 @@ describe('Record attachments', () => {
     vi.mocked(listAttachments).mockResolvedValue(metadata([receipt]));
     renderPanel();
     expect(await screen.findByText('receipt.pdf')).toBeInTheDocument();
-    expect(screen.getByText('4 of 5 attachment slots remaining')).toBeInTheDocument();
+    expect(screen.getByText('9 of 10 attachment slots remaining')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Upload file' })).toBeDisabled();
     const open = screen.getByRole('link', { name: 'Open receipt.pdf in a new tab' });
     expect(open).toHaveAttribute('href', '/api/vehicles/car/expenses/e1/attachments/a1/open');
@@ -223,7 +224,7 @@ describe('Record attachments', () => {
         await screen.findByRole('link', { name: 'Open Service receipt.pdf in a new tab' })
       ).toBeInTheDocument();
       expect(screen.queryByRole('textbox', { name: 'Attachment name' })).not.toBeInTheDocument();
-      expect(screen.getByText('4 of 5 attachment slots remaining')).toBeInTheDocument();
+      expect(screen.getByText('9 of 10 attachment slots remaining')).toBeInTheDocument();
       expect(onUploadingChange).toHaveBeenLastCalledWith(false);
       expect(listAttachments).toHaveBeenCalledTimes(2);
     }
@@ -320,7 +321,7 @@ describe('Record attachments', () => {
       vi.mocked(listAttachments).mockResolvedValue(metadata());
       await act(async () => complete({ id: 'a1' }));
       expect(await screen.findByText('No attachments yet.')).toBeInTheDocument();
-      expect(screen.getByText('5 of 5 attachment slots remaining')).toBeInTheDocument();
+      expect(screen.getByText('10 of 10 attachment slots remaining')).toBeInTheDocument();
       expect(onUploadingChange).toHaveBeenLastCalledWith(false);
       expect(listAttachments).toHaveBeenCalledTimes(2);
     }
@@ -387,7 +388,7 @@ describe('Record attachments', () => {
       }
     );
     expect(screen.getByText('receipt.pdf')).toBeInTheDocument();
-    expect(screen.getByText('4 of 5 attachment slots remaining')).toBeInTheDocument();
+    expect(screen.getByText('9 of 10 attachment slots remaining')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Upload file' })).toBeDisabled();
   });
 
@@ -505,10 +506,10 @@ describe('Record attachments', () => {
     expect(uploadAttachment).not.toHaveBeenCalled();
   });
 
-  it('disables uploads when five attachments are present', async () => {
+  it('disables uploads and displays the server-reported limit when full', async () => {
     vi.mocked(listAttachments).mockResolvedValue(
       metadata(
-        Array.from({ length: 5 }, (_, i) => ({
+        Array.from({ length: 10 }, (_, i) => ({
           ...receipt,
           id: `a${i}`,
           filename: `receipt-${i}.pdf`,
@@ -516,7 +517,10 @@ describe('Record attachments', () => {
       )
     );
     renderPanel();
-    expect(await screen.findByText('0 of 5 attachment slots remaining')).toBeInTheDocument();
+    expect(await screen.findByText('0 of 10 attachment slots remaining')).toBeInTheDocument();
+    expect(
+      screen.getByText('This record has reached its limit of 10 attachments.')
+    ).toBeInTheDocument();
     expect(screen.getByLabelText('Attachment file')).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Upload file' })).toBeDisabled();
   });
@@ -529,7 +533,7 @@ describe('Record attachments', () => {
     await select();
     vi.mocked(listAttachments).mockResolvedValue(
       metadata(
-        Array.from({ length: 5 }, (_, i) => ({
+        Array.from({ length: 10 }, (_, i) => ({
           ...receipt,
           id: `a${i}`,
           filename: `receipt-${i}.pdf`,
@@ -538,7 +542,7 @@ describe('Record attachments', () => {
     );
     fireEvent.click(screen.getByRole('button', { name: 'Upload file' }));
     expect(await screen.findByRole('button', { name: 'Retry upload' })).toBeDisabled();
-    expect(screen.getByText('0 of 5 attachment slots remaining')).toBeInTheDocument();
+    expect(screen.getByText('0 of 10 attachment slots remaining')).toBeInTheDocument();
     expect(uploadAttachment).toHaveBeenCalledOnce();
   });
 
@@ -577,7 +581,7 @@ describe('Record attachments', () => {
       </QueryClientProvider>
     );
     expect(await screen.findByText('receipt.pdf')).toBeInTheDocument();
-    expect(screen.getByText('4 of 5 attachment slots remaining')).toBeInTheDocument();
+    expect(screen.getByText('9 of 10 attachment slots remaining')).toBeInTheDocument();
     expect(listAttachments).toHaveBeenCalledTimes(2);
   });
 

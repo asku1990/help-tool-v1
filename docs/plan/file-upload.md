@@ -3,6 +3,9 @@
 Status: implementation in reviewable slices. The previous attachment implementation has been removed. This
 document does not authorize deployment, remote migrations, or cloud configuration changes.
 
+This plan describes the original five-slot rollout. See the
+[attachment storage guide](../development/attachments.md) for the current limit.
+
 ## Goal
 
 Attach disposable test receipts and maintenance reports to already-saved expenses
