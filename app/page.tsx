@@ -2,6 +2,7 @@
 
 import {
   Button,
+  Card,
   Dialog,
   DialogContent,
   DialogDescription,
@@ -34,24 +35,21 @@ export default function Page() {
   }, [status, session, router]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
+    <div className="min-h-screen bg-canvas">
       <section className="px-4 py-12 sm:py-20 text-center">
-        <div className="inline-block mb-4 sm:mb-6 bg-blue-100 text-blue-800 px-4 py-2 rounded-full text-sm font-medium">
+        <div className="inline-block mb-4 sm:mb-6 bg-secondary text-secondary-foreground px-4 py-2 rounded-full text-sm font-medium">
           Vehicle tracker
         </div>
-        <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold tracking-tight text-gray-900">
+        <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold tracking-tight text-foreground">
           Car Management
         </h1>
-        <p className="mt-4 sm:mt-6 text-base sm:text-lg leading-7 sm:leading-8 text-gray-600 max-w-2xl mx-auto px-2">
+        <p className="mt-4 sm:mt-6 text-base sm:text-lg leading-7 sm:leading-8 text-muted-foreground max-w-2xl mx-auto px-2">
           Keep track of fuel, maintenance, and running costs for all your vehicles in one place.
         </p>
         <div className="mt-8 sm:mt-10 flex flex-col sm:flex-row justify-center gap-3 sm:gap-4 px-4">
           <Dialog>
             <DialogTrigger asChild>
-              <Button
-                size="lg"
-                className="text-base sm:text-lg px-6 sm:px-8 w-full sm:w-auto bg-blue-600 hover:bg-blue-700"
-              >
+              <Button size="lg" className="text-base sm:text-lg px-6 sm:px-8 w-full sm:w-auto">
                 <LogIn className="h-5 w-5 mr-2" />
                 {session ? 'Account' : 'Login'}
               </Button>
@@ -86,17 +84,17 @@ export default function Page() {
       </section>
 
       <section className="py-12 sm:py-20 px-4">
-        <div className="max-w-4xl mx-auto bg-white p-6 sm:p-8 rounded-xl shadow-sm">
+        <Card variant="subtle" className="mx-auto max-w-4xl p-6 sm:p-8">
           <h2 className="text-xl sm:text-2xl font-semibold mb-4">What you can track</h2>
           <ul className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
             {features.map(feature => (
-              <li key={feature} className="flex items-center gap-3 p-2 bg-gray-50 rounded-lg">
-                <span className="w-2 h-2 shrink-0 bg-blue-600 rounded-full" aria-hidden="true" />
+              <li key={feature} className="flex items-center gap-3 p-2 bg-muted rounded-lg">
+                <span className="w-2 h-2 shrink-0 bg-primary rounded-full" aria-hidden="true" />
                 <span className="text-sm sm:text-base">{feature}</span>
               </li>
             ))}
           </ul>
-        </div>
+        </Card>
       </section>
     </div>
   );

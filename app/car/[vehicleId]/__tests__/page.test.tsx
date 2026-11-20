@@ -7,15 +7,9 @@ import { server } from '@/test/msw/server';
 import { computeVehicleSummary } from '@/lib/consumption';
 import { useUiStore } from '@/stores/ui';
 
-const { push } = vi.hoisted(() => ({ push: vi.fn() }));
-
 beforeEach(() => {
-  push.mockClear();
   useUiStore.setState({ isFillUpDialogOpen: false, isExpenseDialogOpen: false });
   server.use(
-    http.get('/api/vehicles', () =>
-      HttpResponse.json({ data: { vehicles: [{ id: 'v1', name: 'Car A' }] } })
-    ),
     http.get('/api/vehicles/:vehicleId', () =>
       HttpResponse.json({
         data: { vehicle: { id: 'v1', name: 'Car A', canEdit: false, canWrite: false } },
@@ -45,7 +39,7 @@ vi.mock('next/navigation', async () => {
   return {
     ...actual,
     useParams: () => ({ vehicleId: 'v1' }),
-    useRouter: () => ({ push, replace: vi.fn() }),
+    useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
   };
 });
 
@@ -58,32 +52,17 @@ it('renders vehicle header and lists', async () => {
   renderWithProviders(<VehiclePage />);
   expect(await screen.findByRole('heading', { level: 1, name: 'Car A' })).toBeInTheDocument();
   expect(screen.getAllByText('Car A')).toHaveLength(1);
-  expect(screen.queryByRole('combobox', { name: 'Switch vehicle' })).not.toBeInTheDocument();
+  const navigation = within(screen.getByRole('navigation', { name: 'Vehicle navigation' }));
+  expect(navigation.getByRole('link', { name: 'Back to vehicles' })).toHaveAttribute(
+    'href',
+    '/car'
+  );
+  expect(navigation.queryByRole('combobox')).not.toBeInTheDocument();
   expect(screen.getByRole('heading', { name: /Fill-ups/i })).toBeInTheDocument();
   expect(screen.getByRole('heading', { name: /Expenses/i })).toBeInTheDocument();
   expect(await screen.findByRole('heading', { name: 'Vehicle costs' })).toBeVisible();
   expect(screen.getByRole('heading', { name: 'Fuel consumption' })).toBeVisible();
   expect(screen.getByText('Lifetime cost per km')).toBeInTheDocument();
-});
-
-it('offers a switcher only when another vehicle is available', async () => {
-  server.use(
-    http.get('/api/vehicles', () =>
-      HttpResponse.json({
-        data: {
-          vehicles: [
-            { id: 'v1', name: 'Car A' },
-            { id: 'v2', name: 'Car B' },
-          ],
-        },
-      })
-    )
-  );
-  renderWithProviders(<VehiclePage />);
-  const switcher = await screen.findByRole('combobox', { name: 'Switch vehicle' });
-  expect(within(switcher).queryByRole('option', { name: 'Car A' })).not.toBeInTheDocument();
-  fireEvent.change(switcher, { target: { value: 'v2' } });
-  expect(push).toHaveBeenCalledWith('/car/v2');
 });
 
 it('switches between the fill-up list and chart and announces the selected view', async () => {
@@ -123,9 +102,9 @@ it('offers Retry when vehicle details fail and restores the actions after recove
   renderWithProviders(<VehiclePage />);
   const alert = await screen.findByRole('alert');
   expect(alert).toHaveTextContent('Could not load vehicle details.');
-  expect(screen.queryByRole('button', { name: 'Vehicle actions' })).not.toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: 'More vehicle actions' })).not.toBeInTheDocument();
   fireEvent.click(within(alert).getByRole('button', { name: 'Retry' }));
-  expect(await screen.findByRole('button', { name: 'Vehicle actions' })).toBeInTheDocument();
+  expect(await screen.findByRole('button', { name: 'More vehicle actions' })).toBeInTheDocument();
   expect(screen.queryByRole('alert')).not.toBeInTheDocument();
 });
 
@@ -143,7 +122,7 @@ it('opens the edit vehicle dialog from the actions menu for an owner', async () 
     expect(screen.getByRole('heading', { name: /^Car A$/i })).toBeInTheDocument()
   );
 
-  fireEvent.click(screen.getByRole('button', { name: 'Vehicle actions' }));
+  fireEvent.click(screen.getByRole('button', { name: 'More vehicle actions' }));
   fireEvent.click(screen.getByRole('button', { name: /^edit$/i }));
   expect(await screen.findByLabelText(/Edit vehicle dialog/i)).toBeInTheDocument();
 });
@@ -173,7 +152,7 @@ it.each([
   ['click', fireEvent.click],
 ])('dismisses the header actions on an outside %s without a pointer event', async (_, press) => {
   renderWithProviders(<VehiclePage />);
-  const menu = await screen.findByRole('button', { name: 'Vehicle actions' });
+  const menu = await screen.findByRole('button', { name: 'More vehicle actions' });
 
   fireEvent.click(menu);
   const download = screen.getByRole('link', { name: 'Download backup' });
@@ -200,8 +179,10 @@ it.each([
     http.post('/api/vehicles/v1/fillups', () => HttpResponse.json({}, { status: 500 }))
   );
   renderWithProviders(<VehiclePage />);
-  const fillUp = await screen.findByRole('button', { name: 'Add fill-up' });
-  expect(screen.getByRole('button', { name: 'Add expense' })).toBeVisible();
+  const controls = within(await screen.findByRole('group', { name: 'Vehicle controls' }));
+  const fillUp = controls.getByRole('button', { name: 'Add fill-up' });
+  expect(fillUp).toBeVisible();
+  expect(controls.getByRole('button', { name: 'Add expense' })).toBeVisible();
   expect(screen.queryByRole('link', { name: 'Download backup' })).not.toBeInTheDocument();
   expect(screen.queryByRole('button', { name: 'Import backup' })).not.toBeInTheDocument();
   expect(screen.queryByRole('button', { name: 'Delete vehicle' })).not.toBeInTheDocument();
@@ -211,7 +192,8 @@ it.each([
   fireEvent.click(within(fillUpDialog).getByRole('button', { name: 'Close' }));
   await waitFor(() => expect(fillUp).toHaveFocus());
 
-  const menu = screen.getByRole('button', { name: 'Vehicle actions' });
+  const menu = controls.getByRole('button', { name: 'More vehicle actions' });
+  expect(menu).toHaveTextContent('More');
   fireEvent.click(menu);
   expect(screen.getByRole('link', { name: 'Download backup' })).toHaveAttribute(
     'href',
@@ -268,7 +250,7 @@ it('opens read-only vehicle details from the name and restores focus to it', asy
     )
   );
   renderWithProviders(<VehiclePage />);
-  const menu = await screen.findByRole('button', { name: 'Vehicle actions' });
+  const menu = await screen.findByRole('button', { name: 'More vehicle actions' });
   fireEvent.click(menu);
   expect(screen.queryByRole('button', { name: 'Edit' })).not.toBeInTheDocument();
   expect(screen.queryByRole('button', { name: 'Import backup' })).not.toBeInTheDocument();

@@ -8,6 +8,7 @@
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
   --color-background: var(--background);
+  --color-canvas: var(--canvas);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
   --color-card-foreground: var(--card-foreground);
@@ -23,6 +24,7 @@
   --color-accent-foreground: var(--accent-foreground);
   --color-destructive: var(--destructive);
   --color-border: var(--border);
+  --color-surface-border: var(--surface-border);
   --color-input: var(--input);
   --color-ring: var(--ring);
   --color-chart-1: var(--chart-1);
@@ -43,6 +45,7 @@
 :root {
   --radius: 0.625rem;
   --background: oklch(1 0 0);
+  --canvas: #edf1f5;
   --foreground: oklch(0.129 0.042 264.695);
   --card: oklch(1 0 0);
   --card-foreground: oklch(0.129 0.042 264.695);
@@ -58,6 +61,7 @@
   --accent-foreground: oklch(0.208 0.042 265.755);
   --destructive: oklch(0.577 0.245 27.325);
   --border: oklch(0.3 0.1 240);
+  --surface-border: color-mix(in oklab, var(--border) 15%, transparent);
   --input: oklch(0.929 0.013 255.508);
   --ring: oklch(0.48 0.18 264.376);
   --chart-1: oklch(0.646 0.222 41.116);
@@ -77,6 +81,7 @@
 
 .dark {
   --background: oklch(0.129 0.042 264.695);
+  --canvas: var(--background);
   --foreground: oklch(0.984 0.003 247.858);
   --card: oklch(0.18 0.042 265.755);
   --card-foreground: oklch(1 0 0);
@@ -92,6 +97,7 @@
   --accent-foreground: oklch(1 0 0);
   --destructive: oklch(0.704 0.191 22.216);
   --border: oklch(1 0 0 / 15%);
+  --surface-border: var(--border);
   --input: oklch(1 0 0 / 20%);
   --ring: oklch(0.6 0.18 264.376);
   --chart-1: oklch(0.488 0.243 264.376);

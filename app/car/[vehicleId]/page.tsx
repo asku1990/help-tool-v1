@@ -2,8 +2,8 @@
 
 import { useParams, useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
-import Link from 'next/link';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronRight } from 'lucide-react';
+import BackToVehiclesLink from '@/components/car/BackToVehiclesLink';
 import {
   Button,
   Dialog,
@@ -33,7 +33,6 @@ import {
   useExpenses,
   useVehicleSummary,
   useVehicle,
-  useVehicles,
   useUpdateVehicle,
   useDeleteVehicle,
 } from '@/hooks';
@@ -69,8 +68,6 @@ export default function VehiclePage() {
   // Server state via TanStack Query, derived locally with useMemo (no duplication to local state)
   const vehicleQuery = useVehicle(vehicleId);
   const vehicle = vehicleQuery.data?.vehicle;
-  const { data: vehiclesData } = useVehicles(true);
-  const otherVehicles = vehiclesData?.vehicles.filter(v => v.id !== vehicleId) ?? [];
   const updateVehicleMutation = useUpdateVehicle(vehicleId || '');
   const deleteVehicleMutation = useDeleteVehicle(vehicleId || '');
   const [isEditOpen, setEditOpen] = useState(false);
@@ -168,137 +165,122 @@ export default function VehiclePage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#edf1f5] dark:bg-background">
-      <header className="border-b border-slate-200 bg-background dark:border-border">
+    <div className="min-h-screen bg-canvas">
+      <header className="border-b border-surface-border bg-background">
         <div className="container mx-auto px-4 pt-2 pb-5 sm:pt-4 sm:pb-6">
-          <nav
-            aria-label="Vehicle navigation"
-            className="mb-2 flex flex-wrap items-center justify-between gap-x-4"
-          >
-            <Link
-              href="/car"
-              className="inline-flex min-h-11 items-center gap-1 rounded-sm text-sm font-medium text-primary hover:underline"
-            >
-              <ChevronLeft className="size-4" aria-hidden="true" />
-              Back to vehicles
-            </Link>
-            {otherVehicles.length > 0 ? (
-              <select
-                aria-label="Switch vehicle"
-                className="hidden min-h-11 w-44 cursor-pointer rounded-md border border-border/60 bg-background px-2 text-sm lg:block"
-                value=""
-                onChange={event => router.push(`/car/${event.target.value}`)}
-              >
-                <option value="" disabled>
-                  Switch vehicle
-                </option>
-                {otherVehicles.map(other => (
-                  <option key={other.id} value={other.id}>
-                    {other.name}
-                  </option>
-                ))}
-              </select>
-            ) : null}
+          <nav aria-label="Vehicle navigation" className="sm:mb-2">
+            <BackToVehiclesLink />
           </nav>
 
-          <div className="flex items-start gap-2 max-sm:justify-between">
-            <h1 className="min-w-0 text-2xl leading-tight font-bold tracking-tight wrap-anywhere sm:text-3xl">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+            <div className="min-w-0">
+              <h1 className="min-w-0 text-2xl leading-tight font-bold tracking-tight wrap-anywhere sm:text-3xl">
+                {vehicle ? (
+                  <button
+                    type="button"
+                    aria-haspopup="dialog"
+                    aria-describedby="vehicle-name-action"
+                    className="inline-flex min-h-11 max-w-full cursor-pointer items-center gap-2 rounded-sm text-left hover:text-primary focus-visible:outline-2 focus-visible:outline-offset-2"
+                    onClick={event => openVehicleDialog(event, () => setDetailsOpen(true))}
+                  >
+                    <span className="min-w-0">{vehicle.name}</span>
+                    <ChevronRight
+                      className="size-5 shrink-0 text-muted-foreground"
+                      aria-hidden="true"
+                    />
+                  </button>
+                ) : (
+                  'Vehicle overview'
+                )}
+              </h1>
               {vehicle ? (
-                <button
-                  type="button"
-                  aria-haspopup="dialog"
-                  aria-describedby="vehicle-name-action"
-                  className="inline-flex min-h-11 max-w-full cursor-pointer items-center gap-2 rounded-sm text-left hover:text-primary focus-visible:outline-2 focus-visible:outline-offset-2"
-                  onClick={event => openVehicleDialog(event, () => setDetailsOpen(true))}
-                >
-                  <span className="min-w-0">{vehicle.name}</span>
-                  <ChevronRight
-                    className="size-5 shrink-0 text-muted-foreground"
-                    aria-hidden="true"
+                <span id="vehicle-name-action" hidden>
+                  View vehicle details
+                </span>
+              ) : null}
+              {vehicle ? (
+                <div className="mt-2 flex flex-wrap items-center gap-2 sm:gap-3">
+                  <LicensePlate value={vehicle.licensePlate} />
+                  <InspectionBadge
+                    inspectionDueDate={vehicle.inspectionDueDate}
+                    lastInspectionDate={lastInspectionDate?.toISOString()}
+                    inspectionIntervalMonths={vehicle.inspectionIntervalMonths}
                   />
-                </button>
+                </div>
+              ) : vehicleQuery.isError ? (
+                <div
+                  role="alert"
+                  className="flex flex-wrap items-center gap-2 text-sm text-red-600"
+                >
+                  Could not load vehicle details.
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="min-h-11"
+                    disabled={vehicleQuery.isFetching}
+                    onClick={() => vehicleQuery.refetch()}
+                  >
+                    Retry
+                  </Button>
+                </div>
               ) : (
-                'Vehicle overview'
+                <div role="status" className="mt-2 text-sm text-muted-foreground">
+                  Loading vehicle details…
+                </div>
               )}
-            </h1>
+            </div>
             {vehicle ? (
-              <span id="vehicle-name-action" hidden>
-                View vehicle details
-              </span>
-            ) : null}
-            {vehicle ? (
-              <RecordActions label="Vehicle actions" placement="card">
-                {vehicle.canEdit ? (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    className={recordActionClass}
-                    onClick={event => openVehicleDialog(event, () => setEditOpen(true))}
-                  >
-                    Edit
-                  </Button>
-                ) : null}
+              <div
+                role="group"
+                aria-label="Vehicle controls"
+                className="relative flex flex-wrap items-center gap-2 lg:shrink-0 lg:justify-end"
+              >
                 {vehicle.canWrite ? (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    className={recordActionClass}
-                    onClick={event => openVehicleDialog(event, () => setImportOpen(true))}
-                  >
-                    Import backup
-                  </Button>
-                ) : null}
-                <ExportMenu vehicleId={vehicle.id} />
-                {vehicle.canEdit ? (
                   <>
-                    <hr className="my-1 border-border/40" />
+                    <FillUpForm key={`fillup-${vehicle.id}`} vehicleId={vehicle.id} />
+                    <ExpenseForm key={`expense-${vehicle.id}`} vehicleId={vehicle.id} />
+                  </>
+                ) : null}
+                <RecordActions label="More vehicle actions" triggerText="More" placement="toolbar">
+                  {vehicle.canEdit ? (
                     <Button
                       type="button"
                       variant="ghost"
-                      className={destructiveRecordActionClass}
-                      onClick={event => openVehicleDialog(event, () => setDeleteOpen(true))}
+                      className={recordActionClass}
+                      onClick={event => openVehicleDialog(event, () => setEditOpen(true))}
                     >
-                      Delete vehicle
+                      Edit
                     </Button>
-                  </>
-                ) : null}
-              </RecordActions>
+                  ) : null}
+                  {vehicle.canWrite ? (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      className={recordActionClass}
+                      onClick={event => openVehicleDialog(event, () => setImportOpen(true))}
+                    >
+                      Import backup
+                    </Button>
+                  ) : null}
+                  <ExportMenu vehicleId={vehicle.id} />
+                  {vehicle.canEdit ? (
+                    <>
+                      <hr className="my-1 border-border/40" />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        className={destructiveRecordActionClass}
+                        onClick={event => openVehicleDialog(event, () => setDeleteOpen(true))}
+                      >
+                        Delete vehicle
+                      </Button>
+                    </>
+                  ) : null}
+                </RecordActions>
+              </div>
             ) : null}
           </div>
-          {vehicle ? (
-            <div className="mt-2 flex flex-col items-start gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-3">
-              <LicensePlate value={vehicle.licensePlate} />
-              <InspectionBadge
-                inspectionDueDate={vehicle.inspectionDueDate}
-                lastInspectionDate={lastInspectionDate?.toISOString()}
-                inspectionIntervalMonths={vehicle.inspectionIntervalMonths}
-              />
-            </div>
-          ) : vehicleQuery.isError ? (
-            <div role="alert" className="flex flex-wrap items-center gap-2 text-sm text-red-600">
-              Could not load vehicle details.
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                className="min-h-11"
-                disabled={vehicleQuery.isFetching}
-                onClick={() => vehicleQuery.refetch()}
-              >
-                Retry
-              </Button>
-            </div>
-          ) : (
-            <div role="status" className="mt-2 text-sm text-muted-foreground">
-              Loading vehicle details…
-            </div>
-          )}
-          {vehicle?.canWrite ? (
-            <div className="mt-4 grid grid-cols-2 gap-2 sm:flex">
-              <FillUpForm key={`fillup-${vehicle.id}`} vehicleId={vehicle.id} />
-              <ExpenseForm key={`expense-${vehicle.id}`} vehicleId={vehicle.id} />
-            </div>
-          ) : null}
         </div>
       </header>
       <main className="container mx-auto px-4 py-5 sm:py-6">
@@ -329,13 +311,13 @@ export default function VehiclePage() {
                 />
               </>
             ) : (
-              <div role="status" className="text-sm text-gray-500">
+              <div role="status" className="text-sm text-muted-foreground">
                 Loading vehicle summary…
               </div>
             )}
           </div>
           <div className="min-w-0 space-y-6 lg:col-span-3">
-            <Card className="border-slate-200 dark:border-border dark:bg-card">
+            <Card variant="subtle">
               <CardContent className="!p-4 sm:!p-6">
                 <h2 className="text-lg font-semibold mb-4">Fill-ups</h2>
                 {vehicleId ? (
@@ -352,7 +334,7 @@ export default function VehiclePage() {
               </CardContent>
             </Card>
 
-            <Card className="border-slate-200 dark:border-border dark:bg-card">
+            <Card variant="subtle">
               <CardContent className="!p-4 sm:!p-6">
                 <h2 className="text-lg font-semibold mb-4">Expenses</h2>
                 {vehicleId ? <ExpenseList vehicleId={vehicleId} /> : null}
@@ -361,7 +343,7 @@ export default function VehiclePage() {
 
             {vehicleId ? <TireManager vehicleId={vehicleId} /> : null}
 
-            <Card className="border-slate-200 dark:border-border dark:bg-card">
+            <Card variant="subtle">
               <CardContent className="!p-4 sm:!p-6">
                 <h2 className="text-lg font-semibold mb-4">Oil Consumption</h2>
                 {vehicleId ? <OilConsumptionChart vehicleId={vehicleId} /> : null}
