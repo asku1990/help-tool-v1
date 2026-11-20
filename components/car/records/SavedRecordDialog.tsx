@@ -20,6 +20,7 @@ type Props = {
     dirty: boolean;
     invalid: boolean;
     saving: boolean;
+    saved: boolean;
     reset: () => void;
     save: () => Promise<void>;
   };
@@ -103,7 +104,14 @@ export default function SavedRecordDialog({
                   </Button>
                 )}
               </div>
-              {summary}
+              {edit.saved && !edit.available ? (
+                <p role="status" className="text-sm text-muted-foreground">
+                  Changes saved. The updated summary is not available yet. If the list refresh
+                  fails, close Details and retry the list.
+                </p>
+              ) : (
+                summary
+              )}
             </section>
           )}
           <RecordAttachments

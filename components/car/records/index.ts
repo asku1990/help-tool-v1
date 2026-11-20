@@ -1,4 +1,4 @@
-export { default as RecordDetailsButton } from './RecordDetailsButton';
+export { RecordSummaryButton, recordFields } from './RecordSummaryButton';
 export {
   default as RecordActions,
   recordActionClass,

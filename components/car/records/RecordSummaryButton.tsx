@@ -1,13 +1,9 @@
 'use client';
 
-import { useState } from 'react';
 import { ChevronRight } from 'lucide-react';
-import { Dialog } from '@/components/ui';
 import type { ExpenseDto } from '@/queries/expenses';
 import type { FillUpWithSegmentDto } from '@/queries/fillups';
 import { formatDateFi } from '@/utils';
-import RecordAttachments from '../attachments/RecordAttachments';
-import DetailsDialogContent from './DetailsDialogContent';
 
 type Props = { vehicleId: string } & (
   | { type: 'expense'; item: ExpenseDto }
@@ -95,36 +91,4 @@ export function recordFields(props: Props) {
   }
   fields.push(['Notes', props.item.notes || '—']);
   return fields;
-}
-
-export default function RecordDetailsButton(props: Props) {
-  const [open, setOpen] = useState(false);
-  const [trigger, setTrigger] = useState<HTMLElement | null>(null);
-  return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <RecordSummaryButton
-        {...props}
-        onOpen={el => {
-          setTrigger(el);
-          setOpen(true);
-        }}
-      />
-      <DetailsDialogContent
-        title={props.type === 'expense' ? 'Expense details' : 'Fill-up details'}
-        fields={recordFields(props)}
-        onCloseAutoFocus={e => {
-          e.preventDefault();
-          trigger?.focus();
-        }}
-      >
-        {open ? (
-          <RecordAttachments
-            vehicleId={props.vehicleId}
-            record={{ type: props.type, id: props.item.id }}
-            context="preview"
-          />
-        ) : null}
-      </DetailsDialogContent>
-    </Dialog>
-  );
 }

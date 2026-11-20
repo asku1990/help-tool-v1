@@ -7,19 +7,10 @@ import type { ExpenseDto } from '@/queries/expenses';
 import { expenseCategories, isValidExpenseCategory } from '@/utils/expenses';
 import { formatDateFi } from '@/utils';
 import { RecordFields } from '../records/DetailsDialogContent';
-import { recordFields } from '../records/RecordDetailsButton';
+import { recordFields } from '../records/RecordSummaryButton';
 import SavedRecordDialog from '../records/SavedRecordDialog';
+import type { ListedRecordDialogProps } from '../records/useListedRecordDialog';
 import { getExpenseDraftChanges, toExpenseDraft } from './expenseDraft';
-
-type Props = {
-  vehicleId: string;
-  item: ExpenseDto;
-  entry: 'view' | 'edit';
-  canWrite: boolean;
-  canStartEdit: boolean;
-  onClose: () => void;
-  restoreFocus: (_saved: boolean) => void;
-};
 
 export default function ExpenseDialog({
   vehicleId,
@@ -29,7 +20,7 @@ export default function ExpenseDialog({
   canStartEdit,
   onClose,
   restoreFocus,
-}: Props) {
+}: ListedRecordDialogProps<ExpenseDto>) {
   const formId = useId();
   const [baseline, setBaseline] = useState(item);
   const [draft, setDraft] = useState(() => toExpenseDraft(item));
@@ -51,6 +42,7 @@ export default function ExpenseDialog({
         dirty: hasChanges,
         invalid: invalidOdometer,
         saving: update.isPending,
+        saved: update.isSuccess,
         reset: () => {
           setBaseline(item);
           setDraft(toExpenseDraft(item));
@@ -60,16 +52,7 @@ export default function ExpenseDialog({
           toast.success('Expense updated');
         },
       }}
-      summary={
-        update.isSuccess && !canStartEdit ? (
-          <p role="status" className="text-sm text-muted-foreground">
-            Changes saved. The updated summary is not available yet. If the list refresh fails,
-            close Details and retry the list.
-          </p>
-        ) : (
-          <RecordFields fields={recordFields({ type: 'expense', item, vehicleId })} />
-        )
-      }
+      summary={<RecordFields fields={recordFields({ type: 'expense', item, vehicleId })} />}
     >
       <label className="flex flex-col gap-1">
         <span className="text-sm">Date</span>

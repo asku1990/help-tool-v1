@@ -1,8 +1,8 @@
 'use client';
 
-import { useMemo, useRef, useState, type ReactNode } from 'react';
+import { useMemo, type ReactNode } from 'react';
 import { useInfiniteExpenses, useDeleteExpense } from '@/hooks';
-import type { ExpenseDto } from '@/queries/expenses';
+import { useListedRecordDialog } from './records/useListedRecordDialog';
 import { Button } from '@/components/ui';
 import { ExpenseListSkeleton } from '@/components/car';
 import { useUiStore } from '@/stores/ui';
@@ -11,7 +11,7 @@ import { toast } from 'sonner';
 import { getUiErrorMessage } from '@/lib/api/client-errors';
 import ExpenseDialog from './expenses/ExpenseDialog';
 import { destructiveRecordActionClass, recordActionClass, RecordActions } from './records';
-import { RecordSummaryButton } from './records/RecordDetailsButton';
+import { RecordSummaryButton } from './records/RecordSummaryButton';
 
 export default function ExpenseList({ vehicleId }: { vehicleId: string }) {
   return <VehicleExpenseList key={vehicleId} vehicleId={vehicleId} />;
@@ -30,16 +30,15 @@ function VehicleExpenseList({ vehicleId }: { vehicleId: string }) {
     fetchStatus,
     refetch,
   } = useInfiniteExpenses(vehicleId, 5);
-  const [active, setActive] = useState<{
-    item: ExpenseDto;
-    trigger: HTMLElement;
-    entry: 'view' | 'edit';
-  } | null>(null);
-  const list = useRef<HTMLDivElement>(null);
 
   const items = useMemo(() => (data?.pages || []).flatMap(p => p.expenses), [data]);
   const total = useMemo(() => items.reduce((s, e) => s + e.amount, 0), [items]);
   const canWrite = data?.pages[0]?.canWrite === true;
+  const {
+    list,
+    open: setActive,
+    dialog,
+  } = useListedRecordDialog(items, !isError && fetchStatus === 'idle');
 
   // Keep the active editor mounted even if the refreshed page no longer contains its row.
   function withEditor(content: ReactNode) {
@@ -48,21 +47,7 @@ function VehicleExpenseList({ vehicleId }: { vehicleId: string }) {
         <div ref={list} tabIndex={-1}>
           {content}
         </div>
-        {active ? (
-          <ExpenseDialog
-            vehicleId={vehicleId}
-            item={items.find(item => item.id === active.item.id) ?? active.item}
-            entry={active.entry}
-            canWrite={canWrite}
-            canStartEdit={
-              !isError && fetchStatus === 'idle' && items.some(item => item.id === active.item.id)
-            }
-            onClose={() => setActive(null)}
-            restoreFocus={saved =>
-              (!saved && active.trigger.isConnected ? active.trigger : list.current)?.focus()
-            }
-          />
-        ) : null}
+        {dialog && <ExpenseDialog vehicleId={vehicleId} canWrite={canWrite} {...dialog} />}
       </>
     );
   }

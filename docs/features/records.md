@@ -60,7 +60,7 @@ to return to the read-only list. File changes do not require editing the vehicle
 
 Select the date and summary area of an expense or fill-up to open **Details**. It is a
 keyboard-accessible button with a chevron, not an invisible
-click handler on the whole row. Details opens a read-only dialog with the saved record
+click handler on the whole row. Details opens a read-only summary with the saved record
 information, full notes, and attachment links. Fill-ups also show completed-trip figures when those are available
 in the list response; the dialog does not calculate new consumption values.
 Both dialogs show Odometer directly below Date, with `km` on the reading. Consumption in
@@ -68,13 +68,12 @@ Details is shown in `L/100 km` for fuel and `L/10,000 km` for oil.
 
 Details opens in view mode. Opening and closing it does not save anything.
 Optional missing values display an unavailable marker; numeric zero remains visible.
-Expense Details has two independent actions. **Edit details** edits fields in the same
+Expense and fill-up Details have two independent actions. **Edit details** edits fields in the same
 dialog; **Save changes** or **Cancel** returns to the summary. **⋯ → Edit** starts
 directly in field editing and closes after Save or Cancel. **Manage files** replaces
-the summary with **Manage expense files** in the same dialog. The vendor (or category)
-and date identify the expense above the upload, rename, and delete controls. File changes
-save immediately. **Done** in the footer returns to Details. Fill-up Details stays read-only; use its
-existing Edit dialog to change fields or manage attachments.
+the summary with the file manager in the same dialog. The date and odometer identify
+a fill-up; the date and vendor (or category) identify an expense. File changes save
+immediately. **Done** in the footer returns to Details.
 
 For owners and editors, each row has a touch-friendly **⋯** disclosure with **Edit**
 and **Delete**, separated by a divider. Details is not duplicated in the menu.
@@ -97,10 +96,10 @@ See [attachment storage](../development/attachments.md#open-an-attachment) for a
 and signed-link behavior.
 
 Both lists use the date/summary trigger and saved fields from
-`components/car/records/RecordDetailsButton.tsx`. Expenses use `SavedRecordDialog`
+`components/car/records/RecordSummaryButton.tsx`. Both use `SavedRecordDialog`
 for view, edit, and file management. Its shared `RecordEditForm` owns the field layout,
-save errors, and Save/Cancel actions; `ExpenseDialog` supplies the expense fields,
-draft validation, and save request. Fill-ups use read-only Details. Both render
+save errors, and Save/Cancel actions; `ExpenseDialog` and `FillUpDialog` supply their fields,
+draft validation, and save requests. Both render
 `RecordAttachments` and use record data already loaded by the list.
 
 On mobile, each entry is outlined and spaced from the next. The date and summary align
@@ -124,7 +123,7 @@ Fill-up and expense editors open with the focus on the heading, not an input. Th
 date picker remains available when the user activates the date field. The editor uses a
 single column on phones and a centered dialog on wider screens.
 
-**Cancel** and **Save changes** are below the fields (below attachments in fill-up Edit). Save changes applies only
+**Cancel** and **Save changes** are below the fields. Save changes applies only
 to changed record values. Changing only a number's formatting (for example, `10` to `10.00`)
 does not enable Save or include that field when saving other changes. The odometer must be a
 whole number in the signed 32-bit range (−2,147,483,648 to 2,147,483,647);
@@ -190,7 +189,7 @@ expense creation attempt.
 Manual check: open Details for an expense and a fill-up, including a record with long notes,
 no attachments, and available attachments. Confirm there are no editable fields or mutation
 controls before entering management, files still open, and closing does not save.
-Reopen after managing files (expense Details or fill-up Edit) and confirm the
+Reopen after managing files in Details and confirm the
 attachment list refreshes. Check both write and viewer roles.
 Verify the action disclosure opens independently of Details, dismisses outside/on Escape,
 and regains focus after editing. Closing Details returns focus to the row summary.
