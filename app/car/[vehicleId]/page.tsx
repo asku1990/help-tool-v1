@@ -242,7 +242,12 @@ export default function VehiclePage() {
                     <ExpenseForm key={`expense-${vehicle.id}`} vehicleId={vehicle.id} />
                   </>
                 ) : null}
-                <RecordActions label="More vehicle actions" triggerText="More" placement="toolbar">
+                <RecordActions
+                  label="More vehicle actions"
+                  triggerText="More"
+                  placement="toolbar"
+                  unmountOnClose
+                >
                   {vehicle.canEdit ? (
                     <Button
                       type="button"

@@ -22,11 +22,11 @@ On the vehicles list, **Add vehicle** is visible and **Restore Backup** is in th
 **⋯** menu. Tap or click outside to close the menu. Closing the restore dialog
 returns focus to **⋯**.
 
-Manual iPhone Safari regression check: on the vehicles list, open **⋯** and tap
-the **Vehicles** heading. Then open a vehicle, open **More**, and tap the **Fill-ups**
-heading. Each menu should close on the first tap without opening a dialog or navigating.
-Use a real tap on the heading, not a button or link; synthetic events do not check
-whether Safari delivers the tap on non-interactive content.
+Manual Mac and iPhone Safari regression check: with Web Inspector closed, open **⋯**
+on the vehicles list and click or tap the **Vehicles** heading once. Then open a
+vehicle, open **More**, and repeat on the **Fill-ups** heading. Visually confirm each
+panel disappears immediately, without scrolling, changing focus, opening a dialog,
+or navigating.
 The [mobile WebKit test](../commands.md#tests) checks the same flow in emulation;
 it does not replace the real-device check.
 

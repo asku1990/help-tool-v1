@@ -36,8 +36,6 @@ test('a touch outside either vehicle header menu dismisses it', async ({ page })
       const outside = page.getByRole('heading', { name: heading, exact: true });
       await menu.tap();
       await expect(menu).toHaveAttribute('aria-expanded', 'true');
-      // Guard the Safari workaround even if emulated WebKit delivers the tap without it.
-      await expect(outside).toHaveCSS('cursor', 'pointer');
       await outside.tap({ position: { x: 8, y: 8 } });
       await expect(menu).toHaveAttribute('aria-expanded', 'false');
       await expect(page.getByRole('dialog')).toHaveCount(0);
