@@ -1,6 +1,10 @@
 // @vitest-environment node
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
+  GET as getVehicle,
+  POST as postVehicle,
+} from '@/app/api/vehicles/[vehicleId]/attachments/route';
+import {
   GET as getExpenses,
   POST as postExpenses,
 } from '@/app/api/vehicles/[vehicleId]/expenses/[expenseId]/attachments/route';
@@ -52,13 +56,19 @@ const item = {
   updatedAtUtc: '2026-11-16T00:00:00.000Z',
 };
 
-function uploadRequest(bytes: Uint8Array = pdf, type = 'application/pdf') {
+function uploadRequest(bytes: Uint8Array = pdf, type = 'application/pdf', headers?: HeadersInit) {
   const form = new FormData();
   form.append('file', new File([bytes], 'receipt.pdf', { type }));
-  return new Request('http://localhost/api/attachments', { method: 'POST', body: form });
+  return new Request('http://localhost/api/attachments', { method: 'POST', body: form, headers });
 }
 
 describe.each([
+  {
+    type: 'vehicle',
+    get: (req: Request) => getVehicle(req, { params: Promise.resolve({ vehicleId: 'car' }) }),
+    post: (req: Request) => postVehicle(req, { params: Promise.resolve({ vehicleId: 'car' }) }),
+    parent: undefined,
+  },
   {
     type: 'expense',
     get: (req: Request) =>
@@ -76,14 +86,15 @@ describe.each([
     parent: mocks.fillup,
   },
 ])('$type attachment routes', ({ type, get, post, parent }) => {
+  const target = type === 'vehicle' ? { type } : { type, id: 'parent' };
   beforeEach(() => {
     vi.resetAllMocks();
     mocks.auth.mockResolvedValue({ user: { id: 'user' } });
     mocks.access.mockResolvedValue({ vehicle: { id: 'car' }, role: 'OWNER' });
-    parent.mockResolvedValue({ id: 'parent' });
+    parent?.mockResolvedValue({ id: 'parent' });
     mocks.limit.mockReturnValue({ allowed: true });
     mocks.storage.mockReturnValue({ put: vi.fn(), delete: vi.fn() });
-    mocks.list.mockResolvedValue({ attachments: [item], maxAttachments: 5, remainingCapacity: 4 });
+    mocks.list.mockResolvedValue({ attachments: [item], maxAttachments: 10, remainingCapacity: 9 });
     mocks.upload.mockResolvedValue(item);
   });
 
@@ -105,8 +116,8 @@ describe.each([
     expect(await res.json()).toEqual({
       data: {
         attachments: [item],
-        maxAttachments: 5,
-        remainingCapacity: 4,
+        maxAttachments: 10,
+        remainingCapacity: 9,
         canUpload: role !== 'VIEWER',
       },
       error: null,
@@ -115,24 +126,31 @@ describe.each([
       where: { vehicleId: 'car', userId: 'user' },
       include: { vehicle: true },
     });
-    expect(parent).toHaveBeenCalledWith({
-      where: { id: 'parent', vehicleId: 'car' },
-      select: { id: true },
-    });
-    expect(mocks.list).toHaveBeenCalledWith(expect.any(Object), { type, id: 'parent' });
+    if (parent) {
+      expect(parent).toHaveBeenCalledWith({
+        where: { id: 'parent', vehicleId: 'car' },
+        select: { id: true },
+      });
+    }
+    expect(mocks.list).toHaveBeenCalledWith(expect.any(Object), 'car', target);
     expect(mocks.storage).not.toHaveBeenCalled();
   });
 
   it.each(['OWNER', 'EDITOR'])('allows %s to upload validated binary content', async role => {
     mocks.access.mockResolvedValue({ vehicle: { id: 'car' }, role });
-    const res = await post(uploadRequest());
+    const res = await post(
+      uploadRequest(pdf, 'application/pdf', {
+        origin: 'http://localhost',
+        'sec-fetch-site': 'same-origin',
+      })
+    );
     expect(res.status).toBe(201);
     expect(await res.json()).toEqual({ data: item, error: null });
     expect(mocks.upload).toHaveBeenCalledWith(
       expect.any(Object),
       expect.any(Object),
       'car',
-      { type, id: 'parent' },
+      target,
       { filename: 'receipt.pdf', contentType: 'application/pdf', bytes: pdf }
     );
   });
@@ -150,18 +168,34 @@ describe.each([
     mocks.access.mockResolvedValue(null);
     expect((await get(new Request('http://localhost/api/attachments'))).status).toBe(404);
     expect((await post(uploadRequest())).status).toBe(404);
-    expect(parent).not.toHaveBeenCalled();
+    expect(mocks.expense).not.toHaveBeenCalled();
+    expect(mocks.fillup).not.toHaveBeenCalled();
     expect(mocks.list).not.toHaveBeenCalled();
     expect(mocks.storage).not.toHaveBeenCalled();
   });
 
-  it('rejects missing or cross-car parents on reads and uploads', async () => {
-    parent.mockResolvedValue(null);
-    expect((await get(new Request('http://localhost/api/attachments'))).status).toBe(404);
-    const req = uploadRequest();
-    expect((await post(req)).status).toBe(404);
+  if (parent) {
+    it('rejects missing or cross-car nested parents', async () => {
+      parent.mockResolvedValue(null);
+      expect((await get(new Request('http://localhost/api/attachments'))).status).toBe(404);
+      const req = uploadRequest();
+      expect((await post(req)).status).toBe(404);
+      expect(req.bodyUsed).toBe(false);
+      expect(mocks.list).not.toHaveBeenCalled();
+      expect(mocks.storage).not.toHaveBeenCalled();
+    });
+  }
+
+  it.each([
+    ['origin', 'https://other.example.test'],
+    ['sec-fetch-site', 'cross-site'],
+    ['sec-fetch-site', 'same-site'],
+    ['origin', 'null'],
+  ])('rejects cross-origin browser uploads before parsing: %s=%s', async (header, value) => {
+    const req = uploadRequest(pdf, 'application/pdf', { [header]: value });
+    expect((await post(req)).status).toBe(403);
     expect(req.bodyUsed).toBe(false);
-    expect(mocks.list).not.toHaveBeenCalled();
+    expect(mocks.upload).not.toHaveBeenCalled();
     expect(mocks.storage).not.toHaveBeenCalled();
   });
 
@@ -180,7 +214,7 @@ describe.each([
 
   it('returns a useful capacity error', async () => {
     mocks.upload.mockRejectedValue(
-      new AttachmentError('ATTACHMENT_LIMIT', 'Five files maximum.', 409)
+      new AttachmentError('ATTACHMENT_LIMIT', 'Ten files maximum.', 409)
     );
     const res = await post(uploadRequest());
     expect(res.status).toBe(409);

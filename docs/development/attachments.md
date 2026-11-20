@@ -70,6 +70,11 @@ remaining capacity persist. In the R2 dashboard, a new object should appear unde
 Viewers can list filenames but cannot upload, rename, or delete. Each expense and fill-up
 has ten attachment slots. The supported formats are PDF, JPEG (`.jpg` and `.jpeg`), PNG,
 and WebP.
+
+The vehicle attachment routes use the same permissions, formats, and ten-slot limit
+as expenses and fill-ups. Direct vehicle attachments have their own slots and are
+not included in expense or fill-up lists. Browser uploads must come from the app's
+own origin. The vehicle routes do not add controls to Vehicle Details on their own.
 See the [manual checks in the feature plan](../plan/file-upload.md#slice-3-ui-and-manual-staging-check).
 
 ## Attachments During the Creation Workflow

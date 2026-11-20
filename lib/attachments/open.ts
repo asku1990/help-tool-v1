@@ -6,7 +6,7 @@ import { checkRateLimit, rateLimitHeaders, rateLimitKey } from '@/lib/api/rate-l
 import { logger } from '@/lib/logger';
 import { canOpenAttachmentInline } from './formats';
 import { createAttachmentStorage } from './storage';
-import type { AttachmentParent } from './upload';
+import { attachmentParentScope, type AttachmentParent } from './parent';
 
 function privateResponse(response: Response) {
   response.headers.set('Cache-Control', 'private, no-store');
@@ -39,9 +39,7 @@ export async function openAttachment(
     const attachment = await prisma.attachment.findFirst({
       where: {
         id: attachmentId,
-        ...(parent.type === 'expense'
-          ? { expenseId: parent.id, expense: { vehicleId: access.vehicle.id } }
-          : { fuelFillUpId: parent.id, fuelFillUp: { vehicleId: access.vehicle.id } }),
+        ...attachmentParentScope(access.vehicle.id, parent),
       },
       select: { objectKey: true, filename: true, contentType: true },
     });

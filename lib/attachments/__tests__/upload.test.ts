@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { Prisma, type PrismaClient } from '@/generated/prisma';
 import { logger } from '@/lib/logger';
 import { listAttachments, uploadAttachment } from '../upload';
+import type { AttachmentParent } from '../parent';
 import type { AttachmentStorage } from '../storage';
 
 vi.mock('@/lib/logger', () => ({ logger: { error: vi.fn() } }));
@@ -48,6 +49,18 @@ function setup() {
 
 describe('Attachment upload coordination', () => {
   beforeEach(() => vi.clearAllMocks());
+
+  it('locks the authorized vehicle and uses its ID for counting and writing direct attachments', async () => {
+    const { db, tx, storage } = setup();
+    await uploadAttachment(db, storage, 'car', { type: 'vehicle' }, file);
+    expect(tx.$queryRaw).toHaveBeenCalledWith(
+      expect.objectContaining({ values: ['car'], sql: expect.stringContaining('"Vehicle"') })
+    );
+    expect(tx.attachment.count).toHaveBeenCalledWith({ where: { vehicleId: 'car' } });
+    expect(tx.attachment.create).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ vehicleId: 'car' }) })
+    );
+  });
 
   it.each(['expense', 'fillup'] as const)(
     'locks the authorized %s and saves safe metadata',
@@ -105,21 +118,28 @@ describe('Attachment upload coordination', () => {
     expect(storage.delete).not.toHaveBeenCalled();
   });
 
-  it.each(['expense', 'fillup'] as const)('accepts the tenth %s attachment', async type => {
+  const parents: AttachmentParent[] = [
+    { type: 'vehicle' },
+    { type: 'expense', id: 'parent' },
+    { type: 'fillup', id: 'parent' },
+  ];
+
+  it.each(parents)('accepts the tenth $type attachment', async parent => {
     const { db, tx, storage } = setup();
     tx.attachment.count.mockResolvedValue(9);
-    await expect(
-      uploadAttachment(db, storage, 'car', { type, id: 'parent' }, file)
-    ).resolves.toMatchObject({ id: saved.id });
+    await expect(uploadAttachment(db, storage, 'car', parent, file)).resolves.toMatchObject({
+      id: saved.id,
+    });
     expect(storage.put).toHaveBeenCalledOnce();
   });
 
-  it.each(['expense', 'fillup'] as const)('rejects an eleventh %s attachment', async type => {
+  it.each(parents)('rejects an eleventh $type attachment', async parent => {
     const { db, tx, storage } = setup();
     tx.attachment.count.mockResolvedValue(10);
-    await expect(
-      uploadAttachment(db, storage, 'car', { type, id: 'parent' }, file)
-    ).rejects.toMatchObject({ code: 'ATTACHMENT_LIMIT', status: 409 });
+    await expect(uploadAttachment(db, storage, 'car', parent, file)).rejects.toMatchObject({
+      code: 'ATTACHMENT_LIMIT',
+      status: 409,
+    });
     expect(storage.put).not.toHaveBeenCalled();
     expect(storage.delete).not.toHaveBeenCalled();
   });
@@ -171,10 +191,10 @@ describe('Attachment upload coordination', () => {
 
   it('lists only safe metadata with remaining capacity', async () => {
     const { db, findMany } = setup();
-    const result = await listAttachments(db, { type: 'fillup', id: 'parent' });
+    const result = await listAttachments(db, 'car', { type: 'fillup', id: 'parent' });
     expect(findMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { fuelFillUpId: 'parent' },
+        where: { fuelFillUpId: 'parent', fuelFillUp: { vehicleId: 'car' } },
         select: expect.not.objectContaining({ objectKey: true }),
       })
     );

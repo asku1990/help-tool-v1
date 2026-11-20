@@ -1,5 +1,6 @@
 // @vitest-environment node
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { GET as openVehicle } from '@/app/api/vehicles/[vehicleId]/attachments/[attachmentId]/open/route';
 import { GET as openExpense } from '@/app/api/vehicles/[vehicleId]/expenses/[expenseId]/attachments/[attachmentId]/open/route';
 import { GET as openFillUp } from '@/app/api/vehicles/[vehicleId]/fillups/[fillUpId]/attachments/[attachmentId]/open/route';
 
@@ -30,6 +31,7 @@ type Ids = { vehicleId: string; parentId: string; attachmentId: string };
 type Lookup = {
   where: {
     id: string;
+    vehicleId?: string;
     expenseId?: string;
     expense?: { vehicleId: string };
     fuelFillUpId?: string;
@@ -46,6 +48,13 @@ const signedUrl =
   'https://staging.r2.cloudflarestorage.com/bucket/attachments/private-key?signature=secret';
 
 describe.each([
+  {
+    type: 'vehicle',
+    get: ({ vehicleId, attachmentId }: Ids) =>
+      openVehicle(new Request('http://localhost/open'), {
+        params: Promise.resolve({ vehicleId, attachmentId }),
+      }),
+  },
   {
     type: 'expense',
     get: ({ vehicleId, parentId, attachmentId }: Ids) =>
@@ -70,9 +79,11 @@ describe.each([
     mocks.sign.mockResolvedValue(signedUrl);
     mocks.find.mockImplementation(async ({ where }: Lookup) => {
       const matchesParent =
-        type === 'expense'
-          ? where.expenseId === 'parent' && where.expense?.vehicleId === 'car'
-          : where.fuelFillUpId === 'parent' && where.fuelFillUp?.vehicleId === 'car';
+        type === 'vehicle'
+          ? where.vehicleId === 'car'
+          : type === 'expense'
+            ? where.expenseId === 'parent' && where.expense?.vehicleId === 'car'
+            : where.fuelFillUpId === 'parent' && where.fuelFillUp?.vehicleId === 'car';
       return where.id === 'attachment' && matchesParent ? metadata : null;
     });
   });
@@ -93,9 +104,11 @@ describe.each([
     expect(mocks.find).toHaveBeenCalledWith({
       where: {
         id: 'attachment',
-        ...(type === 'expense'
-          ? { expenseId: 'parent', expense: { vehicleId: 'car' } }
-          : { fuelFillUpId: 'parent', fuelFillUp: { vehicleId: 'car' } }),
+        ...(type === 'vehicle'
+          ? { vehicleId: 'car' }
+          : type === 'expense'
+            ? { expenseId: 'parent', expense: { vehicleId: 'car' } }
+            : { fuelFillUpId: 'parent', fuelFillUp: { vehicleId: 'car' } }),
       },
       select: { objectKey: true, filename: true, contentType: true },
     });
@@ -122,7 +135,7 @@ describe.each([
   });
 
   it.each([
-    { parentId: 'wrong-parent', attachmentId: 'attachment' },
+    ...(type === 'vehicle' ? [] : [{ parentId: 'wrong-parent', attachmentId: 'attachment' }]),
     { parentId: 'parent', attachmentId: 'foreign-attachment' },
   ])('rejects mismatched or missing parent/attachment IDs: %j', async ids => {
     const response = await get({ ...defaults, ...ids });
@@ -137,9 +150,11 @@ describe.each([
     expect(mocks.find).toHaveBeenCalledWith(
       expect.objectContaining({
         where: expect.objectContaining(
-          type === 'expense'
-            ? { expense: { vehicleId: 'another-authorized-car' } }
-            : { fuelFillUp: { vehicleId: 'another-authorized-car' } }
+          type === 'vehicle'
+            ? { vehicleId: 'another-authorized-car' }
+            : type === 'expense'
+              ? { expense: { vehicleId: 'another-authorized-car' } }
+              : { fuelFillUp: { vehicleId: 'another-authorized-car' } }
         ),
       })
     );

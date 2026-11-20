@@ -1,17 +1,21 @@
 import { auth } from '@/auth';
 import prisma from '@/lib/db';
 import { getSessionUserId, getVehicleAccess, hasPermission } from '@/lib/api/vehicle-access';
-import { badRequest, created, notFound, ok, serverError, unauthorized } from '@/lib/api/response';
+import {
+  badRequest,
+  created,
+  forbidden,
+  notFound,
+  ok,
+  serverError,
+  unauthorized,
+} from '@/lib/api/response';
 import { checkRateLimit, rateLimitHeaders, rateLimitKey } from '@/lib/api/rate-limit';
 import { logger } from '@/lib/logger';
 import { AttachmentError, readAttachment } from './validation';
 import { createAttachmentStorage } from './storage';
-import {
-  hasAttachmentParent,
-  listAttachments,
-  uploadAttachment,
-  type AttachmentParent,
-} from './upload';
+import { hasAttachmentParent, listAttachments, uploadAttachment } from './upload';
+import type { AttachmentParent } from './parent';
 
 export async function handleAttachments(req: Request, vehicleId: string, parent: AttachmentParent) {
   try {
@@ -28,12 +32,24 @@ export async function handleAttachments(req: Request, vehicleId: string, parent:
     const access = await getVehicleAccess(vehicleId, userId);
     const uploading = req.method === 'POST';
     if (!access || !hasPermission(access.role, uploading ? 'write' : 'read')) return notFound();
+    if (uploading) {
+      // A browser can send a cross-origin multipart form without a preflight.
+      const site = req.headers.get('sec-fetch-site');
+      const origin = req.headers.get('origin');
+      if (
+        site === 'cross-site' ||
+        site === 'same-site' ||
+        (origin !== null && origin !== new URL(req.url).origin)
+      ) {
+        return forbidden('Cross-origin uploads are not allowed.');
+      }
+    }
     if (!(await hasAttachmentParent(prisma, access.vehicle.id, parent))) return notFound();
 
     if (!uploading) {
       return ok(
         {
-          ...(await listAttachments(prisma, parent)),
+          ...(await listAttachments(prisma, access.vehicle.id, parent)),
           canUpload: hasPermission(access.role, 'write'),
         },
         { headers: { 'Cache-Control': 'private, no-store' } }

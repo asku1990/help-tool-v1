@@ -1,5 +1,6 @@
 // @vitest-environment node
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { PATCH as renameVehicle } from '@/app/api/vehicles/[vehicleId]/attachments/[attachmentId]/route';
 import { PATCH as renameExpense } from '@/app/api/vehicles/[vehicleId]/expenses/[expenseId]/attachments/[attachmentId]/route';
 import { PATCH as renameFillUp } from '@/app/api/vehicles/[vehicleId]/fillups/[fillUpId]/attachments/[attachmentId]/route';
 
@@ -29,6 +30,13 @@ const defaults: Ids = { vehicleId: 'car', parentId: 'parent', attachmentId: 'att
 
 describe.each([
   {
+    type: 'vehicle',
+    patch: (request: Request, { vehicleId, attachmentId }: Ids) =>
+      renameVehicle(request, {
+        params: Promise.resolve({ vehicleId, attachmentId }),
+      }),
+  },
+  {
     type: 'expense',
     patch: (request: Request, { vehicleId, parentId, attachmentId }: Ids) =>
       renameExpense(request, {
@@ -45,9 +53,11 @@ describe.each([
 ])('$type attachment rename', ({ type, patch }) => {
   const where = {
     id: 'attachment',
-    ...(type === 'expense'
-      ? { expenseId: 'parent', expense: { vehicleId: 'car' } }
-      : { fuelFillUpId: 'parent', fuelFillUp: { vehicleId: 'car' } }),
+    ...(type === 'vehicle'
+      ? { vehicleId: 'car' }
+      : type === 'expense'
+        ? { expenseId: 'parent', expense: { vehicleId: 'car' } }
+        : { fuelFillUpId: 'parent', fuelFillUp: { vehicleId: 'car' } }),
   };
   function rename(body: unknown = { name: ' Service receipt ' }, ids: Ids = defaults) {
     return patch(
@@ -160,7 +170,7 @@ describe.each([
   );
 
   it.each([
-    { parentId: 'wrong-parent' },
+    ...(type === 'vehicle' ? [] : [{ parentId: 'wrong-parent' }]),
     { attachmentId: 'foreign-attachment' },
     { vehicleId: 'another-authorized-car' },
   ])('rejects mismatched vehicle, parent, or attachment IDs: %j', async ids => {
