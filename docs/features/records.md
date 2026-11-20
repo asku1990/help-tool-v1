@@ -166,8 +166,9 @@ to open the native date picker.
 Both creation dialogs offer the existing **Save expense / Save fill-up** action and a
 **Save & add attachments** action. Ordinary Save closes after a successful save.
 Save & add attachments creates the record first, then keeps the same dialog open with a
-saved confirmation, disabled record fields, and the existing attachment-management panel.
-The panel is outside the record form and uses the real ID returned by creation.
+a short confirmation in place of the form: the date, amount, and vendor/category for an
+expense, or the date, total, and odometer for a fill-up. Focus moves to this summary.
+The same Files controls used in Details manage files for the ID returned by creation.
 
 Choose **Done** to close, with or without uploading files. The record is already saved;
 closing does not roll it back. Reopening Add starts a fresh form. File selection before
@@ -176,7 +177,7 @@ record creation is not supported.
 Creation failures leave the form editable and do not load attachments. After confirmed
 creation, no Save action remains and upload retries cannot create another record.
 An inspection expense can be saved even if the subsequent vehicle inspection-date update
-fails: the dialog then shows an explicit warning and keeps the record fields locked.
+fails: the dialog then shows an explicit warning alongside the saved summary.
 Check the vehicle inspection settings rather than creating the expense again.
 
 Record fields and dismissal are blocked during saving. Done and dismissal are also blocked
@@ -185,7 +186,7 @@ refresh-before-retry behavior, and storage limitations still apply.
 
 Manual check: create each record type using both Save actions. With Save & add attachments,
 upload a disposable file without reopening Edit, retry a failed upload, and close with Done.
-Confirm the record is created once, its fields stay locked after saving, and reopening Add
+Confirm the record is created once, its form is replaced after saving, and reopening Add
 starts a fresh form. Also check an inspection-date update failure does not offer another
 expense creation attempt.
 

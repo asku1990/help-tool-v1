@@ -192,6 +192,8 @@ and management controls. At capacity, disable upload but leave deletion availabl
 
 ### Creation follow-up (after the saved-record rollout)
 
+Implemented for expenses and fill-ups. See [the creation flow](../features/records.md#attachments-after-creating-a-record) for current behavior.
+
 Carry the same one-dialog interaction into **Add expense** and **Add fill-up**.
 Keep ordinary **Save** as the fast path: create the record and close. With
 **Save & add attachments**, create it once, then switch the same dialog to the

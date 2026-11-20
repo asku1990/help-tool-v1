@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { Pencil } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   useAttachments,
@@ -44,13 +43,11 @@ export default function RecordAttachments({
   const upload = useUploadAttachment(vehicleId, record);
   const deletion = useDeleteAttachment(vehicleId, record);
   const rename = useRenameAttachment(vehicleId, record);
-  const files = context !== 'creation';
-  const managing = files && context.mode === 'manage';
-  const title = files ? 'Files' : 'Attachments';
+  const viewingDetails = context !== 'creation' && context.mode === 'view';
+  const managing = !viewingDetails;
   const denied =
     list.error instanceof ApiClientError && [401, 403, 404].includes(list.error.status);
-  const viewingDetails = files && !managing;
-  const onFilesChange = files ? context.onModeChange : undefined;
+  const onFilesChange = context !== 'creation' ? context.onModeChange : undefined;
   useEffect(() => {
     if (managing && (denied || list.data?.canUpload === false)) {
       onFilesChange?.('view');
@@ -175,11 +172,7 @@ export default function RecordAttachments({
           This record has reached its limit of {list.data.maxAttachments} attachments.
         </p>
       ) : null}
-      <div
-        className={
-          files ? 'grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end' : 'space-y-2'
-        }
-      >
+      <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
         <label className="flex min-w-0 flex-col gap-1 text-sm">
           <span>Attachment file</span>
           <input
@@ -188,27 +181,20 @@ export default function RecordAttachments({
             accept={attachmentAccept}
             disabled={disabled || busy || full || list.isFetching}
             onChange={event => selectFile(event.target.files?.[0] ?? null)}
-            className={`w-full min-w-0 rounded-md border px-3 py-2${files ? ' min-h-11' : ''}`}
+            className="w-full min-w-0 rounded-md border px-3 py-2 min-h-11"
             aria-invalid={Boolean(fileError)}
           />
         </label>
         <Button
           type="button"
           variant="outline"
-          size={files ? 'default' : 'sm'}
-          className={files ? 'min-h-11' : undefined}
+          className="min-h-11"
           disabled={disabled || !file || Boolean(fileError) || busy || full || list.isFetching}
           onClick={() => {
             void submitUpload();
           }}
         >
-          {upload.isPending
-            ? 'Uploading…'
-            : uploadError
-              ? 'Retry upload'
-              : files
-                ? 'Upload file'
-                : 'Upload'}
+          {upload.isPending ? 'Uploading…' : uploadError ? 'Retry upload' : 'Upload file'}
         </Button>
       </div>
       {file ? <p className="break-all text-xs text-gray-500">Selected file: {file.name}</p> : null}
@@ -220,11 +206,10 @@ export default function RecordAttachments({
     </div>
   ) : null;
   return (
-    <section className="space-y-3 border-t pt-4" aria-label={title}>
+    <section className="space-y-3 border-t pt-4" aria-label="Files">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h3 className="text-sm font-medium">
-          {title}
-          {files && list.data && !list.isError ? ` (${list.data.attachments.length})` : ''}
+          Files{list.data && !list.isError ? ` (${list.data.attachments.length})` : ''}
         </h3>
         {viewingDetails && list.data?.canUpload && !list.isFetching && !list.isError ? (
           <Button
@@ -251,7 +236,7 @@ export default function RecordAttachments({
       ) : null}
       {list.isPending ? (
         <p role="status" className="text-sm">
-          {files ? 'Loading files…' : 'Loading attachments…'}
+          Loading files…
         </p>
       ) : null}
       {list.isError ? (
@@ -280,26 +265,19 @@ export default function RecordAttachments({
               {list.data.remainingCapacity} of {list.data.maxAttachments} attachment slots remaining
             </p>
           ) : null}
-          {files ? uploadControls : null}
+          {uploadControls}
           {list.data.attachments.length ? (
-            <ul
-              className={files ? 'divide-y text-sm' : 'space-y-1 text-sm'}
-              aria-label="Saved attachments"
-            >
+            <ul className="divide-y text-sm" aria-label="Saved attachments">
               {list.data.attachments.map(item => (
                 <li key={item.id} className="space-y-1">
-                  <div
-                    className={
-                      files ? 'flex flex-wrap items-center gap-2 py-1' : 'flex items-center gap-1'
-                    }
-                  >
+                  <div className="flex flex-wrap items-center gap-2 py-1">
                     <a
                       href={attachmentOpenUrl(vehicleId, record, item.id)}
                       target="_blank"
                       rel="noopener noreferrer"
                       referrerPolicy="no-referrer"
                       aria-label={`Open ${item.filename} in a new tab`}
-                      className={`inline-flex min-w-0 items-center break-all underline underline-offset-2 hover:text-blue-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 ${files ? 'min-h-11 flex-1' : 'min-h-0'}`}
+                      className="inline-flex min-w-0 min-h-11 flex-1 items-center break-all underline underline-offset-2 hover:text-blue-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
                     >
                       {item.filename}
                     </a>
@@ -309,11 +287,7 @@ export default function RecordAttachments({
                           type="button"
                           variant="ghost"
                           size="sm"
-                          className={
-                            files
-                              ? 'min-h-11'
-                              : 'h-6 min-h-0 min-w-6 shrink-0 cursor-pointer px-1 hover:text-blue-600'
-                          }
+                          className="min-h-11"
                           aria-label={`Rename ${item.filename}`}
                           title={`Rename ${item.filename}`}
                           disabled={disabled || busy || list.isFetching || list.isError}
@@ -327,17 +301,13 @@ export default function RecordAttachments({
                             setRenameError('');
                           }}
                         >
-                          {files ? 'Rename' : <Pencil className="size-3" />}
+                          Rename
                         </Button>
                         <Button
                           type="button"
                           variant="ghost"
                           size="sm"
-                          className={
-                            files
-                              ? 'min-h-11 text-destructive'
-                              : 'h-6 min-h-0 min-w-6 shrink-0 cursor-pointer px-1 hover:bg-red-100 hover:text-red-600'
-                          }
+                          className="min-h-11 text-destructive"
                           aria-label={`Delete ${item.filename}`}
                           title={`Delete ${item.filename}`}
                           disabled={disabled || busy || list.isFetching || list.isError}
@@ -347,9 +317,7 @@ export default function RecordAttachments({
                         >
                           {deletion.isPending && deletion.variables?.id === item.id
                             ? 'Deleting…'
-                            : files
-                              ? 'Delete'
-                              : '×'}
+                            : 'Delete'}
                         </Button>
                       </>
                     ) : null}
@@ -417,9 +385,7 @@ export default function RecordAttachments({
               ))}
             </ul>
           ) : list.isSuccess ? (
-            <p className="text-sm text-gray-500">
-              {files ? 'No files yet.' : 'No attachments yet.'}
-            </p>
+            <p className="text-sm text-gray-500">No files yet.</p>
           ) : null}
           {!viewingDetails && !list.data.canUpload ? (
             <p className="text-sm text-gray-500">
@@ -428,7 +394,6 @@ export default function RecordAttachments({
           ) : null}
         </>
       ) : null}
-      {!files ? uploadControls : null}
       {upload.isPending ? (
         <div className="space-y-1" role="status">
           <progress
