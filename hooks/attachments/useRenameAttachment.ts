@@ -11,7 +11,7 @@ export function useRenameAttachment(vehicleId: string, record: AttachmentRecord)
       renameAttachment(vehicleId, record, id, name, signal),
     onSettled: () =>
       client.invalidateQueries({
-        queryKey: attachmentKeys.byRecord(vehicleId, record.type, record.id),
+        queryKey: attachmentKeys.byRecord(vehicleId, record),
       }),
   });
 }

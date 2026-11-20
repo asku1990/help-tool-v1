@@ -21,7 +21,7 @@ vi.mock('../RecordAttachments', () => ({
     disabled?: boolean;
   }) => (
     <section aria-label="Attachments">
-      <span>{`${vehicleId}/${record.type}/${record.id}`}</span>
+      <span>{`${vehicleId}/${record.type}/${record.type === 'vehicle' ? vehicleId : record.id}`}</span>
       <button type="button" disabled={disabled} onClick={() => onUploadingChange(true)}>
         Begin test upload
       </button>

@@ -7,6 +7,8 @@ import {
   uploadAttachment,
 } from '..';
 import { ApiClientError } from '@/lib/api/client';
+import type { AttachmentRecord } from '../types';
+import { attachmentKeys } from '@/queries/keys';
 
 type ProgressHandler = ((_event: ProgressEvent) => void) | null;
 
@@ -59,7 +61,7 @@ const item = {
 };
 const record = { type: 'expense', id: 'e1' } as const;
 
-function startUpload(target = record) {
+function startUpload(target: AttachmentRecord = record) {
   const controller = new AbortController();
   const file = new File(['%PDF-1.4'], 'receipt.pdf', { type: 'application/pdf' });
   const progress = vi.fn();
@@ -169,6 +171,25 @@ describe('Attachment browser requests', () => {
     expect(xhr.headers).toEqual({});
     expect(xhr.withCredentials).toBe(true);
     expect(xhr.timeout).toBe(120_000);
+    xhr.respond(201, { data: item, error: null });
+    await expect(result).resolves.toEqual(item);
+  });
+
+  it('uses the direct vehicle URL and a cache key distinct from nested records', async () => {
+    const target = { type: 'vehicle' } as const;
+    const fetch = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValue(Response.json({ data: { attachments: [item] }, error: null }));
+    await listAttachments('car/id', target);
+    expect(fetch).toHaveBeenCalledWith('/api/vehicles/car%2Fid/attachments', expect.any(Object));
+    expect(attachmentOpenUrl('car/id', target, 'file/id')).toBe(
+      '/api/vehicles/car%2Fid/attachments/file%2Fid/open'
+    );
+    expect(attachmentKeys.byRecord('car', target)).not.toEqual(
+      attachmentKeys.byRecord('car', { type: 'expense', id: 'car' })
+    );
+    const { xhr, result } = startUpload(target);
+    expect(xhr.url).toBe('/api/vehicles/car/attachments');
     xhr.respond(201, { data: item, error: null });
     await expect(result).resolves.toEqual(item);
   });

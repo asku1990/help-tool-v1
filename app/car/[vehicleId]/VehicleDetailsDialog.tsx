@@ -1,5 +1,7 @@
 'use client';
 
+import { useState } from 'react';
+import RecordAttachments from '@/components/car/attachments/RecordAttachments';
 import { DetailsDialogContent } from '@/components/car/records';
 import { Dialog } from '@/components/ui';
 import type { VehicleDto } from '@/queries/vehicles';
@@ -22,6 +24,7 @@ export default function VehicleDetailsDialog({
   onOpenChange: (_open: boolean) => void;
   onCloseAutoFocus: (_event: Event) => void;
 }) {
+  const [attachmentBusy, setAttachmentBusy] = useState(false);
   const fields = [
     ['Name', vehicle.name],
     ['Make', vehicle.make],
@@ -44,12 +47,27 @@ export default function VehicleDetailsDialog({
   ] as const;
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog
+      open={open}
+      onOpenChange={next => {
+        if (next || !attachmentBusy) onOpenChange(next);
+      }}
+    >
       <DetailsDialogContent
         title="Vehicle details"
         fields={fields}
         onCloseAutoFocus={onCloseAutoFocus}
-      />
+        closeDisabled={attachmentBusy}
+      >
+        {open ? (
+          <RecordAttachments
+            key={vehicle.id}
+            vehicleId={vehicle.id}
+            record={{ type: 'vehicle' }}
+            onUploadingChange={setAttachmentBusy}
+          />
+        ) : null}
+      </DetailsDialogContent>
     </Dialog>
   );
 }

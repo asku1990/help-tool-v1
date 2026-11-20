@@ -50,6 +50,12 @@ and interval, not an estimate based on maintenance entries. Missing values displ
 `—`; a saved initial odometer of zero displays as `0 km`.
 Vehicle, fill-up, and expense Details share the same field layout and Close controls.
 
+The **Documents** section loads when Vehicle Details opens. Anyone with vehicle read
+access can open a file in a new tab. If the list fails, vehicle information stays
+visible and the list can be refreshed. Owners and editors can choose **Manage
+documents** to upload, rename, or permanently delete a file, then **Done managing**
+to return to the read-only list. File changes do not require editing the vehicle.
+
 ## Fill-ups and Expenses
 
 Select the date and summary area of an expense or fill-up to open **Details**. It is a

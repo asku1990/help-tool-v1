@@ -32,13 +32,17 @@ export default function RecordAttachments({
   record,
   onUploadingChange,
   disabled = false,
-  readOnly = false,
+  readOnly: forceReadOnly = false,
   uploadFirst = false,
 }: Props) {
   const list = useAttachments(vehicleId, record);
   const upload = useUploadAttachment(vehicleId, record);
   const deletion = useDeleteAttachment(vehicleId, record);
   const rename = useRenameAttachment(vehicleId, record);
+  const [managing, setManaging] = useState(false);
+  const vehicleDocuments = record.type === 'vehicle';
+  const title = vehicleDocuments ? 'Documents' : 'Attachments';
+  const readOnly = forceReadOnly || (vehicleDocuments && !managing);
   const [editing, setEditing] = useState<{ id: string; name: string; extension: string } | null>(
     null
   );
@@ -231,9 +235,36 @@ export default function RecordAttachments({
     </div>
   ) : null;
   return (
-    <section className="space-y-3 border-t pt-4" aria-label="Attachments">
-      <h3 className="text-sm font-medium">Attachments</h3>
-      {!readOnly ? <p className="text-xs text-gray-500">PDF, JPG, PNG, WebP · Max 4 MB</p> : null}
+    <section className="space-y-3 border-t pt-4" aria-label={title}>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h3 className="text-sm font-medium">{title}</h3>
+        {vehicleDocuments &&
+        !forceReadOnly &&
+        (managing || (list.data?.canUpload && !list.isFetching && !list.isError)) ? (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={disabled || busy}
+            onClick={() => {
+              if (managing) {
+                selectFile(null);
+                setEditing(null);
+                setDeleteError('');
+                setRenameError('');
+              }
+              setManaging(!managing);
+            }}
+          >
+            {managing ? 'Done managing' : 'Manage documents'}
+          </Button>
+        ) : null}
+      </div>
+      {!readOnly ? (
+        <p className="text-xs text-gray-500">
+          {attachmentFormatList} · Max {MAX_ATTACHMENT_BYTES / 1_000_000} MB
+        </p>
+      ) : null}
       {list.isPending ? (
         <p role="status" className="text-sm">
           Loading attachments…
@@ -384,7 +415,9 @@ export default function RecordAttachments({
               ))}
             </ul>
           ) : (
-            <p className="text-sm text-gray-500">No attachments yet.</p>
+            <p className="text-sm text-gray-500">
+              {vehicleDocuments ? 'No documents yet.' : 'No attachments yet.'}
+            </p>
           )}
           {!readOnly && !list.data.canUpload ? (
             <p className="text-sm text-gray-500">

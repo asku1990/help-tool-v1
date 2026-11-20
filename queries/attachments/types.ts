@@ -1,4 +1,4 @@
-export type AttachmentRecord = { type: 'expense' | 'fillup'; id: string };
+export type AttachmentRecord = { type: 'vehicle' } | { type: 'expense' | 'fillup'; id: string };
 
 export type AttachmentDto = {
   id: string;

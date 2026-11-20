@@ -9,7 +9,7 @@ import {
 
 export function useUploadAttachment(vehicleId: string, record: AttachmentRecord) {
   const client = useQueryClient();
-  const queryKey = attachmentKeys.byRecord(vehicleId, record.type, record.id);
+  const queryKey = attachmentKeys.byRecord(vehicleId, record);
   return useMutation({
     // Let XHR fail normally offline instead of silently queuing a manual upload.
     networkMode: 'always',

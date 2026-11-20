@@ -1,3 +1,5 @@
+import type { AttachmentRecord } from './attachments/types';
+
 export const vehicleKeys = {
   all: ['vehicles'] as const,
   list: () => [...vehicleKeys.all, 'list'] as const,
@@ -29,6 +31,8 @@ export const adminKeys = {
 };
 
 export const attachmentKeys = {
-  byRecord: (vehicleId: string, type: 'expense' | 'fillup', recordId: string) =>
-    ['attachments', vehicleId, type, recordId] as const,
+  byRecord: (vehicleId: string, record: AttachmentRecord) =>
+    record.type === 'vehicle'
+      ? (['attachments', vehicleId, 'vehicle'] as const)
+      : (['attachments', vehicleId, record.type, record.id] as const),
 };

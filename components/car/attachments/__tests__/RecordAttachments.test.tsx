@@ -506,6 +506,59 @@ describe('Record attachments', () => {
     expect(uploadAttachment).not.toHaveBeenCalled();
   });
 
+  it('manages direct vehicle files and refreshes only the vehicle document list', async () => {
+    const renamed = { ...receipt, filename: 'Service receipt.pdf' };
+    vi.mocked(listAttachments).mockResolvedValue(metadata([receipt]));
+    const target = { type: 'vehicle' } as const;
+    renderPanel(target);
+
+    const manage = await screen.findByRole('button', { name: 'Manage documents' });
+    expect(screen.queryByLabelText('Attachment file')).not.toBeInTheDocument();
+    fireEvent.click(manage);
+    await select(new File(['%PDF-1.4'], 'second.pdf'));
+    const second = { ...receipt, id: 'a2', filename: 'second.pdf' };
+    vi.mocked(uploadAttachment).mockResolvedValue(second);
+    vi.mocked(listAttachments).mockResolvedValue(metadata([receipt, second]));
+    fireEvent.click(screen.getByRole('button', { name: 'Upload file' }));
+    expect(await screen.findByText('Attachment uploaded.')).toBeVisible();
+    expect(uploadAttachment).toHaveBeenCalledWith('car', target, expect.any(Object));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Rename receipt.pdf' }));
+    fireEvent.change(screen.getByRole('textbox', { name: 'Attachment name' }), {
+      target: { value: 'Service receipt' },
+    });
+    vi.mocked(listAttachments).mockResolvedValue(metadata([renamed, second]));
+    fireEvent.click(screen.getByRole('button', { name: 'Save name' }));
+    const remove = await screen.findByRole('button', { name: 'Delete Service receipt.pdf' });
+    await waitFor(() => expect(remove).toBeEnabled());
+    vi.mocked(listAttachments).mockResolvedValue(metadata([second]));
+    fireEvent.click(remove);
+    await waitFor(() => expect(remove).not.toBeInTheDocument());
+    expect(renameAttachment).toHaveBeenCalledWith(
+      'car',
+      target,
+      receipt.id,
+      'Service receipt',
+      expect.any(AbortSignal)
+    );
+    expect(deleteAttachment).toHaveBeenCalledWith(
+      'car',
+      target,
+      receipt.id,
+      expect.any(AbortSignal)
+    );
+    expect(vi.mocked(listAttachments).mock.calls.length).toBeGreaterThanOrEqual(4);
+    for (const [vehicleId, record] of vi.mocked(listAttachments).mock.calls) {
+      expect([vehicleId, record]).toEqual(['car', target]);
+    }
+
+    const done = screen.getByRole('button', { name: 'Done managing' });
+    await waitFor(() => expect(done).toBeEnabled());
+    fireEvent.click(done);
+    expect(screen.queryByLabelText('Attachment file')).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Open second.pdf in a new tab' })).toBeVisible();
+  });
+
   it('disables uploads and displays the server-reported limit when full', async () => {
     vi.mocked(listAttachments).mockResolvedValue(
       metadata(

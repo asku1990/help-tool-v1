@@ -8,6 +8,7 @@ type DetailsDialogContentProps = {
   fields: ReadonlyArray<readonly [string, string | number | null | undefined]>;
   onCloseAutoFocus?: (_event: Event) => void;
   children?: ReactNode;
+  closeDisabled?: boolean;
 };
 
 export default function DetailsDialogContent({
@@ -15,9 +16,14 @@ export default function DetailsDialogContent({
   fields,
   onCloseAutoFocus,
   children,
+  closeDisabled = false,
 }: DetailsDialogContentProps) {
   return (
-    <DialogContent aria-describedby={undefined} onCloseAutoFocus={onCloseAutoFocus}>
+    <DialogContent
+      aria-describedby={undefined}
+      onCloseAutoFocus={onCloseAutoFocus}
+      closeDisabled={closeDisabled}
+    >
       <DialogHeader>
         <DialogTitle>{title}</DialogTitle>
       </DialogHeader>
@@ -34,7 +40,12 @@ export default function DetailsDialogContent({
       {children}
       <div className="flex justify-end">
         <DialogClose asChild>
-          <Button type="button" variant="outline" className="cursor-pointer">
+          <Button
+            type="button"
+            variant="outline"
+            className="cursor-pointer"
+            disabled={closeDisabled}
+          >
             Close
           </Button>
         </DialogClose>

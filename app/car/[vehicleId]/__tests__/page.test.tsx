@@ -247,6 +247,17 @@ it('opens read-only vehicle details from the name and restores focus to it', asy
           },
         },
       })
+    ),
+    http.get('/api/vehicles/v1/attachments', () =>
+      HttpResponse.json({
+        data: {
+          attachments: [{ id: 'file1', filename: 'receipt.pdf' }],
+          canUpload: false,
+          maxAttachments: 10,
+          remainingCapacity: 9,
+        },
+        error: null,
+      })
     )
   );
   renderWithProviders(<VehiclePage />);
@@ -265,6 +276,12 @@ it('opens read-only vehicle details from the name and restores focus to it', asy
   expect(dialog).toHaveTextContent('04.12.2027');
   expect(dialog).toHaveTextContent('12 months');
   expect(dialog).toHaveTextContent('—');
+  expect(
+    await within(dialog).findByRole('link', { name: 'Open receipt.pdf in a new tab' })
+  ).toHaveAttribute('href', '/api/vehicles/v1/attachments/file1/open');
+  expect(
+    within(dialog).queryByRole('button', { name: 'Manage documents' })
+  ).not.toBeInTheDocument();
   expect(within(dialog).queryByRole('button', { name: /save/i })).not.toBeInTheDocument();
   expect(menu).toHaveAttribute('aria-expanded', 'false');
   const [footerClose, cornerClose] = within(dialog).getAllByRole('button', { name: 'Close' });
@@ -274,4 +291,26 @@ it('opens read-only vehicle details from the name and restores focus to it', asy
   await waitFor(() => expect(vehicleName).toHaveFocus());
   expect(screen.queryByRole('button', { name: 'Add fill-up' })).not.toBeInTheDocument();
   expect(screen.queryByRole('button', { name: 'Add expense' })).not.toBeInTheDocument();
+});
+
+it('loads documents only when details open and lets users retry without hiding vehicle fields', async () => {
+  const list = vi.fn().mockReturnValueOnce(HttpResponse.json({}, { status: 500 }));
+  list.mockImplementation(() =>
+    HttpResponse.json({
+      data: { attachments: [], canUpload: true, maxAttachments: 10, remainingCapacity: 10 },
+      error: null,
+    })
+  );
+  server.use(http.get('/api/vehicles/v1/attachments', () => list()));
+  renderWithProviders(<VehiclePage />);
+  const vehicleName = await screen.findByRole('button', { name: 'Car A' });
+  expect(list).not.toHaveBeenCalled();
+  fireEvent.click(vehicleName);
+  const dialog = within(await screen.findByRole('dialog', { name: 'Vehicle details' }));
+  const refresh = await dialog.findByRole('button', { name: 'Refresh attachments' });
+  expect(dialog.getByText('Car A')).toBeVisible();
+  expect(dialog.queryByRole('button', { name: 'Manage documents' })).not.toBeInTheDocument();
+  fireEvent.click(refresh);
+  expect(await dialog.findByText('No documents yet.')).toBeVisible();
+  expect(await dialog.findByRole('button', { name: 'Manage documents' })).toBeEnabled();
 });

@@ -6,9 +6,9 @@ export function useAttachments(vehicleId: string, record: AttachmentRecord) {
   return useQuery({
     // A failed offline refresh must block retries, not leave stale capacity usable.
     networkMode: 'always',
-    queryKey: attachmentKeys.byRecord(vehicleId, record.type, record.id),
+    queryKey: attachmentKeys.byRecord(vehicleId, record),
     queryFn: ({ signal }) => listAttachments(vehicleId, record, signal),
-    enabled: Boolean(vehicleId && record.id),
+    enabled: Boolean(vehicleId && (record.type === 'vehicle' || record.id)),
     staleTime: 0,
     refetchOnMount: 'always',
     retry: false,
