@@ -61,7 +61,6 @@ export default function RecordActions({
     <details
       ref={details}
       open={open}
-      onToggle={event => setOpen(event.currentTarget.open)}
       className={placementClasses[placement]}
       onClick={event => {
         const action =
