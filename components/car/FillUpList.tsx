@@ -418,8 +418,8 @@ function FillUpEditor({
         key={item.id}
         vehicleId={vehicleId}
         record={{ type: 'fillup', id: item.id }}
-        uploadFirst
-        onUploadingChange={setUploading}
+        context="editor"
+        onBusyChange={setUploading}
         disabled={update.isPending}
       />
     </RecordEditDialog>

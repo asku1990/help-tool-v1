@@ -6,31 +6,6 @@ import { http, HttpResponse } from 'msw';
 import { server } from '@/test/msw/server';
 import ExpenseList from '../../ExpenseList';
 import FillUpList from '../../FillUpList';
-import type { AttachmentRecord } from '@/queries/attachments';
-
-vi.mock('../RecordAttachments', () => ({
-  default: ({
-    vehicleId,
-    record,
-    onUploadingChange,
-    disabled,
-  }: {
-    vehicleId: string;
-    record: AttachmentRecord;
-    onUploadingChange: (_value: boolean) => void;
-    disabled?: boolean;
-  }) => (
-    <section aria-label="Attachments">
-      <span>{`${vehicleId}/${record.type}/${record.type === 'vehicle' ? vehicleId : record.id}`}</span>
-      <button type="button" disabled={disabled} onClick={() => onUploadingChange(true)}>
-        Begin test upload
-      </button>
-      <button type="button" onClick={() => onUploadingChange(false)}>
-        Finish test upload
-      </button>
-    </section>
-  ),
-}));
 
 describe.each([
   { type: 'expense', Component: ExpenseList, dialog: 'Edit expense' },
@@ -96,30 +71,19 @@ describe.each([
     const edit = screen.getByRole('button', { name: 'Edit' });
     expect(screen.queryByRole('region', { name: 'Attachments' })).not.toBeInTheDocument();
     fireEvent.click(edit);
-    const panel = await screen.findByRole('region', { name: 'Attachments' });
     await waitFor(() => expect(screen.getByRole('heading', { name: dialog })).toHaveFocus());
-    expect(panel).toHaveTextContent(`car/${type}/parent`);
-    expect(panel.closest('form')).toBeNull();
     const cancel = screen.getByRole('button', { name: 'Cancel' });
     const save = screen.getByRole('button', { name: 'Save changes' });
     const date = screen.getByLabelText('Date');
-    expect(panel.compareDocumentPosition(cancel) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(save).toBeDisabled();
     fireEvent.change(date, { target: { value: '2026-11-17' } });
     expect(save).toBeEnabled();
-    fireEvent.click(screen.getByRole('button', { name: 'Begin test upload' }));
-    expect(save).toBeDisabled();
-    expect(cancel).toBeDisabled();
-    fireEvent.keyDown(screen.getByRole('dialog', { name: dialog }), { key: 'Escape' });
-    expect(screen.getByRole('dialog', { name: dialog })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Finish test upload' }));
+    expect(screen.queryByRole('region', { name: /files|attachments/i })).toBeNull();
     expect(save).toBeEnabled();
     fireEvent.change(date, { target: { value: '2026-11-16' } });
     expect(save).toBeDisabled();
     fireEvent.click(cancel);
-    await waitFor(() =>
-      expect(screen.queryByRole('region', { name: 'Attachments' })).not.toBeInTheDocument()
-    );
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
 
     fireEvent.click(screen.getByRole('button', { name: /actions for/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Edit' }));

@@ -43,9 +43,8 @@ function renderPanel(record: AttachmentRecord = { type: 'expense', id: 'e1' }, r
       <RecordAttachments
         vehicleId="car"
         record={record}
-        onUploadingChange={onUploadingChange}
-        readOnly={readOnly}
-        uploadFirst
+        onBusyChange={onUploadingChange}
+        context={readOnly ? 'preview' : record.type === 'vehicle' ? 'documents' : 'editor'}
       />
     </QueryClientProvider>
   );
@@ -519,7 +518,7 @@ describe('Record attachments', () => {
     const second = { ...receipt, id: 'a2', filename: 'second.pdf' };
     vi.mocked(uploadAttachment).mockResolvedValue(second);
     vi.mocked(listAttachments).mockResolvedValue(metadata([receipt, second]));
-    fireEvent.click(screen.getByRole('button', { name: 'Upload file' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Upload' }));
     expect(await screen.findByText('Attachment uploaded.')).toBeVisible();
     expect(uploadAttachment).toHaveBeenCalledWith('car', target, expect.any(Object));
 
@@ -629,7 +628,7 @@ describe('Record attachments', () => {
         <RecordAttachments
           vehicleId="car"
           record={{ type: 'expense', id: 'e1' }}
-          onUploadingChange={vi.fn()}
+          context="editor"
         />
       </QueryClientProvider>
     );

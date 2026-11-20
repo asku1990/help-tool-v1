@@ -31,8 +31,8 @@ const attachment = {
 };
 const metadata = {
   attachments: [attachment],
-  maxAttachments: 5,
-  remainingCapacity: 4,
+  maxAttachments: 10,
+  remainingCapacity: 9,
   canUpload: true,
 };
 
@@ -118,6 +118,76 @@ describe.each([
     );
   }
 
+  const name = type === 'expense' ? 'expense' : 'fill-up';
+  it('keeps the draft after a failed save and asks before discarding it back to Details', async () => {
+    server.use(
+      http.patch(`/api/vehicles/car/${resource}/parent`, () =>
+        HttpResponse.json({ error: { message: 'Expense could not be saved.' } }, { status: 500 })
+      )
+    );
+    renderList();
+    fireEvent.click(await screen.findByRole('button', { name: /View .* details/ }));
+    const dialog = within(screen.getByRole('dialog'));
+    fireEvent.click(dialog.getByRole('button', { name: 'Edit details' }));
+    fireEvent.change(dialog.getByLabelText('Notes'), { target: { value: 'Unsaved draft' } });
+    fireEvent.click(dialog.getByRole('button', { name: 'Save changes' }));
+    expect(await dialog.findByRole('alert')).toBeVisible();
+    expect(dialog.getByLabelText('Notes')).toHaveValue('Unsaved draft');
+    const confirm = vi
+      .spyOn(window, 'confirm')
+      .mockReturnValueOnce(false)
+      .mockReturnValueOnce(true);
+    fireEvent.click(dialog.getByRole('button', { name: 'Cancel' }));
+    expect(dialog.getByLabelText('Notes')).toHaveValue('Unsaved draft');
+    fireEvent.click(dialog.getByRole('button', { name: 'Cancel' }));
+    expect(confirm).toHaveBeenCalledTimes(2);
+    expect(dialog.getByRole('button', { name: 'Edit details' })).toHaveFocus();
+    expect(dialog.queryByText('Unsaved draft')).toBeNull();
+  });
+  it('switches tasks inside one dialog, keeps Escape local to rename, and shows the saved summary', async () => {
+    server.use(
+      http.patch(`/api/vehicles/car/${resource}/parent`, async ({ request }) => {
+        const body = (await request.json()) as { notes: string };
+        notes = body.notes;
+        return HttpResponse.json({ data: { id: 'parent' } });
+      })
+    );
+    renderList();
+    const trigger = await screen.findByRole('button', { name: /View .* details/ });
+    fireEvent.click(trigger);
+    const dialog = screen.getByRole('dialog');
+    const view = within(dialog);
+    const manage = await view.findByRole('button', { name: 'Manage files' });
+    fireEvent.click(manage);
+    expect(screen.getByRole('dialog', { name: `Manage ${name} files` })).toBe(dialog);
+    expect(view.getByRole('heading', { name: `Manage ${name} files` })).toHaveFocus();
+    expect(view.queryByRole('term')).toBeNull();
+    expect(view.getByText(type === 'expense' ? /Test workshop ·/ : /100 km ·/)).toBeVisible();
+    expect(view.getByText('File changes are saved immediately.')).toBeVisible();
+    expect(view.getByText('9 of 10 attachment slots remaining')).toBeVisible();
+    expect(view.getByRole('button', { name: 'Upload file' })).toBeVisible();
+    expect(view.queryByRole('button', { name: 'Edit details' })).toBeNull();
+    fireEvent.click(view.getByRole('button', { name: 'Rename receipt.pdf' }));
+    fireEvent.keyDown(view.getByRole('textbox', { name: 'Attachment name' }), { key: 'Escape' });
+    expect(view.queryByRole('textbox')).toBeNull();
+    expect(view.getByRole('button', { name: 'Done' })).toBeVisible();
+    fireEvent.keyDown(dialog, { key: 'Escape' });
+    const reopened = view.getByRole('button', { name: 'Manage files' });
+    expect(reopened).toHaveFocus();
+    fireEvent.click(reopened);
+    fireEvent.click(view.getByRole('button', { name: 'Done' }));
+    expect(view.getByRole('button', { name: 'Manage files' })).toHaveFocus();
+    expect(view.getByText(type === 'expense' ? 'Amount' : 'Total cost')).toBeVisible();
+    fireEvent.click(view.getByRole('button', { name: 'Edit details' }));
+    expect(screen.getByRole('dialog', { name: `Edit ${name}` })).toBe(dialog);
+    expect(view.queryByRole('region', { name: 'Files' })).toBeNull();
+    fireEvent.change(view.getByLabelText('Notes'), { target: { value: 'Corrected notes' } });
+    fireEvent.click(view.getByRole('button', { name: 'Save changes' }));
+    expect(await view.findByText('Corrected notes', { selector: 'dd' })).toBeVisible();
+    expect(view.getByRole('button', { name: 'Edit details' })).toHaveFocus();
+    fireEvent.click(view.getAllByRole('button', { name: 'Close' })[0]);
+    await waitFor(() => expect(trigger).toHaveFocus());
+  });
   it('limits long note previews without shortening the full notes in Details', async () => {
     notes = 'A long saved note with useful record information. '.repeat(30).trim();
     renderList();
@@ -226,7 +296,9 @@ describe.each([
       expect(link).toHaveAttribute('target', '_blank');
       expect(link).toHaveAttribute('rel', 'noopener noreferrer');
       expect(dialog.querySelector('form, input, select, textarea')).toBeNull();
-      expect(view.queryByRole('button', { name: /^(Save|Edit|Upload|Rename|Delete)/ })).toBeNull();
+      expect(view.queryByRole('button', { name: /^(Save|Upload|Rename|Delete)/ })).toBeNull();
+      expect(view.getByRole('button', { name: 'Edit details' })).toBeVisible();
+      expect(Boolean(view.queryByRole('button', { name: 'Manage files' }))).toBe(canUpload);
       expect(view.queryByText(/attachment slots remaining/)).not.toBeInTheDocument();
       fireEvent.click(view.getAllByRole('button', { name: 'Close' })[0]);
       await waitFor(() => expect(screen.queryByRole('dialog', { name: title })).toBeNull());
@@ -276,7 +348,7 @@ describe.each([
     renderList();
     fireEvent.click(await screen.findByRole('button', { name: /View .* details for/ }));
     const view = within(await screen.findByRole('dialog', { name: title }));
-    expect(await view.findByText('No attachments yet.')).toBeInTheDocument();
+    expect(await view.findByText('No files yet.')).toBeInTheDocument();
   });
 
   it.each([false, undefined])('hides record mutations when canWrite is %s', async permission => {

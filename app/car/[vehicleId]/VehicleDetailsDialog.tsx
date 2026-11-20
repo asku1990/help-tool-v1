@@ -64,7 +64,8 @@ export default function VehicleDetailsDialog({
             key={vehicle.id}
             vehicleId={vehicle.id}
             record={{ type: 'vehicle' }}
-            onUploadingChange={setAttachmentBusy}
+            context="documents"
+            onBusyChange={setAttachmentBusy}
           />
         ) : null}
       </DetailsDialogContent>

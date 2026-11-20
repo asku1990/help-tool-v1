@@ -86,3 +86,119 @@ searching maintenance entries or entering Edit vehicle.
   recovery of file bytes are deferred. PostgreSQL backups do not include those bytes,
   and current staging flows can leave orphaned objects. See the
   [attachment storage guide](../development/attachments.md).
+
+## Follow-up design: one saved-record dialog
+
+**Phase 1 — proposed for review.** The original HEL-21 scope above leaves expense
+and fill-up Details read-only. This follow-up deliberately changes that: vehicle,
+expense, and fill-up Details become the common entry point for managing saved
+files. [Viewing saved records](../features/records.md) describes current behavior
+until each feature migrates.
+
+### Desktop wireframes
+
+Example: an expense that the user can edit. Fields are abbreviated. Each sketch
+shows the **same dialog** at a different moment.
+
+```text
+VIEW
+Expense details                                   ×
+Record details                       [Edit details]
+Date                 20 Nov 2026
+Vendor               Auto Service
+Amount               €84.00
+───────────────────────────────────────────────────
+Files (1)                            [Manage files]
+receipt.pdf ↗
+                                            [Close]
+
+EDIT DETAILS
+Edit expense                                      ×
+Date                 [20 Nov 2026                ]
+Vendor               [Auto Service               ]
+Amount (€)           [84.00                      ]
+                            [Cancel] [Save changes]
+
+MANAGE FILES
+Manage expense files                              ×
+Auto Service · 20 Nov 2026
+───────────────────────────────────────────────────
+Files (1)
+File changes are saved immediately.
+[Choose file…                        ] [Upload file]
+9 of 10 slots remaining
+receipt.pdf ↗                     [Rename] [Delete]
+                                             [Done]
+```
+
+### Phone wireframes
+
+```text
+VIEW                       EDIT DETAILS              MANAGE FILES
+Expense details       ×    Edit expense         ×    Manage expense files  ×
+Record details             Date                      Auto Service · 20 Nov
+[Edit details]             [20 Nov 2026       ]      Files (1)
+Date        20 Nov 2026    Vendor                    File changes are saved
+Vendor     Auto Service    [Auto Service      ]      immediately.
+Amount           €84.00    Amount (€)                [Choose file…         ]
+───────────────────────    [84.00             ]      [Upload file]
+Files (1)                                            9 of 10 slots remaining
+[Manage files]                                       receipt.pdf ↗
+receipt.pdf ↗              [Save changes]            [Rename] [Delete]
+                           [Cancel]
+[Close]                                              [Done]
+```
+
+Use one scrollable surface, rather than a scrolling file list inside a scrolling
+dialog. Keep section actions beside headings when they fit; otherwise wrap them
+below. Long filenames wrap without pushing actions off-screen. Use labeled,
+touch-sized controls, visible keyboard focus, and file-specific accessible names
+such as “Delete receipt.pdf”. Keep the edit footer reachable with the keyboard open.
+
+### Interaction contract
+
+| Action                                | Result                                                                                                                                                                                                                                                                                                                           |
+| ------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Select vehicle name or record summary | Open View. Focus the dialog heading. Filenames open in a new tab without entering Manage files. Close, Escape, or outside press returns to the opener.                                                                                                                                                                           |
+| Edit details from View                | Replace the summary with the existing prefilled form. Successful Save returns to the updated summary; Cancel returns without saving. Restore focus to Edit details.                                                                                                                                                              |
+| Edit from ⋯ / More                    | Open the same dialog directly in Edit. Save or Cancel closes it rather than adding a trip through View. Keep existing list focus behavior after save and restore focus to the menu trigger after cancellation. Do not duplicate Details in the menu.                                                                             |
+| Dismiss Edit                          | Escape or × follows Cancel. Confirm before discarding dirty fields; outside press does not dismiss. While saving, block dismissal. A save failure keeps the draft and shows the error beside the form.                                                                                                                           |
+| Manage files from View                | Replace the summary with a focused file view in the same dialog. Focus the dialog title; show a short record identifier and immediate-save notice. Choosing a file does not upload it. Show supported formats, size limit, and server-reported capacity beside the picker. Confirm deletion by filename. Put Done in the footer. |
+| Finish Manage files                   | Done or Escape returns to View and focuses Manage files. In a rename input, the first Escape cancels only the rename. × closes the dialog; outside press does not dismiss management. Exiting drops unsubmitted file selections or rename drafts, never completed file changes. Block exit during mutations and their refresh.   |
+
+**Permissions and failures.** An expense owner or editor sees both actions. A
+vehicle editor sees **Manage files** but not **Edit details**; a vehicle owner
+sees both. Viewers see filenames only in the Files section. Field edit permission
+comes from the record, independently of the file list. Show “Loading files…”
+without a count, “No files yet” only after a successful empty response, and a
+retry action on failure. File-list errors must not hide fields in View. If a refresh fails,
+block file writes until retry succeeds; if access is denied, hide stale filenames
+and management controls. At capacity, disable upload but leave deletion available.
+
+### Reuse and review checkpoint
+
+- Adapt `DetailsDialogContent` for the shared shell, mode transitions and focus.
+  The feature supplies its summary, existing field form, and edit permission.
+  Preserve the forms' validation and save logic; remove each old Edit shell as
+  its two entry points migrate.
+- Adapt `RecordAttachments` into one Files section. The parent selects the query
+  and mutation target, never the layout. Details starts with links; **Save & add
+  attachments** starts directly in management after creation. Use the existing
+  hooks for list refresh and capacity. Field editors contain no file controls.
+- **Review before Phase 2:** walk through correcting an expense amount from the
+  menu, renaming its receipt from Details, and opening vehicle Details as an
+  editor who can manage files but cannot edit fields. Approve the placement,
+  labels and return paths before building the expense pilot.
+
+### Creation follow-up (after the saved-record rollout)
+
+Carry the same one-dialog interaction into **Add expense** and **Add fill-up**.
+Keep ordinary **Save** as the fast path: create the record and close. With
+**Save & add attachments**, create it once, then switch the same dialog to the
+shared file manager for the new record ID. Show a brief saved summary rather
+than a disabled creation form. **Done** closes the dialog; closing or retrying a
+file upload must never undo or repeat creation. Preserve the inspection warning
+when the expense was saved but its inspection-date update failed.
+
+Review this flow after the saved-record dialogs: on a phone, can someone save a
+fill-up, add a receipt, and leave knowing that both were saved?

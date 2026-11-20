@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { ChevronRight } from 'lucide-react';
-import { Dialog, DialogTrigger } from '@/components/ui';
+import { Dialog } from '@/components/ui';
 import type { ExpenseDto } from '@/queries/expenses';
 import type { FillUpWithSegmentDto } from '@/queries/fillups';
 import { formatDateFi } from '@/utils';
@@ -18,9 +18,7 @@ function currency(value: number) {
   return new Intl.NumberFormat(undefined, { style: 'currency', currency: 'EUR' }).format(value);
 }
 
-export default function RecordDetailsButton(props: Props) {
-  const [open, setOpen] = useState(false);
-  const title = props.type === 'expense' ? 'Expense details' : 'Fill-up details';
+export function RecordSummaryButton(props: Props & { onOpen: (_trigger: HTMLElement) => void }) {
   const date = formatDateFi(new Date(props.item.date));
   const odometer = props.item.odometerKm != null ? `${props.item.odometerKm} km` : '—';
   const category = props.type === 'expense' ? props.item.category.replace(/_/g, ' ') : '';
@@ -30,6 +28,30 @@ export default function RecordDetailsButton(props: Props) {
           .filter(Boolean)
           .join(' · ')
       : odometer;
+  return (
+    <button
+      type="button"
+      aria-haspopup="dialog"
+      onClick={e => props.onOpen(e.currentTarget)}
+      aria-label={`View ${props.type === 'expense' ? 'expense' : 'fill-up'} details for ${date}: ${summary}`}
+      className="flex min-h-11 min-w-0 cursor-pointer flex-col items-start justify-center rounded-sm py-1 text-left hover:text-primary focus-visible:outline-2 focus-visible:outline-offset-2"
+    >
+      <span className="inline-flex items-center gap-1 text-sm font-medium">
+        {date}
+        <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+      </span>
+      {props.item.odometerKm != null && (
+        <span className="max-w-full wrap-anywhere text-xs text-muted-foreground lg:hidden">
+          {odometer}
+        </span>
+      )}
+    </button>
+  );
+}
+
+export function recordFields(props: Props) {
+  const date = formatDateFi(new Date(props.item.date));
+  const odometer = props.item.odometerKm != null ? `${props.item.odometerKm} km` : '—';
   const fields: [string, string][] = [
     ['Date', date],
     ['Odometer', odometer],
@@ -38,7 +60,7 @@ export default function RecordDetailsButton(props: Props) {
   if (props.type === 'expense') {
     const { item } = props;
     fields.push(
-      ['Category', category],
+      ['Category', item.category.replace(/_/g, ' ')],
       ['Amount', currency(item.amount)],
       ['Vendor', item.vendor || '—'],
       ['Liters', item.liters != null ? `${item.liters} L` : '—'],
@@ -72,32 +94,34 @@ export default function RecordDetailsButton(props: Props) {
     }
   }
   fields.push(['Notes', props.item.notes || '—']);
+  return fields;
+}
 
+export default function RecordDetailsButton(props: Props) {
+  const [open, setOpen] = useState(false);
+  const [trigger, setTrigger] = useState<HTMLElement | null>(null);
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <button
-          type="button"
-          aria-label={`View ${props.type === 'expense' ? 'expense' : 'fill-up'} details for ${date}: ${summary}`}
-          className="flex min-h-11 min-w-0 cursor-pointer flex-col items-start justify-center rounded-sm py-1 text-left hover:text-primary focus-visible:outline-2 focus-visible:outline-offset-2"
-        >
-          <span className="inline-flex items-center gap-1 text-sm font-medium">
-            {date}
-            <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
-          </span>
-          {props.item.odometerKm != null ? (
-            <span className="max-w-full wrap-anywhere text-xs text-muted-foreground lg:hidden">
-              {odometer}
-            </span>
-          ) : null}
-        </button>
-      </DialogTrigger>
-      <DetailsDialogContent title={title} fields={fields}>
+      <RecordSummaryButton
+        {...props}
+        onOpen={el => {
+          setTrigger(el);
+          setOpen(true);
+        }}
+      />
+      <DetailsDialogContent
+        title={props.type === 'expense' ? 'Expense details' : 'Fill-up details'}
+        fields={recordFields(props)}
+        onCloseAutoFocus={e => {
+          e.preventDefault();
+          trigger?.focus();
+        }}
+      >
         {open ? (
           <RecordAttachments
             vehicleId={props.vehicleId}
             record={{ type: props.type, id: props.item.id }}
-            readOnly
+            context="preview"
           />
         ) : null}
       </DetailsDialogContent>

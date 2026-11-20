@@ -1,7 +1,7 @@
 'use client';
 
-import { useId, useMemo, useRef, useState, type ReactNode } from 'react';
-import { useInfiniteExpenses, useUpdateExpense, useDeleteExpense } from '@/hooks';
+import { useMemo, useRef, useState, type ReactNode } from 'react';
+import { useInfiniteExpenses, useDeleteExpense } from '@/hooks';
 import type { ExpenseDto } from '@/queries/expenses';
 import { Button } from '@/components/ui';
 import { ExpenseListSkeleton } from '@/components/car';
@@ -9,16 +9,9 @@ import { useUiStore } from '@/stores/ui';
 import { formatDateFi } from '@/utils';
 import { toast } from 'sonner';
 import { getUiErrorMessage } from '@/lib/api/client-errors';
-import RecordAttachments from './attachments/RecordAttachments';
-import {
-  destructiveRecordActionClass,
-  recordActionClass,
-  RecordActions,
-  RecordDetailsButton,
-} from './records';
-import { expenseCategories, isValidExpenseCategory } from '@/utils/expenses';
-import { getExpenseDraftChanges, toExpenseDraft } from './expenses/expenseDraft';
-import RecordEditDialog from './records/RecordEditDialog';
+import ExpenseDialog from './expenses/ExpenseDialog';
+import { destructiveRecordActionClass, recordActionClass, RecordActions } from './records';
+import { RecordSummaryButton } from './records/RecordDetailsButton';
 
 export default function ExpenseList({ vehicleId }: { vehicleId: string }) {
   return <VehicleExpenseList key={vehicleId} vehicleId={vehicleId} />;
@@ -37,7 +30,11 @@ function VehicleExpenseList({ vehicleId }: { vehicleId: string }) {
     fetchStatus,
     refetch,
   } = useInfiniteExpenses(vehicleId, 5);
-  const [edit, setEdit] = useState<{ item: ExpenseDto; trigger: HTMLElement } | null>(null);
+  const [active, setActive] = useState<{
+    item: ExpenseDto;
+    trigger: HTMLElement;
+    entry: 'view' | 'edit';
+  } | null>(null);
   const list = useRef<HTMLDivElement>(null);
 
   const items = useMemo(() => (data?.pages || []).flatMap(p => p.expenses), [data]);
@@ -51,13 +48,18 @@ function VehicleExpenseList({ vehicleId }: { vehicleId: string }) {
         <div ref={list} tabIndex={-1}>
           {content}
         </div>
-        {edit ? (
-          <ExpenseEditor
+        {active ? (
+          <ExpenseDialog
             vehicleId={vehicleId}
-            item={edit.item}
-            onClose={() => setEdit(null)}
+            item={items.find(item => item.id === active.item.id) ?? active.item}
+            entry={active.entry}
+            canWrite={canWrite}
+            canStartEdit={
+              !isError && fetchStatus === 'idle' && items.some(item => item.id === active.item.id)
+            }
+            onClose={() => setActive(null)}
             restoreFocus={saved =>
-              (!saved && edit.trigger.isConnected ? edit.trigger : list.current)?.focus()
+              (!saved && active.trigger.isConnected ? active.trigger : list.current)?.focus()
             }
           />
         ) : null}
@@ -135,7 +137,12 @@ function VehicleExpenseList({ vehicleId }: { vehicleId: string }) {
               className="grid grid-cols-[minmax(0,1fr)_auto] gap-2 rounded-lg border border-slate-200 px-3 py-3 dark:border-border lg:table-row lg:rounded-none lg:border-x-0 lg:border-b-0 lg:whitespace-nowrap lg:[&>td]:px-2"
             >
               <td role="cell" className="col-start-1 row-start-1 min-w-0">
-                <RecordDetailsButton vehicleId={vehicleId} type="expense" item={e} />
+                <RecordSummaryButton
+                  vehicleId={vehicleId}
+                  type="expense"
+                  item={e}
+                  onOpen={trigger => setActive({ item: e, trigger, entry: 'view' })}
+                />
               </td>
               <td
                 role="cell"
@@ -189,7 +196,8 @@ function VehicleExpenseList({ vehicleId }: { vehicleId: string }) {
                       className={recordActionClass}
                       disabled={fetchStatus !== 'idle'}
                       onClick={event =>
-                        setEdit({
+                        setActive({
+                          entry: 'edit',
                           item: e,
                           trigger:
                             event.currentTarget.closest('details')?.querySelector('summary') ??
@@ -237,149 +245,6 @@ function EmptyCta() {
 
 function formatCurrency(n: number) {
   return new Intl.NumberFormat(undefined, { style: 'currency', currency: 'EUR' }).format(n);
-}
-
-function ExpenseEditor({
-  vehicleId,
-  item,
-  onClose,
-  restoreFocus,
-}: {
-  vehicleId: string;
-  item: ExpenseDto;
-  onClose: () => void;
-  restoreFocus: (_saved: boolean) => void;
-}) {
-  const formId = useId();
-  const saved = useRef(false);
-  const [uploading, setUploading] = useState(false);
-  const [state, setState] = useState(() => toExpenseDraft(item));
-  const { patch, invalidOdometer, hasChanges } = getExpenseDraftChanges(item, state);
-  const update = useUpdateExpense(vehicleId, item.id);
-  return (
-    <RecordEditDialog
-      title="Edit expense"
-      open
-      onClose={onClose}
-      restoreFocus={() => restoreFocus(saved.current)}
-      formId={formId}
-      hasChanges={hasChanges}
-      invalid={invalidOdometer}
-      saving={update.isPending}
-      attachmentBusy={uploading}
-    >
-      <form
-        id={formId}
-        className="space-y-4"
-        onSubmit={async e => {
-          e.preventDefault();
-          if (uploading || update.isPending || !hasChanges || invalidOdometer) return;
-          try {
-            await update.mutateAsync(patch);
-            saved.current = true;
-            toast.success('Expense updated');
-            onClose();
-          } catch (error) {
-            toast.error(getUiErrorMessage(error, 'Failed to update expense'));
-          }
-        }}
-      >
-        <fieldset disabled={update.isPending} className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <label className="flex flex-col gap-1">
-            <span className="text-sm">Date</span>
-            <input
-              type="date"
-              className="border rounded-md px-3 py-2"
-              value={state.date}
-              onChange={e => setState(s => ({ ...s, date: e.target.value }))}
-              required
-            />
-          </label>
-          <label className="flex flex-col gap-1">
-            <span className="text-sm">Category</span>
-            <select
-              className="border rounded-md px-3 py-2"
-              value={state.category}
-              onChange={e => {
-                const category = e.target.value;
-                if (isValidExpenseCategory(category)) setState(s => ({ ...s, category }));
-              }}
-            >
-              {expenseCategories.map(c => (
-                <option key={c} value={c}>
-                  {c}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="flex flex-col gap-1">
-            <span className="text-sm">Amount</span>
-            <input
-              type="text"
-              inputMode="decimal"
-              pattern="^[0-9]*[.,]?[0-9]*$"
-              className="border rounded-md px-3 py-2"
-              value={state.amount}
-              onChange={e => setState(s => ({ ...s, amount: e.target.value }))}
-              required
-            />
-          </label>
-          <label className="flex flex-col gap-1">
-            <span className="text-sm">Vendor</span>
-            <input
-              className="border rounded-md px-3 py-2"
-              value={state.vendor}
-              onChange={e => setState(s => ({ ...s, vendor: e.target.value }))}
-            />
-          </label>
-          <label className="flex flex-col gap-1">
-            <span className="text-sm">Odometer km</span>
-            <input
-              inputMode="numeric"
-              aria-invalid={invalidOdometer}
-              aria-describedby={invalidOdometer ? `${formId}-odometer-error` : undefined}
-              className="border rounded-md px-3 py-2"
-              value={state.odometerKm}
-              onChange={e => setState(s => ({ ...s, odometerKm: e.target.value }))}
-            />
-          </label>
-          <label className="flex flex-col gap-1">
-            <span className="text-sm">Liters</span>
-            <input
-              type="text"
-              inputMode="decimal"
-              className="border rounded-md px-3 py-2"
-              value={state.liters}
-              onChange={e => setState(s => ({ ...s, liters: e.target.value }))}
-              placeholder="For oil/fluid"
-            />
-          </label>
-          <label className="flex flex-col gap-1 sm:col-span-2">
-            <span className="text-sm">Notes</span>
-            <textarea
-              className="border rounded-md px-3 py-2"
-              rows={3}
-              value={state.notes}
-              onChange={e => setState(s => ({ ...s, notes: e.target.value }))}
-            />
-          </label>
-        </fieldset>
-        {invalidOdometer ? (
-          <p id={`${formId}-odometer-error`} className="text-sm text-red-600">
-            Enter a whole number from −2,147,483,648 to 2,147,483,647, or leave it blank.
-          </p>
-        ) : null}
-      </form>
-      <RecordAttachments
-        key={item.id}
-        vehicleId={vehicleId}
-        record={{ type: 'expense', id: item.id }}
-        uploadFirst
-        onUploadingChange={setUploading}
-        disabled={update.isPending}
-      />
-    </RecordEditDialog>
-  );
 }
 
 function DeleteExpenseButton({ vehicleId, expenseId }: { vehicleId: string; expenseId: string }) {

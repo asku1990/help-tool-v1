@@ -384,7 +384,8 @@ export default function ExpenseForm({ vehicleId, onCreated }: ExpenseFormProps) 
               <RecordAttachments
                 vehicleId={vehicleId}
                 record={{ type: 'expense', id: savedRecord.id }}
-                onUploadingChange={setUploading}
+                context="creation"
+                onBusyChange={setUploading}
                 disabled={submitting}
               />
             ) : null}

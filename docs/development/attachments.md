@@ -61,7 +61,7 @@ Use **Node.js 22+**, confirm the app targets your local PostgreSQL database, and
 pass-cli run --env-file .env.local -- pnpm dev
 ```
 
-Sign in as an owner/editor. Open **Edit** on an existing expense or fuel fill-up,
+Sign in as an owner/editor. Open **Details → Manage files** on an expense or **Edit** on a fuel fill-up,
 select a supported file of at most **4,000,000 bytes**, and press **Upload file**.
 Saving record edits is not required. Reopen the record to confirm the filename and
 remaining capacity persist. In the R2 dashboard, a new object should appear under
@@ -93,9 +93,8 @@ for state, dismissal, and inspection-update failure behavior.
 ## Open an attachment
 
 Select the date/summary of an expense or fill-up to open **Details** and view saved
-information and attachment links
-without entering an editable form. This view has no upload, rename, or delete controls,
-even for owners and editors. Use **⋯ → Edit** to manage attachments.
+information and attachment links without entering an editable form. For expenses,
+choose **Manage files** in Details; for fill-ups use **⋯ → Edit** to manage attachments.
 See [viewing saved records](../features/records.md) for the complete viewing behavior.
 
 Select a saved filename to open it in a new tab. Owners, editors, and viewers with access to

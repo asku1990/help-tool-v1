@@ -265,7 +265,8 @@ export default function FillUpForm({ vehicleId, onCreated }: FillUpFormProps) {
               <RecordAttachments
                 vehicleId={vehicleId}
                 record={{ type: 'fillup', id: savedRecord.id }}
-                onUploadingChange={setUploading}
+                context="creation"
+                onBusyChange={setUploading}
                 disabled={submitting}
               />
             ) : null}

@@ -66,10 +66,15 @@ in the list response; the dialog does not calculate new consumption values.
 Both dialogs show Odometer directly below Date, with `km` on the reading. Consumption in
 Details is shown in `L/100 km` for fuel and `L/10,000 km` for oil.
 
-Details contains no record form, Save action, or attachment upload, rename, or delete
-controls, including for owners and editors. Opening and closing it does not save anything.
+Details opens in view mode. Opening and closing it does not save anything.
 Optional missing values display an unavailable marker; numeric zero remains visible.
-The existing Edit dialogs remain the place to change records and manage attachments.
+Expense Details has two independent actions. **Edit details** edits fields in the same
+dialog; **Save changes** or **Cancel** returns to the summary. **⋯ → Edit** starts
+directly in field editing and closes after Save or Cancel. **Manage files** replaces
+the summary with **Manage expense files** in the same dialog. The vendor (or category)
+and date identify the expense above the upload, rename, and delete controls. File changes
+save immediately. **Done** in the footer returns to Details. Fill-up Details stays read-only; use its
+existing Edit dialog to change fields or manage attachments.
 
 For owners and editors, each row has a touch-friendly **⋯** disclosure with **Edit**
 and **Delete**, separated by a divider. Details is not duplicated in the menu.
@@ -91,9 +96,12 @@ Filenames open in a new tab through the existing authenticated attachment endpoi
 See [attachment storage](../development/attachments.md#open-an-attachment) for access
 and signed-link behavior.
 
-Implementation: `components/car/records/RecordDetailsButton.tsx`, used by both lists,
-and the read-only mode of `components/car/attachments/RecordAttachments.tsx`.
-The dialog uses the record data already loaded by the list, without new record endpoints.
+Both lists use the date/summary trigger and saved fields from
+`components/car/records/RecordDetailsButton.tsx`. Expenses use `SavedRecordDialog`
+for view, edit, and file management. Its shared `RecordEditForm` owns the field layout,
+save errors, and Save/Cancel actions; `ExpenseDialog` supplies the expense fields,
+draft validation, and save request. Fill-ups use read-only Details. Both render
+`RecordAttachments` and use record data already loaded by the list.
 
 On mobile, each entry is outlined and spaced from the next. The date and summary align
 with the rest of the entry, the **⋯** menu stays at the top right, and the remaining
@@ -116,7 +124,7 @@ Fill-up and expense editors open with the focus on the heading, not an input. Th
 date picker remains available when the user activates the date field. The editor uses a
 single column on phones and a centered dialog on wider screens.
 
-**Cancel** and **Save changes** are below the attachment section. Save changes applies only
+**Cancel** and **Save changes** are below the fields (below attachments in fill-up Edit). Save changes applies only
 to changed record values. Changing only a number's formatting (for example, `10` to `10.00`)
 does not enable Save or include that field when saving other changes. The odometer must be a
 whole number in the signed 32-bit range (−2,147,483,648 to 2,147,483,647);
@@ -129,12 +137,12 @@ discarding unsaved form changes; tapping outside does not dismiss the editor. Re
 starts from the saved values. Attachment actions save separately and are not undone by
 discarding form changes. Saving or processing an attachment action blocks dismissal.
 
-The editor closes once the server confirms the save. **Edit** and **Load more** wait for the
+The menu editor closes once the server confirms the save. **Edit** and **Load more** wait for the
 list refresh, which reloads saved fields and derived figures together. Fill-up rows and their
 trip figures are read from the same database snapshot. If the refresh fails,
 use **Retry** on the list; the record save does not need to be repeated. If **Load more**
 fails, **Retry** requests that page again. A list refresh does not discard an open draft,
-even if its row moves outside the loaded pages. After Save, focus goes to the list; after
+even if its row moves outside the loaded pages. For the menu shortcut, after Save, focus goes to the list; after
 Cancel, focus returns to the row's action menu if it is still available.
 
 The file picker and **Upload file** are above the saved files, side by side on wider
@@ -181,8 +189,9 @@ expense creation attempt.
 
 Manual check: open Details for an expense and a fill-up, including a record with long notes,
 no attachments, and available attachments. Confirm there are no editable fields or mutation
-controls, files still open, and closing does not save. Reopen after managing files through
-Edit and confirm the attachment list refreshes. Check both write and viewer roles.
+controls before entering management, files still open, and closing does not save.
+Reopen after managing files (expense Details or fill-up Edit) and confirm the
+attachment list refreshes. Check both write and viewer roles.
 Verify the action disclosure opens independently of Details, dismisses outside/on Escape,
 and regains focus after editing. Closing Details returns focus to the row summary.
 Viewers must have no action disclosure.
