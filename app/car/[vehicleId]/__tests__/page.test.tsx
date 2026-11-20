@@ -148,6 +148,26 @@ it('opens the edit vehicle dialog from the actions menu for an owner', async () 
   expect(await screen.findByLabelText(/Edit vehicle dialog/i)).toBeInTheDocument();
 });
 
+it.each(['Add expense', 'Add fill-up'])('%s opens without focusing the date field', async name => {
+  server.use(
+    http.get('/api/vehicles/:vehicleId', () =>
+      HttpResponse.json({
+        data: { vehicle: { id: 'v1', name: 'Car A', canEdit: true, canWrite: true } },
+      })
+    )
+  );
+  renderWithProviders(<VehiclePage />);
+  const trigger = await screen.findByRole('button', { name });
+  fireEvent.click(trigger);
+
+  const dialog = within(await screen.findByRole('dialog', { name }));
+  expect(dialog.getByRole('heading', { name })).toHaveFocus();
+  expect(dialog.getByLabelText('Date', { exact: true })).toBeEnabled();
+
+  fireEvent.click(dialog.getByRole('button', { name: 'Close' }));
+  await waitFor(() => expect(trigger).toHaveFocus());
+});
+
 it.each([
   ['touch', fireEvent.touchStart],
   ['click', fireEvent.click],

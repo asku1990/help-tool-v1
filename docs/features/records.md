@@ -132,6 +132,9 @@ navigation, Esc with unsaved changes, and focus returning to the row's action me
 
 ## Attachments After Creating a Record
 
+**Add expense** and **Add fill-up** open with focus on the heading. Select **Date**
+to open the native date picker.
+
 Both creation dialogs offer the existing **Save expense / Save fill-up** action and a
 **Save & add attachments** action. Ordinary Save closes after a successful save.
 Save & add attachments creates the record first, then keeps the same dialog open with a

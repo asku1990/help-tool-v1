@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Button,
   Dialog,
@@ -21,6 +21,7 @@ export type FillUpFormProps = {
 };
 
 export default function FillUpForm({ vehicleId, onCreated }: FillUpFormProps) {
+  const heading = useRef<HTMLHeadingElement>(null);
   const { isFillUpDialogOpen: open, setFillUpDialogOpen: setOpen } = useUiStore();
   const createFillUp = useCreateFillUp(vehicleId);
   const lastOdometer = useLatestOdometer(vehicleId);
@@ -119,9 +120,18 @@ export default function FillUpForm({ vehicleId, onCreated }: FillUpFormProps) {
       <DialogTrigger asChild>
         <Button className="min-h-11">Add fill-up</Button>
       </DialogTrigger>
-      <DialogContent aria-label={`${title} dialog`} aria-describedby={undefined}>
+      <DialogContent
+        aria-label={`${title} dialog`}
+        aria-describedby={undefined}
+        onOpenAutoFocus={event => {
+          event.preventDefault();
+          heading.current?.focus({ preventScroll: true });
+        }}
+      >
         <DialogHeader>
-          <DialogTitle>{title}</DialogTitle>
+          <DialogTitle ref={heading} tabIndex={-1} className="outline-none">
+            {title}
+          </DialogTitle>
         </DialogHeader>
         <form
           aria-label={savedRecord ? 'Saved fill-up' : 'Fill-up information'}

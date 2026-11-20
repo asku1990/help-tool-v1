@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   Button,
   Dialog,
@@ -24,6 +24,7 @@ import { useUiStore } from '@/stores/ui';
 import { useCreateExpense, useUpdateVehicle, useVehicle, useLatestOdometer } from '@/hooks';
 
 export default function ExpenseForm({ vehicleId, onCreated }: ExpenseFormProps) {
+  const heading = useRef<HTMLHeadingElement>(null);
   const { isExpenseDialogOpen: open, setExpenseDialogOpen: setOpen } = useUiStore();
   const createExpense = useCreateExpense(vehicleId);
   const updateVehicle = useUpdateVehicle(vehicleId);
@@ -187,9 +188,18 @@ export default function ExpenseForm({ vehicleId, onCreated }: ExpenseFormProps) 
           Add expense
         </Button>
       </DialogTrigger>
-      <DialogContent aria-label={`${title} dialog`} aria-describedby={undefined}>
+      <DialogContent
+        aria-label={`${title} dialog`}
+        aria-describedby={undefined}
+        onOpenAutoFocus={event => {
+          event.preventDefault();
+          heading.current?.focus({ preventScroll: true });
+        }}
+      >
         <DialogHeader>
-          <DialogTitle>{title}</DialogTitle>
+          <DialogTitle ref={heading} tabIndex={-1} className="outline-none">
+            {title}
+          </DialogTitle>
         </DialogHeader>
         <form
           aria-label={savedRecord ? 'Saved expense' : 'Expense information'}
