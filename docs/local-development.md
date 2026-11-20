@@ -13,8 +13,8 @@ PostgreSQL runs in Docker.
 ## 1. Install and Configure
 
 For local browser testing without Google, use a disposable local database with a
-regular user whose email is `browser-test@example.test` and the vehicle permissions you want
-to test. From the repository root, start the app with:
+user whose email is `browser-test@example.test` and the permissions you want to test.
+Set that user to `ADMIN` to test the Admin page. From the repository root, start the app with:
 
 ```bash
 LOCAL_AUTO_SIGN_IN=1 pnpm dev --hostname 127.0.0.1

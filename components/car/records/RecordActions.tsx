@@ -35,10 +35,12 @@ export default function RecordActions({
     }
     document.addEventListener('pointerdown', closeOutside, true);
     document.addEventListener('touchstart', closeOutside, { capture: true, passive: true });
+    document.addEventListener('click', closeOutside, true);
     document.addEventListener('keydown', closeOnEscape);
     return () => {
       document.removeEventListener('pointerdown', closeOutside, true);
       document.removeEventListener('touchstart', closeOutside, true);
+      document.removeEventListener('click', closeOutside, true);
       document.removeEventListener('keydown', closeOnEscape);
     };
   }, [open]);

@@ -46,25 +46,24 @@ describe('local automatic sign-in', () => {
     }
   );
 
-  it('provides the same fixed user to the browser and server', async () => {
-    vi.stubEnv('LOCAL_AUTO_SIGN_IN', '1');
-    vi.mocked(prisma.user.findUnique).mockResolvedValue(testUser);
-    const response = await GET(sessionRequest);
-    const browser = await response.json();
-    expect(browser.user).toEqual({
-      id: testUser.id,
-      email: testUser.email,
-      name: testUser.username,
-    });
-    expect((await auth())?.user).toEqual(browser.user);
-    expect(response.headers.get('Cache-Control')).toBe('no-store');
-  });
-
-  it('does not sign in as an admin', async () => {
-    vi.stubEnv('LOCAL_AUTO_SIGN_IN', '1');
-    vi.mocked(prisma.user.findUnique).mockResolvedValue({ ...testUser, userType: 'ADMIN' });
-    expect(await auth()).toBeNull();
-  });
+  it.each(['REGULAR', 'ADMIN'] as const)(
+    'provides the same fixed %s user to the browser and server',
+    async userType => {
+      vi.stubEnv('LOCAL_AUTO_SIGN_IN', '1');
+      vi.mocked(prisma.user.findUnique).mockResolvedValue({ ...testUser, userType });
+      const response = await GET(sessionRequest);
+      const browser = await response.json();
+      expect(browser).toMatchObject({
+        user: {
+          id: testUser.id,
+          email: testUser.email,
+          name: testUser.username,
+        },
+      });
+      expect((await auth())?.user).toEqual(browser.user);
+      expect(response.headers.get('Cache-Control')).toBe('no-store');
+    }
+  );
 
   it('does not auto-sign in when the fixed test user is missing', async () => {
     vi.stubEnv('LOCAL_AUTO_SIGN_IN', '1');

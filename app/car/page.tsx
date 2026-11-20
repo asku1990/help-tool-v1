@@ -13,8 +13,8 @@ import {
   CardContent,
   Toaster,
 } from '@/components/ui';
-import { Car, Plus, Shield } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { Car, Plus, Shield, Upload } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
 import { useVehicles, useIsAdmin } from '@/hooks';
 import { apiPost } from '@/lib/api/client';
 import { useUiStore } from '@/stores/ui';
@@ -32,6 +32,8 @@ export default function CarHomePage() {
   const router = useRouter();
   const [isDemo] = useState<boolean>(() => false);
   const [loading, setLoading] = useState(false);
+  const [restoreOpen, setRestoreOpen] = useState(false);
+  const restoreMenuTrigger = useRef<HTMLElement | null>(null);
   const [vehicles, setVehicles] = useState<
     Array<{
       id: string;
@@ -97,7 +99,21 @@ export default function CarHomePage() {
         title="Car Management"
         icon={<Car className="w-6 h-6" />}
         right={
-          <RecordActions label="Account actions" placement="card">
+          <RecordActions label="Vehicle list actions" placement="card">
+            <Button
+              type="button"
+              variant="ghost"
+              className={recordActionClass}
+              aria-haspopup="dialog"
+              onClick={event => {
+                restoreMenuTrigger.current =
+                  event.currentTarget.closest('details')?.querySelector('summary') ?? null;
+                setRestoreOpen(true);
+              }}
+            >
+              <Upload className="size-5" aria-hidden="true" />
+              Restore Backup
+            </Button>
             {isAdmin ? (
               <Button asChild variant="ghost" className={recordActionClass}>
                 <Link href="/car/admin">
@@ -121,16 +137,9 @@ export default function CarHomePage() {
                   Add your first vehicle to start tracking fuel and expenses.
                 </p>
               </div>
-              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end">
-                <RestoreBackupDialog
-                  existingVehicles={vehicles.map(v => ({ id: v.id, name: v.name }))}
-                  onRestored={() => refetchVehicles()}
-                  triggerClassName="w-full sm:w-auto"
-                />
-                <Button className="w-full sm:w-auto" onClick={() => setOpen(true)}>
-                  <Plus className="w-4 h-4 mr-2" /> Add vehicle
-                </Button>
-              </div>
+              <Button className="w-full sm:w-auto" onClick={() => setOpen(true)}>
+                <Plus className="w-4 h-4 mr-2" /> Add vehicle
+              </Button>
             </div>
             <div className="mt-6 space-y-3" aria-busy={isVehiclesLoading}>
               {isVehiclesLoading && <VehicleListSkeleton rows={3} />}
@@ -195,6 +204,17 @@ export default function CarHomePage() {
           </CardContent>
         </Card>
 
+        <RestoreBackupDialog
+          existingVehicles={vehicles.map(v => ({ id: v.id, name: v.name }))}
+          onRestored={() => refetchVehicles()}
+          open={restoreOpen}
+          onOpenChange={setRestoreOpen}
+          hideTrigger
+          onCloseAutoFocus={event => {
+            event.preventDefault();
+            restoreMenuTrigger.current?.focus();
+          }}
+        />
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogContent aria-label="Add vehicle dialog">
             <DialogHeader>

@@ -12,9 +12,9 @@ export async function getLocalTestSession(): Promise<Session | null> {
 
   const user = await prisma.user.findUnique({
     where: { email: localTestEmail },
-    select: { id: true, email: true, username: true, userType: true },
+    select: { id: true, email: true, username: true },
   });
-  if (user?.userType !== 'REGULAR') return null;
+  if (!user) return null;
 
   const sessionUser = { id: user.id, email: user.email, name: user.username };
   return { user: sessionUser, expires: new Date(Date.now() + 60 * 60 * 1000).toISOString() };

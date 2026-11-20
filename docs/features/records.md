@@ -16,6 +16,10 @@ for anyone with read access, **Import backup** for owners and editors, and **Edi
 **Delete vehicle** for owners only. Vehicle deletion requires confirmation. Tap or click
 outside the menu to close it. Closing a menu dialog returns focus to **⋯**.
 
+On the vehicles list, **Add vehicle** is visible and **Restore Backup** is in the
+**⋯** menu. Tap or click outside to close the menu. Closing the restore dialog
+returns focus to **⋯**.
+
 Use **Download backup** for restore, not for opening in a spreadsheet. Use **Download for
 spreadsheet** to view the records in a spreadsheet app. Import this copy as a comma-delimited
 CSV. It prefixes formula-like text with `Text:` so the spreadsheet treats it as text, and
@@ -127,6 +131,9 @@ the fields and actions remain reachable by scrolling. On desktop, check keyboard
 navigation, Esc with unsaved changes, and focus returning to the row's action menu.
 
 ## Attachments After Creating a Record
+
+**Add expense** and **Add fill-up** open with focus on the heading. Select **Date**
+to open the native date picker.
 
 Both creation dialogs offer the existing **Save expense / Save fill-up** action and a
 **Save & add attachments** action. Ordinary Save closes after a successful save.

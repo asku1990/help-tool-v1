@@ -52,7 +52,7 @@ it('renders vehicles list and opens add vehicle dialog', async () => {
   expect(await screen.findByLabelText(/Add vehicle dialog/i)).toBeInTheDocument();
 });
 
-it('keeps car home actions mobile-friendly', async () => {
+it('keeps Add vehicle visible and puts Restore Backup in the actions menu', async () => {
   server.use(
     http.get('/api/admin/me', () => HttpResponse.json({ data: { isAdmin: false } })),
     http.get('/api/vehicles', () => HttpResponse.json({ data: { vehicles: [] } }))
@@ -60,13 +60,20 @@ it('keeps car home actions mobile-friendly', async () => {
 
   renderWithProviders(<CarHomePage />);
 
-  const restoreButton = await screen.findByRole('button', { name: /restore backup/i });
+  await screen.findByText('No vehicles yet.');
   const addVehicleButton = screen.getByRole('button', { name: /add vehicle/i });
+  const menu = screen.getByRole('button', { name: 'Vehicle list actions' });
 
-  expect(restoreButton).toHaveClass('w-full');
-  expect(restoreButton).toHaveClass('sm:w-auto');
   expect(addVehicleButton).toHaveClass('w-full');
   expect(addVehicleButton).toHaveClass('sm:w-auto');
+  expect(screen.queryByRole('button', { name: 'Restore Backup' })).not.toBeInTheDocument();
+
+  fireEvent.click(menu);
+  fireEvent.click(screen.getByRole('button', { name: 'Restore Backup' }));
+  const dialog = await screen.findByRole('dialog', { name: 'Restore from Backup' });
+  expect(menu).toHaveAttribute('aria-expanded', 'false');
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }));
+  await waitFor(() => expect(menu).toHaveFocus());
 });
 
 it('lets users sign out directly from the vehicle list', () => {
@@ -77,14 +84,32 @@ it('lets users sign out directly from the vehicle list', () => {
   renderWithProviders(<CarHomePage />);
 
   expect(screen.queryByRole('button', { name: 'Sign out' })).not.toBeInTheDocument();
-  fireEvent.click(screen.getByRole('button', { name: 'Account actions' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Vehicle list actions' }));
   fireEvent.click(screen.getByRole('button', { name: 'Sign out' }));
 
   expect(signOut).toHaveBeenCalledWith({ callbackUrl: '/' });
-  expect(screen.getByRole('button', { name: 'Account actions' })).toHaveAttribute(
+  expect(screen.getByRole('button', { name: 'Vehicle list actions' })).toHaveAttribute(
     'aria-expanded',
     'false'
   );
+});
+
+it('closes the actions menu when the vehicles heading is clicked', async () => {
+  server.use(
+    http.get('/api/admin/me', () => HttpResponse.json({ data: { isAdmin: false } })),
+    http.get('/api/vehicles', () => HttpResponse.json({ data: { vehicles: [] } }))
+  );
+  renderWithProviders(<CarHomePage />);
+  const heading = await screen.findByRole('heading', { name: 'Vehicles' });
+  const menu = screen.getByRole('button', { name: 'Vehicle list actions' });
+
+  fireEvent.click(menu);
+  const signOutButton = screen.getByRole('button', { name: 'Sign out' });
+  expect(signOutButton).toBeVisible();
+
+  fireEvent.click(heading);
+  expect(menu).toHaveAttribute('aria-expanded', 'false');
+  expect(signOutButton).not.toBeVisible();
 });
 
 it('restores records to an existing vehicle without clearing it', async () => {
@@ -100,6 +125,7 @@ it('restores records to an existing vehicle without clearing it', async () => {
 
   renderWithProviders(<CarHomePage />);
   await screen.findByText('Car A');
+  fireEvent.click(screen.getByRole('button', { name: 'Vehicle list actions' }));
   fireEvent.click(screen.getByRole('button', { name: 'Restore Backup' }));
   const backup = within(await screen.findByRole('dialog', { name: 'Restore from Backup' }));
   fireEvent.change(backup.getByLabelText('Or paste CSV content'), {
@@ -129,7 +155,7 @@ it('shows admin link for admin user', async () => {
     http.get('/api/vehicles', () => HttpResponse.json({ data: { vehicles: [] } }))
   );
   renderWithProviders(<CarHomePage />);
-  fireEvent.click(screen.getByRole('button', { name: 'Account actions' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Vehicle list actions' }));
   expect(await screen.findByRole('link', { name: 'Admin' })).toHaveAttribute('href', '/car/admin');
 });
 
@@ -140,7 +166,7 @@ it('hides admin link for non-admin user', async () => {
   );
   renderWithProviders(<CarHomePage />);
   await waitFor(() => expect(screen.getByText(/vehicles/i)).toBeInTheDocument());
-  fireEvent.click(screen.getByRole('button', { name: 'Account actions' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Vehicle list actions' }));
   expect(screen.queryByRole('link', { name: /admin/i })).not.toBeInTheDocument();
 });
 

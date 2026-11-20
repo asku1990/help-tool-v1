@@ -148,7 +148,30 @@ it('opens the edit vehicle dialog from the actions menu for an owner', async () 
   expect(await screen.findByLabelText(/Edit vehicle dialog/i)).toBeInTheDocument();
 });
 
-it('dismisses the header actions on an outside touch without a pointer event', async () => {
+it.each(['Add expense', 'Add fill-up'])('%s opens without focusing the date field', async name => {
+  server.use(
+    http.get('/api/vehicles/:vehicleId', () =>
+      HttpResponse.json({
+        data: { vehicle: { id: 'v1', name: 'Car A', canEdit: true, canWrite: true } },
+      })
+    )
+  );
+  renderWithProviders(<VehiclePage />);
+  const trigger = await screen.findByRole('button', { name });
+  fireEvent.click(trigger);
+
+  const dialog = within(await screen.findByRole('dialog', { name }));
+  expect(dialog.getByRole('heading', { name })).toHaveFocus();
+  expect(dialog.getByLabelText('Date', { exact: true })).toBeEnabled();
+
+  fireEvent.click(dialog.getByRole('button', { name: 'Close' }));
+  await waitFor(() => expect(trigger).toHaveFocus());
+});
+
+it.each([
+  ['touch', fireEvent.touchStart],
+  ['click', fireEvent.click],
+])('dismisses the header actions on an outside %s without a pointer event', async (_, press) => {
   renderWithProviders(<VehiclePage />);
   const menu = await screen.findByRole('button', { name: 'Vehicle actions' });
 
@@ -157,7 +180,7 @@ it('dismisses the header actions on an outside touch without a pointer event', a
   fireEvent.touchStart(download);
   expect(menu).toHaveAttribute('aria-expanded', 'true');
 
-  fireEvent.touchStart(screen.getByRole('main'));
+  press(screen.getByRole('main'));
   expect(menu).toHaveAttribute('aria-expanded', 'false');
   expect(download).not.toBeVisible();
 });
