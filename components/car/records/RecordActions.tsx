@@ -21,7 +21,7 @@ export default function RecordActions({
 
   useEffect(() => {
     if (!open) return;
-    function closeOutside(event: PointerEvent) {
+    function closeOutside(event: Event) {
       if (event.target instanceof Node && !details.current?.contains(event.target)) {
         setOpen(false);
       }
@@ -33,10 +33,12 @@ export default function RecordActions({
         details.current.querySelector('summary')?.focus();
       }
     }
-    document.addEventListener('pointerdown', closeOutside);
+    document.addEventListener('pointerdown', closeOutside, true);
+    document.addEventListener('touchstart', closeOutside, { capture: true, passive: true });
     document.addEventListener('keydown', closeOnEscape);
     return () => {
-      document.removeEventListener('pointerdown', closeOutside);
+      document.removeEventListener('pointerdown', closeOutside, true);
+      document.removeEventListener('touchstart', closeOutside, true);
       document.removeEventListener('keydown', closeOnEscape);
     };
   }, [open]);

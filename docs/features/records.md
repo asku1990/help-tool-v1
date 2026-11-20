@@ -13,8 +13,8 @@ on a blue-gray canvas distinguish sections without heavy borders in the light th
 **Add fill-up** and **Add expense** are the primary actions for owners and editors.
 **⋯** groups the less frequent actions: **Download backup** and **Download for spreadsheet**
 for anyone with read access, **Import backup** for owners and editors, and **Edit** and
-**Delete vehicle** for owners only. Vehicle deletion requires confirmation. Closing a menu
-dialog returns focus to **⋯**.
+**Delete vehicle** for owners only. Vehicle deletion requires confirmation. Tap or click
+outside the menu to close it. Closing a menu dialog returns focus to **⋯**.
 
 Use **Download backup** for restore, not for opening in a spreadsheet. Use **Download for
 spreadsheet** to view the records in a spreadsheet app. Import this copy as a comma-delimited
