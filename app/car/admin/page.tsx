@@ -267,18 +267,23 @@ export default function AdminPage() {
                   <thead>
                     <tr className="text-left border-b">
                       <th className="py-2 pr-4">Email</th>
-                      <th className="py-2 pr-4">Username</th>
+                      <th className="hidden py-2 pr-4 sm:table-cell">Username</th>
                       <th className="py-2 pr-4">Role</th>
-                      <th className="py-2 pr-4">Actions</th>
+                      <th className="py-2 sm:pr-4">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
                     {(accessData?.access || []).map(item => (
                       <tr key={item.id} className="border-b last:border-0">
-                        <td className="py-2 pr-4">{item.userEmail}</td>
-                        <td className="py-2 pr-4">{item.username}</td>
+                        <td className="py-2 pr-4 wrap-anywhere">
+                          {item.userEmail}
+                          <span className="block text-muted-foreground sm:hidden">
+                            {item.username}
+                          </span>
+                        </td>
+                        <td className="hidden py-2 pr-4 sm:table-cell">{item.username}</td>
                         <td className="py-2 pr-4">{item.role}</td>
-                        <td className="py-2 pr-4">
+                        <td className="py-2 sm:pr-4">
                           <Button
                             size="sm"
                             variant="outline"
