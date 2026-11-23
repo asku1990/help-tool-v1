@@ -17,6 +17,9 @@ and editors can also make changes.
   **Restore to stored** and mounted again. Mounted sets and sets with change history cannot
   be deleted individually.
 
+Tire editor dialogs focus their title when opened, so the iPhone date picker doesn't
+open automatically. Select the date field to open it.
+
 ## Mileage
 
 - **Confirmed mileage** is the difference between the odometer readings at the start
