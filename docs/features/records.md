@@ -196,6 +196,15 @@ Confirm the record is created once, its form is replaced after saving, and reope
 starts a fresh form. Also check an inspection-date update failure does not offer another
 expense creation attempt.
 
+## Mobile Dialog Layout
+
+On phones, Add vehicle, Add fill-up, Add expense, saved-record Details/Edit/Manage files,
+tire entry and swap forms, and Backup Import/Restore use a full-screen dialog with a
+left-aligned title and no card border or shadow. Details lets long field labels wrap so
+the values have more room. Backup previews can scroll within the dialog.
+Login/Account and Delete vehicle remain compact, and browser confirmations are unchanged.
+On wider screens, dialogs keep their centered card layouts.
+
 ## Manual Viewing Checks
 
 Manual check: open Details for an expense and a fill-up, including a record with long notes,

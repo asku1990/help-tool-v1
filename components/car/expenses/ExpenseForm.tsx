@@ -189,6 +189,7 @@ export default function ExpenseForm({ vehicleId, onCreated }: ExpenseFormProps) 
         </Button>
       </DialogTrigger>
       <DialogContent
+        mobileLayout="fullscreen"
         aria-label={`${title} dialog`}
         aria-describedby={undefined}
         closeDisabled={busy}

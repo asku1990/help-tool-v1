@@ -288,17 +288,23 @@ export default function RestoreBackupDialog({
         </DialogTrigger>
       )}
       <DialogContent
+        mobileLayout="fullscreen"
         aria-label={dialogTitle}
         onCloseAutoFocus={onCloseAutoFocus}
-        className="sm:max-w-5xl max-w-[95vw] w-full h-[90vh] overflow-hidden flex flex-col"
+        className="flex flex-col sm:h-[90vh] sm:max-w-5xl sm:overflow-hidden"
       >
         <DialogHeader>
           <DialogTitle>{dialogTitle}</DialogTitle>
           <DialogDescription>{dialogDescription}</DialogDescription>
         </DialogHeader>
-        <div className="flex-1 flex flex-col gap-3 min-h-0">
+        <div className="flex flex-col gap-3 sm:min-h-0 sm:flex-1">
           <div className="flex items-center gap-2">
-            <input type="file" accept=".csv,text/csv,text/plain" onChange={handleFileChange} />
+            <input
+              className="max-sm:min-w-0"
+              type="file"
+              accept=".csv,text/csv,text/plain"
+              onChange={handleFileChange}
+            />
             <Button variant="outline" onClick={handleParse} disabled={!text || isParsing}>
               {isParsing ? 'Parsing…' : 'Parse'}
             </Button>
@@ -316,7 +322,7 @@ export default function RestoreBackupDialog({
           {hasData && (
             <div className="flex-1 flex flex-col min-h-0">
               <div
-                className={`grid gap-1 bg-gray-100 p-1 rounded-lg`}
+                className="grid gap-1 rounded-lg bg-gray-100 p-1 max-sm:[&>button]:px-1 max-sm:[&>button]:text-xs"
                 style={{ gridTemplateColumns: `repeat(${tabCount}, 1fr)` }}
               >
                 {showVehicleTab && (
@@ -354,7 +360,7 @@ export default function RestoreBackupDialog({
                 </button>
               </div>
 
-              <div className="flex-1 min-h-0 overflow-auto mt-2">
+              <div className="mt-2 min-h-0 flex-1 overflow-auto max-sm:max-h-[42dvh]">
                 {activeTab === 'vehicle' && data.vehicle && !forVehicleId && (
                   <VehiclePreview
                     vehicle={data.vehicle}
@@ -428,7 +434,7 @@ export default function RestoreBackupDialog({
               and tire change entries in the Tires tab.
             </p>
           )}
-          <div className="flex items-center justify-between pt-2 border-t">
+          <div className="flex items-center justify-between border-t pt-2 max-sm:flex-wrap max-sm:gap-2">
             <div className="text-sm">
               {restoreStatus ? (
                 <span className={restoreStatus.startsWith('Error') ? 'text-red-600' : ''}>

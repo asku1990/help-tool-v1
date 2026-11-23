@@ -150,7 +150,7 @@ export default function TireManager({ vehicleId }: TireManagerProps) {
               Add Set
             </Button>
           </DialogTrigger>
-          <DialogContent>
+          <DialogContent mobileLayout="fullscreen">
             <DialogHeader>
               <DialogTitle>Add Tire Set</DialogTitle>
             </DialogHeader>
@@ -549,7 +549,7 @@ export default function TireManager({ vehicleId }: TireManagerProps) {
 
         {/* Edit Log Dialog */}
         <Dialog open={isEditLogOpen} onOpenChange={setIsEditLogOpen}>
-          <DialogContent>
+          <DialogContent mobileLayout="fullscreen">
             <DialogHeader>
               <DialogTitle>Edit Swap: {editingLog?.tireSetName}</DialogTitle>
             </DialogHeader>
@@ -602,7 +602,7 @@ export default function TireManager({ vehicleId }: TireManagerProps) {
 
         {/* Swap Dialog */}
         <Dialog open={isSwapOpen} onOpenChange={setIsSwapOpen}>
-          <DialogContent>
+          <DialogContent mobileLayout="fullscreen">
             <DialogHeader>
               <DialogTitle>Swap Tires</DialogTitle>
             </DialogHeader>

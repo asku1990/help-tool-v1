@@ -122,6 +122,7 @@ export default function FillUpForm({ vehicleId, onCreated }: FillUpFormProps) {
         <Button className="min-h-11">Add fill-up</Button>
       </DialogTrigger>
       <DialogContent
+        mobileLayout="fullscreen"
         aria-label={`${title} dialog`}
         aria-describedby={undefined}
         closeDisabled={busy}

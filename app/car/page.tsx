@@ -216,7 +216,7 @@ export default function CarHomePage() {
           }}
         />
         <Dialog open={open} onOpenChange={setOpen}>
-          <DialogContent aria-label="Add vehicle dialog">
+          <DialogContent mobileLayout="fullscreen" aria-label="Add vehicle dialog">
             <DialogHeader>
               <DialogTitle>Add vehicle</DialogTitle>
             </DialogHeader>
