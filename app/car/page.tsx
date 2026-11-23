@@ -13,14 +13,18 @@ import {
   CardContent,
   Toaster,
 } from '@/components/ui';
-import { Car, Plus, Shield, Upload } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { Car, ChevronRight, Plus, Shield, Upload } from 'lucide-react';
+import { useEffect, useRef, useState, type MouseEvent } from 'react';
 import { useVehicles, useIsAdmin } from '@/hooks';
 import { apiPost } from '@/lib/api/client';
 import { useUiStore } from '@/stores/ui';
 import PageHeader from '@/components/layout/PageHeader';
-import { computeInspectionStatus } from '@/utils';
-import { VehicleListSkeleton } from '@/components/car';
+import {
+  InspectionBadge,
+  LicensePlate,
+  VehicleGrid,
+  VehicleListSkeleton,
+} from '@/components/car/vehicles';
 import { RestoreBackupDialog } from '@/components/car/imports';
 import { toast } from 'sonner';
 import { getUiErrorMessage } from '@/lib/api/client-errors';
@@ -33,19 +37,7 @@ export default function CarHomePage() {
   const [isDemo] = useState<boolean>(() => false);
   const [loading, setLoading] = useState(false);
   const [restoreOpen, setRestoreOpen] = useState(false);
-  const restoreMenuTrigger = useRef<HTMLElement | null>(null);
-  const [vehicles, setVehicles] = useState<
-    Array<{
-      id: string;
-      name: string;
-      make?: string | null;
-      model?: string | null;
-      year?: number | null;
-      licensePlate?: string | null;
-      inspectionDueDate?: string | null;
-      inspectionIntervalMonths?: number | null;
-    }>
-  >([]);
+  const menuTrigger = useRef<HTMLElement | null>(null);
   const { isVehicleDialogOpen: open, setVehicleDialogOpen: setOpen } = useUiStore();
   const [form, setForm] = useState<{
     name: string;
@@ -76,14 +68,12 @@ export default function CarHomePage() {
   const {
     data: vehiclesData,
     isLoading: isVehiclesLoading,
+    isError: isVehiclesError,
     refetch: refetchVehicles,
   } = useVehicles(status === 'authenticated' || isDemo);
+  const vehicles = vehiclesData?.vehicles ?? [];
   const { data: adminData } = useIsAdmin(status === 'authenticated' || isDemo);
   const isAdmin = adminData?.isAdmin === true;
-
-  useEffect(() => {
-    if (vehiclesData?.vehicles) setVehicles(vehiclesData.vehicles);
-  }, [vehiclesData]);
 
   if (status === 'unauthenticated' && !isDemo) {
     return null;
@@ -93,9 +83,20 @@ export default function CarHomePage() {
     return <div className="p-6">Loading...</div>;
   }
 
+  function openFromMenu(event: MouseEvent<HTMLButtonElement>, openDialog: () => void) {
+    menuTrigger.current = event.currentTarget.closest('details')?.querySelector('summary') ?? null;
+    openDialog();
+  }
+
+  function restoreMenuFocus(event: Event) {
+    event.preventDefault();
+    menuTrigger.current?.focus();
+  }
+
   return (
     <div className="min-h-screen bg-canvas">
       <PageHeader
+        surface="canvas"
         title="Car Management"
         icon={<Car className="w-6 h-6" />}
         right={
@@ -105,11 +106,17 @@ export default function CarHomePage() {
               variant="ghost"
               className={recordActionClass}
               aria-haspopup="dialog"
-              onClick={event => {
-                restoreMenuTrigger.current =
-                  event.currentTarget.closest('details')?.querySelector('summary') ?? null;
-                setRestoreOpen(true);
-              }}
+              onClick={event => openFromMenu(event, () => setOpen(true))}
+            >
+              <Plus className="size-5" aria-hidden="true" />
+              Add vehicle
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              className={recordActionClass}
+              aria-haspopup="dialog"
+              onClick={event => openFromMenu(event, () => setRestoreOpen(true))}
             >
               <Upload className="size-5" aria-hidden="true" />
               Restore Backup
@@ -128,81 +135,82 @@ export default function CarHomePage() {
       />
 
       <main className="container mx-auto px-4 py-8">
-        <Card variant="subtle">
-          <CardContent className="!p-4 sm:!p-6">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-              <div className="min-w-0">
-                <h2 className="text-lg font-semibold">Vehicles</h2>
-                <p className="text-sm text-muted-foreground">
-                  Add your first vehicle to start tracking fuel and expenses.
+        <h2 className="text-xl font-semibold">Vehicles</h2>
+        <div className="mt-6" aria-busy={isVehiclesLoading}>
+          {isVehiclesLoading ? (
+            <>
+              <p className="sr-only">Loading vehicles…</p>
+              <VehicleListSkeleton />
+            </>
+          ) : isVehiclesError && !vehiclesData ? (
+            <Card variant="subtle" className="max-w-6xl">
+              <CardContent className="flex flex-wrap items-center justify-between gap-3">
+                <p role="alert" className="text-sm">
+                  Could not load vehicles.
                 </p>
-              </div>
-              <Button className="w-full sm:w-auto" onClick={() => setOpen(true)}>
-                <Plus className="w-4 h-4 mr-2" /> Add vehicle
-              </Button>
-            </div>
-            <div className="mt-6 space-y-3" aria-busy={isVehiclesLoading}>
-              {isVehiclesLoading && <VehicleListSkeleton rows={3} />}
-              {!isVehiclesLoading && vehicles.length === 0 && (
-                <div className="text-sm text-muted-foreground">No vehicles yet.</div>
-              )}
-              {!isVehiclesLoading && vehicles.length > 0 && (
-                <ul className="divide-y">
-                  {vehicles.map(v => (
-                    <li key={v.id}>
-                      <Link
-                        href={`/car/${v.id}`}
-                        className="flex items-center justify-between py-3 px-2 rounded hover:bg-accent focus:outline-none focus:ring-2 focus:ring-ring"
+                <Button variant="outline" onClick={() => refetchVehicles()}>
+                  Retry
+                </Button>
+              </CardContent>
+            </Card>
+          ) : vehicles.length === 0 ? (
+            <Card variant="subtle" className="max-w-6xl">
+              <CardContent className="space-y-1">
+                <p className="font-medium">No vehicles yet.</p>
+                <p className="text-sm text-muted-foreground">
+                  Choose Add vehicle from the menu to start tracking fuel and expenses.
+                </p>
+              </CardContent>
+            </Card>
+          ) : (
+            <VehicleGrid>
+              {vehicles.map(vehicle => {
+                const model = [vehicle.make, vehicle.model, vehicle.year].filter(Boolean).join(' ');
+                return (
+                  <li key={vehicle.id}>
+                    <Link
+                      href={`/car/${vehicle.id}`}
+                      className="group block h-full rounded-xl focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+                    >
+                      <Card
+                        variant="subtle"
+                        className="h-full transition-colors group-hover:bg-accent"
                       >
-                        <div className="min-w-0">
-                          <div className="font-medium truncate">{v.name}</div>
-                          <div className="text-xs text-muted-foreground truncate">
-                            {[v.make, v.model, v.year ?? ''].filter(Boolean).join(' ')}
-                          </div>
-                          {v.licensePlate ? (
-                            <div className="mt-1">
-                              <span className="inline-block rounded-md border bg-background px-2 py-0.5 text-[10px] tracking-widest [letter-spacing:.12em]">
-                                {v.licensePlate.toUpperCase()}
-                              </span>
+                        <CardContent className="flex h-full flex-col gap-4 sm:p-5">
+                          <div className="flex items-start gap-3">
+                            <div className="grid size-10 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
+                              <Car className="size-5" aria-hidden="true" />
                             </div>
-                          ) : null}
-                        </div>
-                        <div className="flex items-center gap-2">
-                          {(() => {
-                            const inspStatus = computeInspectionStatus({
-                              inspectionDueDate: v.inspectionDueDate
-                                ? new Date(v.inspectionDueDate)
-                                : null,
-                              lastInspectionDate: null,
-                              inspectionIntervalMonths: v.inspectionIntervalMonths ?? null,
-                            });
-                            return inspStatus.dueDate ? (
-                              <span
-                                className={
-                                  'inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ' +
-                                  (inspStatus.state === 'overdue'
-                                    ? 'bg-red-100 text-red-800'
-                                    : inspStatus.state === 'dueSoon'
-                                      ? 'bg-amber-100 text-amber-800'
-                                      : 'bg-gray-100 text-gray-700')
-                                }
-                              >
-                                {inspStatus.state === 'overdue'
-                                  ? `-${Math.abs(inspStatus.daysRemaining || 0)}d`
-                                  : `${inspStatus.daysRemaining}d`}
-                              </span>
-                            ) : null;
-                          })()}
-                          <span className="text-sm text-primary">Open</span>
-                        </div>
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          </CardContent>
-        </Card>
+                            <div className="min-w-0 flex-1 wrap-anywhere">
+                              <h3 className="font-semibold">{vehicle.name}</h3>
+                              {model ? (
+                                <p className="text-sm text-muted-foreground">{model}</p>
+                              ) : null}
+                            </div>
+                            <ChevronRight
+                              className="mt-1 size-4 shrink-0 text-muted-foreground group-hover:text-primary"
+                              aria-hidden="true"
+                            />
+                          </div>
+                          <div className="mt-auto flex flex-wrap items-center gap-2">
+                            <LicensePlate
+                              value={vehicle.licensePlate}
+                              className="max-w-full wrap-anywhere"
+                            />
+                            <InspectionBadge
+                              inspectionDueDate={vehicle.inspectionDueDate}
+                              inspectionIntervalMonths={vehicle.inspectionIntervalMonths}
+                            />
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </Link>
+                  </li>
+                );
+              })}
+            </VehicleGrid>
+          )}
+        </div>
 
         <RestoreBackupDialog
           existingVehicles={vehicles.map(v => ({ id: v.id, name: v.name }))}
@@ -210,13 +218,14 @@ export default function CarHomePage() {
           open={restoreOpen}
           onOpenChange={setRestoreOpen}
           hideTrigger
-          onCloseAutoFocus={event => {
-            event.preventDefault();
-            restoreMenuTrigger.current?.focus();
-          }}
+          onCloseAutoFocus={restoreMenuFocus}
         />
         <Dialog open={open} onOpenChange={setOpen}>
-          <DialogContent mobileLayout="fullscreen" aria-label="Add vehicle dialog">
+          <DialogContent
+            mobileLayout="fullscreen"
+            aria-label="Add vehicle dialog"
+            onCloseAutoFocus={restoreMenuFocus}
+          >
             <DialogHeader>
               <DialogTitle>Add vehicle</DialogTitle>
             </DialogHeader>

@@ -19,9 +19,13 @@ for anyone with read access, **Import backup** for owners and editors, and **Edi
 **Delete vehicle** for owners only. Vehicle deletion requires confirmation. Tap or click
 outside the menu to close it. Closing a menu dialog returns focus to **More**.
 
-On the vehicles list, **Add vehicle** is visible and **Restore Backup** is in the
-**⋯** menu. Tap or click outside to close the menu. Closing the restore dialog
-returns focus to **⋯**.
+On the vehicles list, **Add vehicle** and **Restore Backup** are in the **⋯** menu.
+Tap or click outside to close the menu. Closing either dialog returns focus to **⋯**.
+
+The vehicles list shows one linked card per vehicle, with its name, known vehicle
+details, registration plate, and the same inspection status as the vehicle overview.
+Cards use one column on phones and up to three on wider screens. Loading placeholders
+follow the same grid; the first-vehicle prompt only appears when the list is empty.
 
 Manual Mac and iPhone Safari regression check: with Web Inspector closed, open **⋯**
 on the vehicles list and click or tap the **Vehicles** heading once. Then open a
