@@ -85,14 +85,14 @@ function VehicleExpenseList({ vehicleId }: { vehicleId: string }) {
     );
 
   return withEditor(
-    <div className="space-y-2">
+    <div className="@container/expenses space-y-2">
       <div className="text-xs text-gray-500">Total: {formatCurrency(total)}</div>
       <table
         role="table"
         aria-label="Expense records"
-        className="block w-full text-left text-sm lg:table lg:table-fixed"
+        className="block w-full text-left text-sm @min-[56rem]/expenses:table @min-[56rem]/expenses:table-fixed"
       >
-        <thead role="rowgroup" className="hidden lg:table-header-group">
+        <thead role="rowgroup" className="hidden @min-[56rem]/expenses:table-header-group">
           <tr
             role="row"
             className="bg-muted text-left text-xs text-muted-foreground [&>th]:px-2 [&>th]:py-2 [&>th]:font-medium"
@@ -100,16 +100,16 @@ function VehicleExpenseList({ vehicleId }: { vehicleId: string }) {
             <th role="columnheader" scope="col" className="w-28">
               Date
             </th>
-            <th role="columnheader" scope="col" className="w-40">
+            <th role="columnheader" scope="col" className="w-32">
               Odometer / oil
             </th>
-            <th role="columnheader" scope="col" className="w-1/4">
-              Category / vendor
+            <th role="columnheader" scope="col" className="w-[clamp(12rem,25cqw,22rem)]">
+              Vendor / category
             </th>
             <th role="columnheader" scope="col">
               Notes
             </th>
-            <th role="columnheader" scope="col" className="w-28">
+            <th role="columnheader" scope="col" className="w-40 text-right">
               Amount
             </th>
             {canWrite ? (
@@ -119,12 +119,15 @@ function VehicleExpenseList({ vehicleId }: { vehicleId: string }) {
             ) : null}
           </tr>
         </thead>
-        <tbody role="rowgroup" className="block space-y-2 lg:table-row-group lg:space-y-0">
+        <tbody
+          role="rowgroup"
+          className="block space-y-2 @min-[56rem]/expenses:table-row-group @min-[56rem]/expenses:space-y-0"
+        >
           {items.map(e => (
             <tr
               role="row"
               key={e.id}
-              className="grid grid-cols-[minmax(0,1fr)_auto] gap-2 rounded-lg border border-slate-200 px-3 py-3 dark:border-border lg:table-row lg:rounded-none lg:border-x-0 lg:border-b-0 lg:whitespace-nowrap lg:[&>td]:px-2"
+              className="grid grid-cols-[minmax(0,1fr)_auto] gap-2 rounded-lg border border-slate-200 px-3 py-3 dark:border-border @min-[56rem]/expenses:table-row @min-[56rem]/expenses:rounded-none @min-[56rem]/expenses:border-x-0 @min-[56rem]/expenses:border-b-0 @min-[56rem]/expenses:[&>td]:px-2"
             >
               <td role="cell" className="col-start-1 row-start-1 min-w-0">
                 <RecordSummaryButton
@@ -136,45 +139,51 @@ function VehicleExpenseList({ vehicleId }: { vehicleId: string }) {
               </td>
               <td
                 role="cell"
-                className={`col-span-full min-w-0 text-muted-foreground lg:table-cell lg:tabular-nums ${e.oilConsumption == null ? 'hidden' : ''}`}
+                className={`col-span-full min-w-0 py-1 text-muted-foreground tabular-nums @min-[56rem]/expenses:table-cell ${e.oilConsumption == null ? 'hidden' : ''}`}
               >
-                <span className="lg:block lg:truncate">
-                  {e.odometerKm != null ? (
-                    <span className="hidden lg:inline">{e.odometerKm} km</span>
-                  ) : null}
-                  {e.oilConsumption != null ? (
-                    <span className="text-xs text-amber-600 lg:ml-2">
-                      {e.oilConsumption.toFixed(1)} L/10k
-                    </span>
-                  ) : null}
-                  {e.odometerKm == null && e.oilConsumption == null ? '—' : null}
-                </span>
+                {e.odometerKm != null ? (
+                  <span className="hidden whitespace-nowrap @min-[56rem]/expenses:block">
+                    {e.odometerKm} km
+                  </span>
+                ) : null}
+                {e.oilConsumption != null ? (
+                  <span className="block text-xs whitespace-nowrap text-amber-600">
+                    {e.oilConsumption.toFixed(1)} L/10k
+                  </span>
+                ) : null}
+                {e.odometerKm == null && e.oilConsumption == null ? '—' : null}
               </td>
-              <td role="cell" className="col-span-full min-w-0 lg:table-cell">
-                <span className="block wrap-anywhere text-xs text-muted-foreground lg:truncate lg:text-sm lg:text-foreground">
-                  {e.category.replace(/_/g, ' ')}
-                  {e.vendor ? ` · ${e.vendor}` : ''}
-                </span>
+              <td role="cell" className="col-span-full min-w-0 py-1 wrap-anywhere">
+                <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                  {e.vendor ? <span>{e.vendor}</span> : null}
+                  <span className={e.vendor ? 'text-xs text-muted-foreground' : undefined}>
+                    {e.vendor ? <span aria-hidden="true">· </span> : null}
+                    {e.category.replace(/_/g, ' ')}
+                  </span>
+                </div>
               </td>
               <td
                 role="cell"
-                className={`order-last col-span-full min-w-0 lg:table-cell ${e.notes ? '' : 'hidden'}`}
+                className={`order-last col-span-full min-w-0 @min-[56rem]/expenses:table-cell ${e.notes ? '' : 'hidden'}`}
               >
                 {e.notes ? (
-                  <span className="line-clamp-2 break-words text-xs text-muted-foreground sm:line-clamp-1 lg:block lg:truncate">
+                  <span className="line-clamp-2 wrap-anywhere text-xs text-muted-foreground @min-[56rem]/expenses:block @min-[56rem]/expenses:truncate">
                     {e.notes}
                   </span>
                 ) : (
                   <span className="text-muted-foreground">—</span>
                 )}
               </td>
-              <td role="cell" className="col-span-full min-w-0 font-semibold lg:tabular-nums">
+              <td
+                role="cell"
+                className="col-span-full min-w-0 font-semibold whitespace-nowrap tabular-nums @min-[56rem]/expenses:text-right"
+              >
                 {formatCurrency(e.amount)}
               </td>
               {canWrite ? (
                 <td
                   role="cell"
-                  className="col-start-2 row-start-1 lg:[&>details]:mx-auto lg:[&>details]:w-11"
+                  className="col-start-2 row-start-1 @min-[56rem]/expenses:[&>details]:mx-auto @min-[56rem]/expenses:[&>details]:w-11"
                 >
                   <RecordActions
                     label={`Expense actions for ${formatDateFi(new Date(e.date))}`}

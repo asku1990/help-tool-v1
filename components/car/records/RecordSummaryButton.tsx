@@ -33,7 +33,11 @@ export function RecordSummaryButton(props: Props & { onOpen: (_trigger: HTMLElem
         <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
       </span>
       {props.item.odometerKm != null && (
-        <span className="max-w-full wrap-anywhere text-xs text-muted-foreground lg:hidden">
+        <span
+          className={`max-w-full wrap-anywhere text-xs text-muted-foreground ${
+            props.type === 'fillup' ? '@min-[56rem]/fillups:hidden' : '@min-[56rem]/expenses:hidden'
+          }`}
+        >
           {odometer}
         </span>
       )}

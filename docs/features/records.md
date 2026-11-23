@@ -105,20 +105,24 @@ save errors, and Save/Cancel actions; `ExpenseDialog` and `FillUpDialog` supply 
 draft validation, and save requests. Both render
 `RecordAttachments` and use record data already loaded by the list.
 
-On mobile, each entry is outlined and spaced from the next. The date and summary align
+In card layout, each entry is outlined and spaced from the next. The date and summary align
 with the rest of the entry, the **⋯** menu stays at the top right, and the remaining
-details use the full width underneath. On desktop, both lists are tables with visible
-column headings aligned to the start of each cell, one line per record, and a narrow actions
-column. Odometer follows Date in both lists, before the expense category. Readings
+details use the full width underneath. With enough space, both lists are tables with visible
+column headings and a narrow actions column. Odometer follows Date in both lists,
+before the expense vendor and category. Readings
 include `km` and are part of the Details button’s accessible name. Missing values are
-marked with a dash on desktop without shifting other columns.
-The lists retain their existing values. Note previews use at most two lines on mobile
-and one on desktop; Details keeps the full notes. Long fuel purchase and odometer/oil
-previews truncate on desktop; open Details from the date to see the full values.
+marked with a dash in the table without shifting other columns.
+Both lists switch between a table and cards based on their available width.
+Fuel purchase shows the total first and wraps the quantity and unit price as needed.
+The tank status and odometer stay readable; notes use the remaining table space.
+Note previews use at most two lines in cards and one in the table;
+Details keeps the full notes.
 Fill-up status and consumption figures are outside the note preview and remain visible.
-Expenses without odometer or oil-consumption values do not render an empty metrics row;
-numeric zero is still shown and amounts stay aligned on desktop. Attachment counts remain
-separate work.
+Expenses without odometer or oil-consumption values do not render an empty metrics line in
+cards; numeric zero is still shown. The vendor appears first, followed by a smaller category
+label that can wrap. If there is no vendor, the category is the main text.
+Amounts remain fully visible and right-aligned in the table.
+Attachment counts remain separate work.
 
 ## Editing a Saved Record
 
