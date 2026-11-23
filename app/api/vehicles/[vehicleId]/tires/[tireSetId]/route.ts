@@ -5,6 +5,7 @@ import prisma from '@/lib/db';
 import { badRequest, notFound, ok, serverError, unauthorized } from '@/lib/api/response';
 import { logger } from '@/lib/logger';
 import { getSessionUserId, getVehicleAccess, hasPermission } from '@/lib/api/vehicle-access';
+import { rateLimitTireRequest } from '../rateLimitTireRequest';
 
 type RouteContext = { params: Promise<{ vehicleId: string; tireSetId: string }> };
 
@@ -18,8 +19,10 @@ async function getVehicleAndTireSet(vehicleId: string, tireSetId: string, userId
   return { vehicle: access.vehicle, tireSet, role: access.role };
 }
 
-export async function GET(_req: NextRequest, context: RouteContext) {
+export async function GET(req: NextRequest, context: RouteContext) {
   try {
+    const limited = rateLimitTireRequest(req);
+    if (limited) return limited;
     const session = await auth();
     const userId = await getSessionUserId(session);
     if (!userId) return unauthorized();
@@ -58,6 +61,8 @@ const UpdateTireSetSchema = z.object({
 
 export async function PATCH(req: NextRequest, context: RouteContext) {
   try {
+    const limited = rateLimitTireRequest(req);
+    if (limited) return limited;
     const session = await auth();
     const userId = await getSessionUserId(session);
     if (!userId) return unauthorized();
@@ -88,22 +93,37 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
       });
     }
 
+    const data = {
+      name,
+      type,
+      status,
+      purchaseDate: purchaseDate
+        ? new Date(purchaseDate)
+        : purchaseDate === null
+          ? null
+          : undefined,
+      notes,
+    };
+
+    if (status === 'STORED' || status === 'RETIRED') {
+      const { count } = await prisma.tireSet.updateMany({
+        where: { id: tireSetId, vehicleId: vehicle.id, status: { not: 'ACTIVE' } },
+        data,
+      });
+      if (!count) {
+        return badRequest(
+          'TIRE_SET_MOUNTED',
+          'Mount another set before storing or retiring this one.'
+        );
+      }
+      return ok({ id: tireSetId });
+    }
+
     const updated = await prisma.tireSet.update({
-      where: { id: tireSetId },
-      data: {
-        name: name ?? undefined,
-        type: type ?? undefined,
-        status: status ?? undefined,
-        purchaseDate: purchaseDate
-          ? new Date(purchaseDate)
-          : purchaseDate === null
-            ? null
-            : undefined,
-        notes: notes !== undefined ? notes : undefined,
-      },
+      where: { id: tireSetId, vehicleId: vehicle.id },
+      data,
       select: { id: true },
     });
-
     return ok({ id: updated.id });
   } catch (error) {
     logger.error('PATCH /api/vehicles/[vehicleId]/tires/[tireSetId] failed', { error });
@@ -111,8 +131,10 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
   }
 }
 
-export async function DELETE(_req: NextRequest, context: RouteContext) {
+export async function DELETE(req: NextRequest, context: RouteContext) {
   try {
+    const limited = rateLimitTireRequest(req);
+    if (limited) return limited;
     const session = await auth();
     const userId = await getSessionUserId(session);
     if (!userId) return unauthorized();
@@ -123,9 +145,20 @@ export async function DELETE(_req: NextRequest, context: RouteContext) {
     if (!vehicle || !role || !hasPermission(role, 'write')) return notFound('Vehicle not found');
     if (!tireSet) return notFound('Tire set not found');
 
-    await prisma.tireSet.delete({
-      where: { id: tireSetId },
+    const { count } = await prisma.tireSet.deleteMany({
+      where: {
+        id: tireSetId,
+        vehicleId: vehicle.id,
+        status: { not: 'ACTIVE' },
+        changeLogs: { none: {} },
+      },
     });
+    if (!count) {
+      return badRequest(
+        'TIRE_SET_IN_USE',
+        'Mounted sets and sets with tire change history cannot be deleted.'
+      );
+    }
 
     return ok({ id: tireSetId });
   } catch (error) {

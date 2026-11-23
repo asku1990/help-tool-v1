@@ -1,11 +1,11 @@
-import { escapeCsvField, sanitizeForFilename } from '../csv';
+import { escapeSpreadsheetField, sanitizeForFilename } from '../csv';
 
 describe('export helpers', () => {
-  it('quotes fields that contain separators or quotes', () => {
-    const input = 'Value;with"special\r\nchars';
-    const expected = '"Value;with""special\r\nchars"';
-    expect(escapeCsvField(input)).toBe(expected);
-    expect(escapeCsvField('plain')).toBe('plain');
+  it('quotes text fields and escapes embedded quotes', () => {
+    const input = 'Value,with"special\r\nchars';
+    const expected = '"Value,with""special\r\nchars"';
+    expect(escapeSpreadsheetField(input)).toBe(expected);
+    expect(escapeSpreadsheetField('plain')).toBe('"plain"');
   });
 
   it('sanitizes filenames by removing unsafe characters', () => {

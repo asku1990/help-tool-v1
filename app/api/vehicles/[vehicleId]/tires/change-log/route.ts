@@ -3,18 +3,21 @@ import { auth } from '@/auth';
 import prisma from '@/lib/db';
 import { z } from 'zod';
 import { ok, created, unauthorized, notFound, badRequest, serverError } from '@/lib/api/response';
-import { checkRateLimit, rateLimitHeaders, rateLimitKey } from '@/lib/api/rate-limit';
 import { logger } from '@/lib/logger';
 import { getSessionUserId, getVehicleAccess, hasPermission } from '@/lib/api/vehicle-access';
+import { rateLimitTireRequest } from '../rateLimitTireRequest';
+import {
+  latestTireChange,
+  newestChangeFirst,
+  OdometerOrderError,
+  odometerOrderResponse,
+  reconcileTireTimeline,
+} from '../timeline';
 
 export async function GET(req: NextRequest, context: { params: Promise<{ vehicleId: string }> }) {
   try {
-    const rl = checkRateLimit(rateLimitKey(req));
-    if (!rl.allowed)
-      return serverError('Rate limit exceeded', undefined, {
-        status: 429,
-        headers: rateLimitHeaders(rl.retryAfterMs),
-      });
+    const limited = rateLimitTireRequest(req);
+    if (limited) return limited;
     const session = await auth();
     const userId = await getSessionUserId(session);
     if (!userId) {
@@ -29,7 +32,7 @@ export async function GET(req: NextRequest, context: { params: Promise<{ vehicle
 
     const history = await prisma.tireChangeLog.findMany({
       where: { vehicleId: vehicle.id },
-      orderBy: { date: 'desc' },
+      orderBy: newestChangeFirst,
       include: {
         tireSet: true,
       },
@@ -44,19 +47,15 @@ export async function GET(req: NextRequest, context: { params: Promise<{ vehicle
 
 const LogTireChangeSchema = z.object({
   tireSetId: z.string().uuid(),
-  date: z.string().min(1),
-  odometerKm: z.number().int(),
+  date: z.iso.date(),
+  odometerKm: z.number().int().min(0).max(2_147_483_647).nullish(),
   notes: z.string().optional(),
 });
 
 export async function POST(req: NextRequest, context: { params: Promise<{ vehicleId: string }> }) {
   try {
-    const rl = checkRateLimit(rateLimitKey(req));
-    if (!rl.allowed)
-      return serverError('Rate limit exceeded', undefined, {
-        status: 429,
-        headers: rateLimitHeaders(rl.retryAfterMs),
-      });
+    const limited = rateLimitTireRequest(req);
+    if (limited) return limited;
     const session = await auth();
     const userId = await getSessionUserId(session);
     if (!userId) {
@@ -86,56 +85,29 @@ export async function POST(req: NextRequest, context: { params: Promise<{ vehicl
       );
     }
 
-    // Find the currently active tire set and its last change log
-    const activeTireSet = await prisma.tireSet.findFirst({
-      where: { vehicleId: vehicle.id, status: 'ACTIVE' },
-      include: {
-        changeLogs: {
-          orderBy: { date: 'desc' },
-          take: 1,
-        },
-      },
-    });
-
-    // Calculate km driven on the previously active tire and update its totalKm
-    if (activeTireSet && activeTireSet.changeLogs.length > 0) {
-      const lastMountOdometer = activeTireSet.changeLogs[0].odometerKm;
-      const kmDriven = odometerKm - lastMountOdometer;
-      if (kmDriven > 0) {
-        await prisma.tireSet.update({
-          where: { id: activeTireSet.id },
-          data: { totalKm: { increment: kmDriven } },
+    const log = await prisma.$transaction(
+      async tx => {
+        const previous = await latestTireChange(tx, vehicle.id);
+        const entry = await tx.tireChangeLog.create({
+          data: {
+            vehicleId: vehicle.id,
+            tireSetId,
+            date: new Date(date),
+            odometerKm: odometerKm ?? null,
+            odometerConfirmed: odometerKm != null,
+            notes: notes || undefined,
+          },
+          select: { id: true },
         });
-      }
-    }
-
-    const log = await prisma.tireChangeLog.create({
-      data: {
-        vehicleId: vehicle.id,
-        tireSetId,
-        date: new Date(date),
-        odometerKm,
-        notes: notes || undefined,
+        await reconcileTireTimeline(tx, vehicle.id, previous?.tireSetId, entry.id);
+        return entry;
       },
-      select: { id: true },
-    });
-
-    // Update tire set statuses: mounted set becomes ACTIVE, all others (except RETIRED) become STORED
-    await prisma.tireSet.updateMany({
-      where: {
-        vehicleId: vehicle.id,
-        id: { not: tireSetId },
-        status: { not: 'RETIRED' },
-      },
-      data: { status: 'STORED' },
-    });
-    await prisma.tireSet.update({
-      where: { id: tireSetId },
-      data: { status: 'ACTIVE' },
-    });
+      { isolationLevel: 'Serializable' }
+    );
 
     return created({ id: log.id });
   } catch (error) {
+    if (error instanceof OdometerOrderError) return odometerOrderResponse();
     logger.error('POST /api/vehicles/[vehicleId]/tires/change-log failed', { error });
     return serverError();
   }

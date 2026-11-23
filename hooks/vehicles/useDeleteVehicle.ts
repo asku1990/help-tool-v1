@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { expenseKeys, fillUpKeys, vehicleKeys } from '@/queries/keys';
+import { expenseKeys, fillUpKeys, tireKeys, vehicleKeys } from '@/queries/keys';
 import { deleteVehicle } from '@/queries/vehicles';
 
 export function useDeleteVehicle(vehicleId: string) {
@@ -12,8 +12,8 @@ export function useDeleteVehicle(vehicleId: string) {
       qc.removeQueries({ queryKey: fillUpKeys.infiniteByVehicle(vehicleId) });
       qc.removeQueries({ queryKey: expenseKeys.byVehicle(vehicleId) });
       qc.removeQueries({ queryKey: expenseKeys.infiniteByVehicle(vehicleId) });
-      qc.removeQueries({ queryKey: ['tires', vehicleId] });
-      qc.removeQueries({ queryKey: ['tireChangeHistory', vehicleId] });
+      qc.removeQueries({ queryKey: tireKeys.sets(vehicleId) });
+      qc.removeQueries({ queryKey: tireKeys.history(vehicleId) });
 
       qc.invalidateQueries({ queryKey: vehicleKeys.list() });
     },

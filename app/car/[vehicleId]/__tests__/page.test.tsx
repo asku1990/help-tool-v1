@@ -65,6 +65,23 @@ it('renders vehicle header and lists', async () => {
   expect(screen.getByText('Lifetime cost per km')).toBeInTheDocument();
 });
 
+it('shows a mounted-tire summary and links to tire management without inline write controls', async () => {
+  server.use(
+    http.get('/api/vehicles/v1/tires', () =>
+      HttpResponse.json({
+        data: { tireSets: [{ id: 't1', name: 'Nokian Winter', status: 'ACTIVE' }] },
+      })
+    )
+  );
+  renderWithProviders(<VehiclePage />);
+  expect(await screen.findByText('Nokian Winter mounted')).toBeVisible();
+  expect(screen.getByRole('link', { name: 'Manage tires' })).toHaveAttribute(
+    'href',
+    '/car/v1/tires'
+  );
+  expect(screen.queryByRole('button', { name: /add (tire )?set/i })).not.toBeInTheDocument();
+});
+
 it('switches between the fill-up list and chart and announces the selected view', async () => {
   renderWithProviders(<VehiclePage />);
   const views = within(screen.getByRole('group', { name: 'Fill-up view' }));
@@ -160,7 +177,7 @@ it.each([
   const menu = await screen.findByRole('button', { name: 'More vehicle actions' });
 
   fireEvent.click(menu);
-  const download = screen.getByRole('link', { name: 'Download backup' });
+  const download = screen.getByRole('link', { name: 'Download for spreadsheet' });
   fireEvent.touchStart(download);
   expect(menu).toHaveAttribute('aria-expanded', 'true');
 
@@ -172,68 +189,50 @@ it.each([
 it.each([
   ['owner', true],
   ['editor', false],
-])('keeps logging visible and moves backup actions into the menu for an %s', async (_, canEdit) => {
-  const clearRecords = vi.fn(() => HttpResponse.json({ data: {} }));
-  server.use(
-    http.get('/api/vehicles/:vehicleId', () =>
-      HttpResponse.json({
-        data: { vehicle: { id: 'v1', name: 'Car A', canEdit, canWrite: true } },
-      })
-    ),
-    http.delete('/api/vehicles/v1/clear', clearRecords),
-    http.post('/api/vehicles/v1/fillups', () => HttpResponse.json({}, { status: 500 }))
-  );
-  renderWithProviders(<VehiclePage />);
-  const controls = within(await screen.findByRole('group', { name: 'Vehicle controls' }));
-  const fillUp = controls.getByRole('button', { name: 'Add fill-up' });
-  expect(fillUp).toBeVisible();
-  expect(controls.getByRole('button', { name: 'Add expense' })).toBeVisible();
-  expect(screen.queryByRole('link', { name: 'Download backup' })).not.toBeInTheDocument();
-  expect(screen.queryByRole('button', { name: 'Import backup' })).not.toBeInTheDocument();
-  expect(screen.queryByRole('button', { name: 'Delete vehicle' })).not.toBeInTheDocument();
-
-  fireEvent.click(fillUp);
-  const fillUpDialog = await screen.findByRole('dialog', { name: 'Add fill-up' });
-  fireEvent.click(within(fillUpDialog).getByRole('button', { name: 'Close' }));
-  await waitFor(() => expect(fillUp).toHaveFocus());
-
-  const menu = controls.getByRole('button', { name: 'More vehicle actions' });
-  expect(menu).toHaveTextContent('More');
-  fireEvent.click(menu);
-  expect(screen.getByRole('link', { name: 'Download backup' })).toHaveAttribute(
-    'href',
-    '/api/vehicles/v1/export'
-  );
-  expect(screen.getByRole('link', { name: 'Download for spreadsheet' })).toHaveAttribute(
-    'href',
-    '/api/vehicles/v1/export?format=spreadsheet'
-  );
-  if (canEdit) {
-    fireEvent.click(screen.getByRole('button', { name: 'Delete vehicle' }));
-    const confirmation = await screen.findByRole('dialog', { name: 'Delete vehicle' });
-    fireEvent.click(within(confirmation).getByRole('button', { name: 'Cancel' }));
-    await waitFor(() => expect(menu).toHaveFocus());
-    fireEvent.click(menu);
-  } else {
+])(
+  'keeps logging visible and offers spreadsheet export without backup actions for an %s',
+  async (_, canEdit) => {
+    server.use(
+      http.get('/api/vehicles/:vehicleId', () =>
+        HttpResponse.json({
+          data: { vehicle: { id: 'v1', name: 'Car A', canEdit, canWrite: true } },
+        })
+      )
+    );
+    renderWithProviders(<VehiclePage />);
+    const controls = within(await screen.findByRole('group', { name: 'Vehicle controls' }));
+    const fillUp = controls.getByRole('button', { name: 'Add fill-up' });
+    expect(fillUp).toBeVisible();
+    expect(controls.getByRole('button', { name: 'Add expense' })).toBeVisible();
+    expect(
+      screen.queryByRole('link', { name: 'Download for spreadsheet' })
+    ).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Delete vehicle' })).not.toBeInTheDocument();
+
+    fireEvent.click(fillUp);
+    const fillUpDialog = await screen.findByRole('dialog', { name: 'Add fill-up' });
+    fireEvent.click(within(fillUpDialog).getByRole('button', { name: 'Close' }));
+    await waitFor(() => expect(fillUp).toHaveFocus());
+
+    const menu = controls.getByRole('button', { name: 'More vehicle actions' });
+    expect(menu).toHaveTextContent('More');
+    fireEvent.click(menu);
+    expect(screen.queryByRole('link', { name: 'Download backup' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Import backup' })).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Download for spreadsheet' })).toHaveAttribute(
+      'href',
+      '/api/vehicles/v1/export'
+    );
+    if (canEdit) {
+      fireEvent.click(screen.getByRole('button', { name: 'Delete vehicle' }));
+      const confirmation = await screen.findByRole('dialog', { name: 'Delete vehicle' });
+      fireEvent.click(within(confirmation).getByRole('button', { name: 'Cancel' }));
+      await waitFor(() => expect(menu).toHaveFocus());
+    } else {
+      expect(screen.queryByRole('button', { name: 'Delete vehicle' })).not.toBeInTheDocument();
+    }
   }
-  fireEvent.click(screen.getByRole('button', { name: 'Import backup' }));
-  const backup = await screen.findByRole('dialog', { name: 'Import Backup' });
-  expect(menu).toHaveAttribute('aria-expanded', 'false');
-  fireEvent.change(within(backup).getByLabelText('Or paste CSV content'), {
-    target: {
-      value:
-        '[FILLUPS]\nId;Date;OdometerKm;Liters;PricePerLiter;TotalCost;IsFull;Notes\nf1;2025-01-15;10000;45.5;1.65;75.08;1;Full tank',
-    },
-  });
-  fireEvent.click(within(backup).getByRole('button', { name: 'Parse' }));
-  expect(within(backup).queryByRole('checkbox', { name: /clear existing data/i })).toBeNull();
-  fireEvent.click(within(backup).getByRole('button', { name: 'Import' }));
-  expect(await within(backup).findByText('Error: Imported 0/1 fill-ups; 1 failed')).toBeVisible();
-  expect(clearRecords).not.toHaveBeenCalled();
-  fireEvent.click(within(backup).getByRole('button', { name: 'Cancel' }));
-  await waitFor(() => expect(menu).toHaveFocus());
-});
+);
 
 it('opens read-only vehicle details from the name and restores focus to it', async () => {
   server.use(

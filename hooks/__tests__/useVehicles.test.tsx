@@ -1,6 +1,7 @@
 import React from 'react';
 import { renderHook, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { tireKeys } from '@/queries/keys';
 import {
   useVehicles,
   useCreateVehicle,
@@ -49,14 +50,31 @@ it('useUpdateVehicle triggers PATCH and invalidation', async () => {
   vi.restoreAllMocks();
 });
 
-it('useDeleteVehicle triggers DELETE and invalidation', async () => {
-  vi.spyOn(global, 'fetch').mockResolvedValue(
+it('useDeleteVehicle removes only the deleted vehicle’s cached tire data', async () => {
+  const request = vi.spyOn(global, 'fetch').mockResolvedValue(
     new Response(JSON.stringify({ data: { id: 'v1' } }), {
       status: 200,
       headers: { 'Content-Type': 'application/json' },
     })
   );
-  const { result } = renderHook(() => useDeleteVehicle('v1'), { wrapper });
+  const client = new QueryClient();
+  for (const id of ['v1', 'v2']) {
+    client.setQueryData(tireKeys.sets(id), { tireSets: [] });
+    client.setQueryData(tireKeys.history(id), { history: [] });
+  }
+  const { result } = renderHook(() => useDeleteVehicle('v1'), {
+    wrapper: ({ children }) => (
+      <QueryClientProvider client={client}>{children}</QueryClientProvider>
+    ),
+  });
   await result.current.mutateAsync();
+  expect(request).toHaveBeenCalledWith(
+    '/api/vehicles/v1',
+    expect.objectContaining({ method: 'DELETE' })
+  );
+  expect(client.getQueryData(tireKeys.sets('v1'))).toBeUndefined();
+  expect(client.getQueryData(tireKeys.history('v1'))).toBeUndefined();
+  expect(client.getQueryData(tireKeys.sets('v2'))).toEqual({ tireSets: [] });
+  expect(client.getQueryData(tireKeys.history('v2'))).toEqual({ history: [] });
   vi.restoreAllMocks();
 });

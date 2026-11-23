@@ -76,19 +76,6 @@ for (const width of [320, 402, 1280]) {
 
     const more = page.getByRole('button', { name: 'More vehicle actions' });
     await more.tap();
-    await page.getByRole('button', { name: 'Import backup', exact: true }).tap();
-    await checkTaskLayout();
-    const tireRows = Array.from({ length: 30 }, (_, i) => `ts${i};Tire ${i};SUMMER;STORED`);
-    await dialog
-      .getByLabel('Or paste CSV content')
-      .fill(['[TIRE_SETS]', 'Id;Name;Type;Status', ...tireRows].join('\n'));
-    await dialog.getByRole('button', { name: 'Parse', exact: true }).tap();
-    await expect(dialog.getByRole('row', { name: /Tire 29/ })).toBeAttached();
-    await dialog.getByRole('row', { name: /Tire 29/ }).scrollIntoViewIfNeeded();
-    await expect(dialog.getByRole('row', { name: /Tire 29/ })).toBeInViewport();
-    await dialog.getByRole('button', { name: 'Cancel' }).tap();
-
-    await more.tap();
     await page.getByRole('button', { name: 'Delete vehicle', exact: true }).tap();
     await expect(dialog).toHaveCSS('border-top-left-radius', '10px');
     expect((await dialog.boundingBox())?.width).toBeLessThan(width);

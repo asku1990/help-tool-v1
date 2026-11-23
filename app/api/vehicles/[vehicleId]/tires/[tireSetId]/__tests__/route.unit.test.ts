@@ -1,11 +1,18 @@
 // @vitest-environment node
 import { describe, it, expect, vi, beforeEach, type Mock } from 'vitest';
 import { NextRequest } from 'next/server';
+import { auth as authenticate } from '@/auth';
+import { checkRateLimit } from '@/lib/api/rate-limit';
+
+vi.mock('@/lib/api/rate-limit', async importOriginal => ({
+  ...(await importOriginal<typeof import('@/lib/api/rate-limit')>()),
+  checkRateLimit: vi.fn(() => ({ allowed: true })),
+}));
 
 vi.mock('@/lib/db', () => ({
   default: {
     vehicle: { findFirst: vi.fn() },
-    tireSet: { findFirst: vi.fn(), update: vi.fn(), updateMany: vi.fn(), delete: vi.fn() },
+    tireSet: { findFirst: vi.fn(), update: vi.fn(), updateMany: vi.fn(), deleteMany: vi.fn() },
   },
 }));
 
@@ -15,8 +22,24 @@ vi.mock('@/auth', () => ({
 
 type PrismaMock = {
   vehicle: { findFirst: Mock };
-  tireSet: { findFirst: Mock; update: Mock; updateMany: Mock; delete: Mock };
+  tireSet: { findFirst: Mock; update: Mock; updateMany: Mock; deleteMany: Mock };
 };
+
+it.each(['GET', 'PATCH', 'DELETE'] as const)(
+  'rate limits %s before accessing tire set data',
+  async method => {
+    vi.clearAllMocks();
+    vi.mocked(checkRateLimit).mockReturnValueOnce({ allowed: false, retryAfterMs: 1500 });
+    const handlers = await import('../route');
+    const req = new NextRequest('http://localhost/api/vehicles/v1/tires/t1', { method });
+    const response = await handlers[method](req, {
+      params: Promise.resolve({ vehicleId: 'v1', tireSetId: 't1' }),
+    });
+    expect(response.status).toBe(429);
+    expect(response.headers.get('Retry-After')).toBe('2');
+    expect(authenticate).not.toHaveBeenCalled();
+  }
+);
 
 describe('GET /api/vehicles/[vehicleId]/tires/[tireSetId]', () => {
   beforeEach(() => vi.clearAllMocks());
@@ -166,6 +189,28 @@ describe('PATCH /api/vehicles/[vehicleId]/tires/[tireSetId]', () => {
     expect(response.status).toBe(200);
     expect(prisma.tireSet.update).toHaveBeenCalled();
   });
+
+  it.each(['STORED', 'RETIRED'])('refuses to move a mounted set to %s', async status => {
+    const { default: prisma } = (await import('@/lib/db')) as unknown as { default: PrismaMock };
+    prisma.vehicle.findFirst.mockResolvedValueOnce({ id: 'v1' });
+    prisma.tireSet.findFirst.mockResolvedValueOnce({ id: 't1', status: 'ACTIVE' });
+    prisma.tireSet.updateMany.mockResolvedValueOnce({ count: 0 });
+
+    const { PATCH } = await import('../route');
+    const req = new NextRequest('http://localhost/api/vehicles/v1/tires/t1', {
+      method: 'PATCH',
+      body: JSON.stringify({ status }),
+    });
+    const response = await PATCH(req, {
+      params: Promise.resolve({ vehicleId: 'v1', tireSetId: 't1' }),
+    });
+    expect(response.status).toBe(400);
+    expect(prisma.tireSet.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: 't1', vehicleId: 'v1', status: { not: 'ACTIVE' } },
+      })
+    );
+  });
 });
 
 describe('DELETE /api/vehicles/[vehicleId]/tires/[tireSetId]', () => {
@@ -204,7 +249,7 @@ describe('DELETE /api/vehicles/[vehicleId]/tires/[tireSetId]', () => {
     const { default: prisma } = (await import('@/lib/db')) as unknown as { default: PrismaMock };
     prisma.vehicle.findFirst.mockResolvedValueOnce({ id: 'v1' });
     prisma.tireSet.findFirst.mockResolvedValueOnce({ id: 't1' });
-    prisma.tireSet.delete.mockResolvedValueOnce({ id: 't1' });
+    prisma.tireSet.deleteMany.mockResolvedValueOnce({ count: 1 });
 
     const { DELETE } = await import('../route');
     const req = new NextRequest('http://localhost/api/vehicles/v1/tires/t1', {
@@ -217,6 +262,23 @@ describe('DELETE /api/vehicles/[vehicleId]/tires/[tireSetId]', () => {
 
     expect(response.status).toBe(200);
     expect(data.data.id).toBe('t1');
-    expect(prisma.tireSet.delete).toHaveBeenCalledWith({ where: { id: 't1' } });
+    expect(prisma.tireSet.deleteMany).toHaveBeenCalledWith({
+      where: { id: 't1', vehicleId: 'v1', status: { not: 'ACTIVE' }, changeLogs: { none: {} } },
+    });
+  });
+
+  it('rejects deletion when the set is mounted or has change history', async () => {
+    const { default: prisma } = (await import('@/lib/db')) as unknown as { default: PrismaMock };
+    prisma.vehicle.findFirst.mockResolvedValueOnce({ id: 'v1' });
+    prisma.tireSet.findFirst.mockResolvedValueOnce({ id: 't1' });
+    prisma.tireSet.deleteMany.mockResolvedValueOnce({ count: 0 });
+    const { DELETE } = await import('../route');
+    const req = new NextRequest('http://localhost/api/vehicles/v1/tires/t1');
+    const response = await DELETE(req, {
+      params: Promise.resolve({ vehicleId: 'v1', tireSetId: 't1' }),
+    });
+
+    expect(response.status).toBe(400);
+    expect(await response.json()).toMatchObject({ error: { code: 'TIRE_SET_IN_USE' } });
   });
 });

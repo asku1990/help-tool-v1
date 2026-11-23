@@ -5,9 +5,10 @@ import { NextRequest } from 'next/server';
 // Mock modules before importing the route
 vi.mock('@/lib/db', () => ({
   default: {
+    $transaction: vi.fn(),
     vehicle: { findFirst: vi.fn() },
     tireSet: { findFirst: vi.fn(), updateMany: vi.fn(), update: vi.fn() },
-    tireChangeLog: { findMany: vi.fn(), create: vi.fn() },
+    tireChangeLog: { findFirst: vi.fn(), findMany: vi.fn(), create: vi.fn() },
   },
 }));
 
@@ -22,9 +23,10 @@ vi.mock('@/lib/api/rate-limit', () => ({
 }));
 
 type PrismaMock = {
+  $transaction: Mock;
   vehicle: { findFirst: Mock };
   tireSet: { findFirst: Mock; updateMany: Mock; update: Mock };
-  tireChangeLog: { findMany: Mock; create: Mock };
+  tireChangeLog: { findFirst: Mock; findMany: Mock; create: Mock };
 };
 
 type MockVehicle = {
@@ -147,8 +149,11 @@ describe('GET /api/vehicles/[vehicleId]/tires/change-log', () => {
 });
 
 describe('POST /api/vehicles/[vehicleId]/tires/change-log', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     vi.clearAllMocks();
+    const prisma = (await import('@/lib/db')).default as unknown as PrismaMock;
+    prisma.$transaction.mockImplementation((run: (_tx: PrismaMock) => unknown) => run(prisma));
+    prisma.tireChangeLog.findMany.mockResolvedValue([]);
   });
 
   it('returns 401 if not authenticated', async () => {
@@ -203,59 +208,70 @@ describe('POST /api/vehicles/[vehicleId]/tires/change-log', () => {
     expect(data.error.code).toBe('INVALID_TIRE_SET');
   });
 
-  it('logs tire change and updates statuses', async () => {
-    const prisma = (await import('@/lib/db')).default as unknown as PrismaMock;
-    const vehicle: MockVehicle = {
-      id: 'v1',
-      userId: 'u1',
-      name: 'Test Car',
-    };
-    prisma.vehicle.findFirst.mockResolvedValueOnce(vehicle);
-    const tireSet: MockTireSet = {
-      id: '550e8400-e29b-41d4-a716-446655440000',
-      vehicleId: 'v1',
-      name: 'Winter Tires',
-    };
-    prisma.tireSet.findFirst.mockResolvedValueOnce(tireSet);
-    prisma.tireChangeLog.create.mockResolvedValueOnce({ id: 'cl1' });
-    prisma.tireSet.updateMany.mockResolvedValueOnce({ count: 2 });
-    prisma.tireSet.update.mockResolvedValueOnce({ id: 't1' });
-
-    const { POST } = await import('../route');
-    const base = new Request('http://localhost/api/vehicles/v1/tires/change-log', {
-      method: 'POST',
-      body: JSON.stringify({
-        tireSetId: '550e8400-e29b-41d4-a716-446655440000',
-        date: '2024-11-01',
-        odometerKm: 15000,
-        notes: 'Switched to winter tires',
-      }),
-    });
-    const req = new NextRequest(base);
-    const context = { params: Promise.resolve({ vehicleId: 'v1' }) };
-
-    const response = await POST(req, context);
-    const data = await response.json();
-
-    expect(response.status).toBe(201);
-    expect(data.data.id).toBe('cl1');
-
-    // Verify that all non-retired tire sets (except the one being mounted) were set to STORED
-    expect(prisma.tireSet.updateMany).toHaveBeenCalledWith({
-      where: {
+  it.each([15000, null])(
+    'logs a tire change with odometer %s and updates statuses',
+    async odometerKm => {
+      const prisma = (await import('@/lib/db')).default as unknown as PrismaMock;
+      const vehicle: MockVehicle = {
+        id: 'v1',
+        userId: 'u1',
+        name: 'Test Car',
+      };
+      prisma.vehicle.findFirst.mockResolvedValueOnce(vehicle);
+      const tireSet: MockTireSet = {
+        id: '550e8400-e29b-41d4-a716-446655440000',
         vehicleId: 'v1',
-        id: { not: '550e8400-e29b-41d4-a716-446655440000' },
-        status: { not: 'RETIRED' },
-      },
-      data: { status: 'STORED' },
-    });
+        name: 'Winter Tires',
+      };
+      prisma.tireSet.findFirst.mockResolvedValueOnce(tireSet);
+      prisma.tireChangeLog.create.mockResolvedValueOnce({ id: 'cl1' });
+      prisma.tireChangeLog.findMany.mockResolvedValueOnce([
+        { id: 'cl1', tireSetId: tireSet.id, odometerKm, odometerConfirmed: odometerKm !== null },
+      ]);
+      prisma.tireSet.updateMany.mockResolvedValueOnce({ count: 2 });
+      prisma.tireSet.update.mockResolvedValueOnce({ id: 't1' });
 
-    // Verify that the mounted tire set was set to ACTIVE
-    expect(prisma.tireSet.update).toHaveBeenCalledWith({
-      where: { id: '550e8400-e29b-41d4-a716-446655440000' },
-      data: { status: 'ACTIVE' },
-    });
-  });
+      const { POST } = await import('../route');
+      const base = new Request('http://localhost/api/vehicles/v1/tires/change-log', {
+        method: 'POST',
+        body: JSON.stringify({
+          tireSetId: '550e8400-e29b-41d4-a716-446655440000',
+          date: '2024-11-01',
+          odometerKm,
+          notes: 'Switched to winter tires',
+        }),
+      });
+      const req = new NextRequest(base);
+      const context = { params: Promise.resolve({ vehicleId: 'v1' }) };
+
+      const response = await POST(req, context);
+      const data = await response.json();
+
+      expect(response.status).toBe(201);
+      expect(data.data.id).toBe('cl1');
+
+      // Verify that all non-retired tire sets (except the one being mounted) were set to STORED
+      expect(prisma.tireSet.updateMany).toHaveBeenCalledWith({
+        where: {
+          vehicleId: 'v1',
+          id: { not: '550e8400-e29b-41d4-a716-446655440000' },
+          status: 'ACTIVE',
+        },
+        data: { status: 'STORED' },
+      });
+
+      // Verify that the mounted tire set was set to ACTIVE
+      expect(prisma.tireSet.update).toHaveBeenCalledWith({
+        where: { id: '550e8400-e29b-41d4-a716-446655440000', vehicleId: 'v1' },
+        data: { status: 'ACTIVE' },
+      });
+      expect(prisma.tireChangeLog.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ odometerKm, odometerConfirmed: odometerKm !== null }),
+        })
+      );
+    }
+  );
 
   it('returns 400 if validation fails', async () => {
     const { POST } = await import('../route');
@@ -276,6 +292,37 @@ describe('POST /api/vehicles/[vehicleId]/tires/change-log', () => {
     expect(response.status).toBe(400);
     expect(data.error.code).toBe('VALIDATION_ERROR');
   });
+
+  it.each([
+    [4500, 400],
+    [6000, 201],
+  ])(
+    'validates a backdated reading of %d without replacing the current mount',
+    async (odometerKm, status) => {
+      const prisma = (await import('@/lib/db')).default as unknown as PrismaMock;
+      const tireSetId = '550e8400-e29b-41d4-a716-446655440000';
+      prisma.vehicle.findFirst.mockResolvedValueOnce({ id: 'v1' });
+      prisma.tireSet.findFirst.mockResolvedValueOnce({ id: tireSetId });
+      prisma.tireChangeLog.findFirst.mockResolvedValueOnce({ tireSetId: 'current' });
+      prisma.tireChangeLog.create.mockResolvedValueOnce({ id: 'backdated' });
+      prisma.tireChangeLog.findMany.mockResolvedValueOnce([
+        { id: 'newest', tireSetId: 'current', odometerKm: 7000, odometerConfirmed: true },
+        { id: 'backdated', tireSetId, odometerKm, odometerConfirmed: true },
+        { id: 'older', tireSetId: 'older', odometerKm: 5000, odometerConfirmed: true },
+      ]);
+
+      const { POST } = await import('../route');
+      const req = new NextRequest('http://localhost/api/vehicles/v1/tires/change-log', {
+        method: 'POST',
+        body: JSON.stringify({ tireSetId, date: '2024-07-01', odometerKm }),
+      });
+      const response = await POST(req, { params: Promise.resolve({ vehicleId: 'v1' }) });
+
+      expect(response.status).toBe(status);
+      expect(prisma.tireSet.update).not.toHaveBeenCalled();
+      expect(prisma.tireSet.updateMany).not.toHaveBeenCalled();
+    }
+  );
 
   it('returns 429 when rate limit blocks POST', async () => {
     const rateLimit = await import('@/lib/api/rate-limit');

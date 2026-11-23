@@ -5,6 +5,13 @@ import prisma from '@/lib/db';
 import { badRequest, notFound, ok, serverError, unauthorized } from '@/lib/api/response';
 import { logger } from '@/lib/logger';
 import { getSessionUserId, getVehicleAccess, hasPermission } from '@/lib/api/vehicle-access';
+import { rateLimitTireRequest } from '../../rateLimitTireRequest';
+import {
+  latestTireChange,
+  OdometerOrderError,
+  odometerOrderResponse,
+  reconcileTireTimeline,
+} from '../../timeline';
 
 type RouteContext = { params: Promise<{ vehicleId: string; logId: string }> };
 
@@ -19,8 +26,10 @@ async function getVehicleAndLog(vehicleId: string, logId: string, userId: string
   return { vehicle: access.vehicle, log, role: access.role };
 }
 
-export async function GET(_req: NextRequest, context: RouteContext) {
+export async function GET(req: NextRequest, context: RouteContext) {
   try {
+    const limited = rateLimitTireRequest(req);
+    if (limited) return limited;
     const session = await auth();
     const userId = await getSessionUserId(session);
     if (!userId) return unauthorized();
@@ -39,16 +48,15 @@ export async function GET(_req: NextRequest, context: RouteContext) {
 }
 
 const UpdateLogSchema = z.object({
-  date: z
-    .string()
-    .refine(v => !Number.isNaN(new Date(v).getTime()), 'Invalid date format')
-    .optional(),
-  odometerKm: z.number().int().min(0).optional(),
+  date: z.iso.date().optional(),
+  odometerKm: z.number().int().min(0).max(2_147_483_647).nullish(),
   notes: z.string().max(500).optional().nullable(),
 });
 
 export async function PATCH(req: NextRequest, context: RouteContext) {
   try {
+    const limited = rateLimitTireRequest(req);
+    if (limited) return limited;
     const session = await auth();
     const userId = await getSessionUserId(session);
     if (!userId) return unauthorized();
@@ -67,25 +75,39 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
 
     const { date, odometerKm, notes } = parsed.data;
 
-    const updated = await prisma.tireChangeLog.update({
-      where: { id: logId },
-      data: {
-        date: date ? new Date(date) : undefined,
-        odometerKm: odometerKm !== undefined ? odometerKm : undefined,
-        notes: notes === null ? null : notes || undefined,
+    const updated = await prisma.$transaction(
+      async tx => {
+        const previous = await latestTireChange(tx, vehicle.id);
+        const entry = await tx.tireChangeLog.update({
+          where: { id: logId, vehicleId: vehicle.id },
+          data: {
+            date: date ? new Date(date) : undefined,
+            odometerKm,
+            odometerConfirmed: odometerKm === undefined ? undefined : odometerKm !== null,
+            notes: notes === null ? null : notes || undefined,
+          },
+          select: { id: true },
+        });
+        if (date !== undefined || odometerKm !== undefined) {
+          await reconcileTireTimeline(tx, vehicle.id, previous?.tireSetId, entry.id);
+        }
+        return entry;
       },
-      select: { id: true },
-    });
+      { isolationLevel: 'Serializable' }
+    );
 
     return ok({ id: updated.id });
   } catch (error) {
+    if (error instanceof OdometerOrderError) return odometerOrderResponse();
     logger.error('PATCH /api/.../change-log/[logId] failed', { error });
     return serverError();
   }
 }
 
-export async function DELETE(_req: NextRequest, context: RouteContext) {
+export async function DELETE(req: NextRequest, context: RouteContext) {
   try {
+    const limited = rateLimitTireRequest(req);
+    if (limited) return limited;
     const session = await auth();
     const userId = await getSessionUserId(session);
     if (!userId) return unauthorized();
@@ -96,9 +118,14 @@ export async function DELETE(_req: NextRequest, context: RouteContext) {
     if (!vehicle || !role || !hasPermission(role, 'write')) return notFound('Vehicle not found');
     if (!log) return notFound('Change log not found');
 
-    await prisma.tireChangeLog.delete({
-      where: { id: logId },
-    });
+    await prisma.$transaction(
+      async tx => {
+        const previous = await latestTireChange(tx, vehicle.id);
+        await tx.tireChangeLog.delete({ where: { id: logId, vehicleId: vehicle.id } });
+        await reconcileTireTimeline(tx, vehicle.id, previous?.tireSetId);
+      },
+      { isolationLevel: 'Serializable' }
+    );
 
     return ok({ id: logId });
   } catch (error) {

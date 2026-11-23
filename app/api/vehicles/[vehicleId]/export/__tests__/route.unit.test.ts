@@ -3,7 +3,6 @@ import { NextRequest } from 'next/server';
 import { auth } from '@/auth';
 import { Prisma } from '@/generated/prisma';
 import prisma from '@/lib/db';
-import { parseBackupCsv } from '@/utils/csv';
 import { GET } from '../route';
 
 vi.mock('@/auth', () => ({ auth: vi.fn() }));
@@ -100,15 +99,26 @@ beforeEach(() => {
       tireSetId: 'tire-1',
       date,
       odometerKm: 0,
+      odometerConfirmed: true,
       notes: '  ＝Example',
+      createdAt: date,
+    },
+    {
+      id: 'log-2',
+      vehicleId,
+      tireSetId: 'tire-1',
+      date,
+      odometerKm: null,
+      odometerConfirmed: false,
+      notes: null,
       createdAt: date,
     },
   ]);
 });
 
 describe('vehicle export', () => {
-  it('offers a separate spreadsheet CSV that neutralizes formula-like text, not numbers', async () => {
-    const response = await request('?format=spreadsheet');
+  it('downloads spreadsheet CSV by default and neutralizes formula-like text, not numbers', async () => {
+    const response = await request();
     expect(response.status).toBe(200);
     expect(response.headers.get('content-disposition')).toMatch(/filename="spreadsheet_.*\.csv"/);
     expect(response.headers.get('cache-control')).toBe('no-store');
@@ -118,33 +128,70 @@ describe('vehicle export', () => {
     expect(csv).toContain(
       'expense-1,2026-01-15,-1,123.45,OTHER,"Text:   @Example",,,"note, with ""quotes""; and\nnew line"'
     );
-    expect(csv).toContain(`tire-1,"Text: \tSummer",SUMMER,STORED,0,,"Text: '=Example"`);
+    expect(csv).toContain(`tire-1,"Text: \tSummer",SUMMER,STORED,0,,,"Text: '=Example"`);
     expect(csv).toContain('log-1,tire-1,2026-01-15,0,"Text:   ＝Example"');
-    expect(parseBackupCsv(csv)).toEqual({
-      fillUps: [],
-      expenses: [],
-      tireSets: [],
-      changeLogs: [],
-    });
+    expect(csv).toContain('log-2,tire-1,2026-01-15,,');
+    expect(csv).toContain('Section: CHANGE_LOGS\r\n');
   });
 
-  it('keeps download backup compatible with restore and preserves original text', async () => {
-    const response = await request();
-    expect(response.status).toBe(200);
-    expect(response.headers.get('content-disposition')).toMatch(/filename="backup_.*\.csv"/);
-    const csv = await response.text();
-    expect(csv).toContain('vehicle-1;=Example;+Example;Plain model;2020;ABC-123;;;0');
-    expect(csv).toContain(';OTHER;  @Example;;;"note, with ""quotes""; and\nnew line"');
-    const backup = parseBackupCsv(csv);
-    expect(backup.vehicle?.name).toBe('=Example');
-    expect(backup.fillUps[0]?.notes).toBe('-Example');
-    expect(backup.expenses[0]?.notes).toBe('note, with "quotes"; and\nnew line');
-    expect(backup.tireSets[0]?.notes).toBe("'=Example");
+  it.each([0, 5000])(
+    'exports %i confirmed km separately from the previous tracked total',
+    async confirmedKm => {
+      const set = {
+        id: 'tire-1',
+        vehicleId,
+        name: 'Summer tires',
+        type: 'SUMMER',
+        status: 'STORED',
+        totalKm: 8000,
+        purchaseDate: null,
+        notes: null,
+        createdAt: date,
+        updatedAt: date,
+      } as const;
+      vi.mocked(prisma.tireSet.findMany).mockResolvedValueOnce([
+        set,
+        { ...set, id: 'tire-2', name: 'Winter tires', status: 'ACTIVE', totalKm: 0 },
+      ]);
+      vi.mocked(prisma.tireChangeLog.findMany).mockResolvedValueOnce([
+        {
+          id: 'swap',
+          vehicleId,
+          tireSetId: 'tire-2',
+          date: new Date('2026-01-20'),
+          odometerKm: 10000 + confirmedKm,
+          odometerConfirmed: true,
+          notes: null,
+          createdAt: date,
+        },
+        {
+          id: 'mount',
+          vehicleId,
+          tireSetId: 'tire-1',
+          date,
+          odometerKm: 10000,
+          odometerConfirmed: true,
+          notes: null,
+          createdAt: date,
+        },
+      ]);
+
+      const csv = await (await request()).text();
+      expect(csv).toContain('Status,PreviousTrackedKm,ConfirmedKm,PurchaseDate');
+      expect(csv).toContain(`tire-1,"Summer tires",SUMMER,STORED,8000,${confirmedKm},`);
+      expect(csv).toContain('tire-2,"Winter tires",SUMMER,ACTIVE,0,,,');
+    }
+  );
+
+  it('no longer serves a backup format even if the old format is requested', async () => {
+    const response = await request('?format=backup');
+    expect(response.headers.get('content-disposition')).toMatch(/filename="spreadsheet_.*\.csv"/);
+    expect(await response.text()).toContain('Section: VEHICLE');
   });
 
   it('requires access to the vehicle for the spreadsheet download', async () => {
     vi.mocked(prisma.vehicleAccess.findFirst).mockResolvedValueOnce(null);
-    expect((await request('?format=spreadsheet')).status).toBe(404);
+    expect((await request()).status).toBe(404);
     expect(prisma.expense.findMany).not.toHaveBeenCalled();
   });
 });

@@ -1,10 +1,9 @@
 import type { FC, ReactNode } from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { TireChangeLogDto, TireSetDto } from '@/queries/tires';
-import { toast } from 'sonner';
 
 // Mock the tire queries
 vi.mock('@/queries/tires', () => ({
@@ -19,7 +18,7 @@ vi.mock('@/hooks', async importOriginal => {
   const actual = await importOriginal<typeof import('@/hooks')>();
   return {
     ...actual,
-    useLatestOdometer: vi.fn(),
+    useFillUps: vi.fn(),
     useTireSets: vi.fn(),
     useTireChangeHistory: vi.fn(),
     useCreateTireSet: vi.fn(),
@@ -55,7 +54,8 @@ const buildChangeLog = (overrides: Partial<TireChangeLogDto> = {}): TireChangeLo
   vehicleId: overrides.vehicleId ?? 'v1',
   tireSetId: overrides.tireSetId ?? 't1',
   date: overrides.date ?? '2024-06-01',
-  odometerKm: overrides.odometerKm ?? 10000,
+  odometerKm: overrides.odometerKm === undefined ? 10000 : overrides.odometerKm,
+  odometerConfirmed: overrides.odometerConfirmed ?? true,
   notes: overrides.notes ?? null,
 });
 
@@ -85,7 +85,9 @@ describe('TireManager', () => {
     mockMutateAsync.mockResolvedValue({});
 
     const hooks = await import('@/hooks');
-    vi.mocked(hooks.useLatestOdometer).mockReturnValue(null);
+    vi.mocked(hooks.useFillUps).mockReturnValue({
+      data: { fillUps: [] },
+    } as unknown as ReturnType<typeof hooks.useFillUps>);
     vi.mocked(hooks.useTireSets).mockReturnValue({
       data: { tireSets: [] },
       isLoading: false,
@@ -121,9 +123,9 @@ describe('TireManager', () => {
     } as unknown as ReturnType<typeof hooks.useTireSets>);
 
     const TireManager = (await import('../TireManager')).default;
-    render(<TireManager vehicleId="v1" />, { wrapper: createWrapper() });
+    render(<TireManager vehicleId="v1" canWrite />, { wrapper: createWrapper() });
 
-    expect(screen.getByText('Loading tires...')).toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveTextContent('Loading tires');
   });
 
   it('renders tire sets when loaded', async () => {
@@ -149,15 +151,14 @@ describe('TireManager', () => {
     } as unknown as ReturnType<typeof hooks.useTireSets>);
 
     const TireManager = (await import('../TireManager')).default;
-    render(<TireManager vehicleId="v1" />, { wrapper: createWrapper() });
+    render(<TireManager vehicleId="v1" canWrite />, { wrapper: createWrapper() });
 
     await waitFor(() => {
-      expect(screen.getByText(/Current: Summer Tires/)).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'Summer Tires' })).toBeInTheDocument();
     });
 
     expect(screen.getByText('Winter Tires')).toBeInTheDocument();
-    // The "Stored" heading for stored tire sets section
-    expect(screen.getByRole('heading', { name: 'Stored', level: 4 })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Other tire sets' })).toBeInTheDocument();
   });
 
   it('shows add tire set dialog when clicking Add Set', async () => {
@@ -169,16 +170,16 @@ describe('TireManager', () => {
 
     const user = userEvent.setup();
     const TireManager = (await import('../TireManager')).default;
-    render(<TireManager vehicleId="v1" />, { wrapper: createWrapper() });
+    render(<TireManager vehicleId="v1" canWrite />, { wrapper: createWrapper() });
 
     await waitFor(() => {
       expect(screen.queryByText('Loading tires...')).not.toBeInTheDocument();
     });
 
-    const addButton = screen.getByRole('button', { name: /Add Set/i });
+    const addButton = screen.getByRole('button', { name: 'Add tire set' });
     await user.click(addButton);
 
-    expect(screen.getAllByText('Add Tire Set')[0]).toBeInTheDocument();
+    expect(screen.getByRole('dialog', { name: 'Add tire set' })).toBeInTheDocument();
     expect(screen.getByPlaceholderText(/Nokian Hakkapeliitta/i)).toBeInTheDocument();
   });
 
@@ -191,18 +192,20 @@ describe('TireManager', () => {
 
     const user = userEvent.setup();
     const TireManager = (await import('../TireManager')).default;
-    render(<TireManager vehicleId="v1" />, { wrapper: createWrapper() });
+    render(<TireManager vehicleId="v1" canWrite />, { wrapper: createWrapper() });
 
     await waitFor(() => {
       expect(screen.queryByText('Loading tires...')).not.toBeInTheDocument();
     });
 
-    await user.click(screen.getByRole('button', { name: /Add Set/i }));
+    await user.click(screen.getByRole('button', { name: 'Add tire set' }));
     await user.type(screen.getByPlaceholderText(/Nokian Hakkapeliitta/i), 'Winter Set');
     await user.selectOptions(screen.getByLabelText('Type'), 'WINTER');
-    await user.type(screen.getByLabelText('Purchase Date'), '2024-12-01');
+    await user.type(screen.getByLabelText('Purchase date (optional)'), '2024-12-01');
+    await user.type(screen.getByLabelText('Notes (optional)'), 'Stored at home');
 
-    await user.click(screen.getByRole('button', { name: /Add Tire Set/i }));
+    const dialog = within(screen.getByRole('dialog'));
+    await user.click(dialog.getByRole('button', { name: 'Add tire set' }));
 
     await waitFor(() => {
       expect(mockMutateAsync).toHaveBeenCalledWith(
@@ -210,9 +213,94 @@ describe('TireManager', () => {
           name: 'Winter Set',
           type: 'WINTER',
           purchaseDate: '2024-12-01',
+          notes: 'Stored at home',
         })
       );
     });
+  });
+
+  it('edits an existing set and can clear optional fields', async () => {
+    const hooks = await import('@/hooks');
+    vi.mocked(hooks.useTireSets).mockReturnValue({
+      data: { tireSets: [buildTireSet({ notes: 'Old notes', purchaseDate: '2024-06-01' })] },
+    } as unknown as ReturnType<typeof hooks.useTireSets>);
+    const user = userEvent.setup();
+    const TireManager = (await import('../TireManager')).default;
+    render(<TireManager vehicleId="v1" canWrite />, { wrapper: createWrapper() });
+
+    expect(screen.getByText('Old notes')).toBeVisible();
+    await user.click(screen.getByRole('button', { name: 'Edit details' }));
+    const dialog = within(screen.getByRole('dialog', { name: 'Edit tire set' }));
+    expect(dialog.getByLabelText('Name')).toHaveValue('Summer Tires');
+    await user.clear(dialog.getByLabelText('Name'));
+    await user.type(dialog.getByLabelText('Name'), 'New name');
+    await user.clear(dialog.getByLabelText('Notes (optional)'));
+    await user.clear(dialog.getByLabelText('Purchase date (optional)'));
+    await user.click(dialog.getByRole('button', { name: 'Save changes' }));
+
+    expect(mockMutateAsync).toHaveBeenCalledWith({
+      tireSetId: 't1',
+      name: 'New name',
+      type: 'SUMMER',
+      notes: null,
+      purchaseDate: null,
+    });
+  });
+
+  it('preselects the first stored set when mounting and restores focus on cancel', async () => {
+    const hooks = await import('@/hooks');
+    vi.mocked(hooks.useTireSets).mockReturnValue({
+      data: { tireSets: [buildTireSet({ status: 'STORED' })] },
+    } as unknown as ReturnType<typeof hooks.useTireSets>);
+    const user = userEvent.setup();
+    const TireManager = (await import('../TireManager')).default;
+    render(<TireManager vehicleId="v1" canWrite />, { wrapper: createWrapper() });
+
+    const mount = screen.getByRole('button', { name: 'Mount this set' });
+    await user.click(mount);
+    const dialog = within(screen.getByRole('dialog', { name: 'Mount tire set' }));
+    expect(dialog.getByLabelText('Set to mount')).toHaveValue('t1');
+    expect(dialog.getByLabelText(/car odometer at tire change/i)).not.toBeRequired();
+    await user.click(dialog.getByRole('button', { name: 'Cancel' }));
+    await waitFor(() => expect(mount).toHaveFocus());
+    expect(mockMutateAsync).not.toHaveBeenCalled();
+  });
+
+  it('keeps a used set out of the delete flow', async () => {
+    const hooks = await import('@/hooks');
+    vi.mocked(hooks.useTireSets).mockReturnValue({
+      data: { tireSets: [buildTireSet({ status: 'STORED', changeLogs: [buildChangeLog()] })] },
+    } as unknown as ReturnType<typeof hooks.useTireSets>);
+    const user = userEvent.setup();
+    const TireManager = (await import('../TireManager')).default;
+    render(<TireManager vehicleId="v1" canWrite />, { wrapper: createWrapper() });
+
+    await user.click(screen.getByText('More actions'));
+    expect(screen.getByRole('button', { name: 'Retire' })).toBeVisible();
+    expect(screen.queryByRole('button', { name: 'Delete set' })).not.toBeInTheDocument();
+  });
+
+  it('offers a retry when history fails rather than displaying an empty history', async () => {
+    const hooks = await import('@/hooks');
+    const retrySets = vi.fn();
+    const retryHistory = vi.fn();
+    vi.mocked(hooks.useTireSets).mockReturnValue({
+      data: { tireSets: [] },
+      refetch: retrySets,
+    } as unknown as ReturnType<typeof hooks.useTireSets>);
+    vi.mocked(hooks.useTireChangeHistory).mockReturnValue({
+      error: new Error('Request failed'),
+      refetch: retryHistory,
+    } as unknown as ReturnType<typeof hooks.useTireChangeHistory>);
+    const user = userEvent.setup();
+    const TireManager = (await import('../TireManager')).default;
+    render(<TireManager vehicleId="v1" canWrite />, { wrapper: createWrapper() });
+
+    expect(screen.getByRole('alert')).toBeVisible();
+    expect(screen.queryByText('No tire changes recorded.')).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Retry' }));
+    expect(retrySets).toHaveBeenCalled();
+    expect(retryHistory).toHaveBeenCalled();
   });
 
   it('deletes a tire set after confirmation', async () => {
@@ -240,15 +328,14 @@ describe('TireManager', () => {
 
     const user = userEvent.setup();
     const TireManager = (await import('../TireManager')).default;
-    render(<TireManager vehicleId="v1" />, { wrapper: createWrapper() });
+    render(<TireManager vehicleId="v1" canWrite />, { wrapper: createWrapper() });
 
     await waitFor(() => {
       expect(screen.queryByText('Loading tires...')).not.toBeInTheDocument();
     });
 
-    // Click the delete button (×)
-    const deleteButtons = screen.getAllByRole('button', { name: /×/ });
-    await user.click(deleteButtons[0]);
+    await user.click(screen.getByText('More actions'));
+    await user.click(screen.getByRole('button', { name: 'Delete set' }));
 
     await waitFor(() => {
       expect(mockMutateAsync).toHaveBeenCalledWith('stored');
@@ -278,30 +365,33 @@ describe('TireManager', () => {
     } as unknown as ReturnType<typeof hooks.useTireSets>);
     const user = userEvent.setup();
     const TireManager = (await import('../TireManager')).default;
-    render(<TireManager vehicleId="v1" />, { wrapper: createWrapper() });
+    render(<TireManager vehicleId="v1" canWrite />, { wrapper: createWrapper() });
 
     await waitFor(() => {
       expect(screen.queryByText('Loading tires...')).not.toBeInTheDocument();
     });
 
-    await user.click(screen.getByRole('button', { name: /Swap/i }));
+    await user.click(screen.getByRole('button', { name: 'Change tires' }));
+    expect(screen.getByText(/Mounted will move to storage\./)).toBeVisible();
 
-    await user.selectOptions(screen.getByLabelText('Select Set to Mount'), 'stored');
-    await user.type(screen.getByLabelText('Odometer (km)'), '12000');
+    await user.selectOptions(screen.getByLabelText('Set to mount'), 'stored');
+    await user.type(screen.getByLabelText(/odometer at tire change/i), '12000');
+    await user.type(screen.getByLabelText('Notes (optional)'), 'Switched before a trip');
 
-    await user.click(screen.getByRole('button', { name: /Confirm Swap/i }));
+    await user.click(screen.getByRole('button', { name: 'Confirm change' }));
 
     await waitFor(() => {
       expect(mockMutateAsync).toHaveBeenCalledWith(
         expect.objectContaining({
           tireSetId: 'stored',
           odometerKm: 12000,
+          notes: 'Switched before a trip',
         })
       );
     });
   });
 
-  it('shows toast when trying to swap without stored sets', async () => {
+  it('offers adding another set instead of a change action when there is no spare', async () => {
     const hooks = await import('@/hooks');
     vi.mocked(hooks.useTireSets).mockReturnValue({
       data: {
@@ -317,20 +407,18 @@ describe('TireManager', () => {
       isLoading: false,
     } as unknown as ReturnType<typeof hooks.useTireSets>);
 
-    const user = userEvent.setup();
     const TireManager = (await import('../TireManager')).default;
-    render(<TireManager vehicleId="v1" />, { wrapper: createWrapper() });
+    render(<TireManager vehicleId="v1" canWrite />, { wrapper: createWrapper() });
 
     await waitFor(() => {
       expect(screen.queryByText('Loading tires...')).not.toBeInTheDocument();
     });
 
-    await user.click(screen.getByRole('button', { name: /Swap/i }));
-
-    expect(toast.info).toHaveBeenCalledWith('Add another tire set first to swap.');
+    expect(screen.queryByRole('button', { name: 'Change tires' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Add tire set' })).toBeEnabled();
   });
 
-  it('shows computed km when totalKm is 0 but history exists', async () => {
+  it('shows confirmed mileage separately from the current fill-up estimate and legacy totals', async () => {
     const hooks = await import('@/hooks');
     vi.mocked(hooks.useTireSets).mockReturnValue({
       data: {
@@ -339,7 +427,7 @@ describe('TireManager', () => {
             id: 'active',
             name: 'Mounted',
             status: 'ACTIVE',
-            totalKm: 0,
+            totalKm: 4000,
             changeLogs: [
               buildChangeLog({ tireSetId: 'active', date: '2024-04-01', odometerKm: 15000 }),
             ],
@@ -359,24 +447,87 @@ describe('TireManager', () => {
     vi.mocked(hooks.useTireChangeHistory).mockReturnValue({
       data: {
         history: [
-          buildChangeLog({ tireSetId: 'stored', date: '2024-01-01', odometerKm: 10000 }),
-          buildChangeLog({ tireSetId: 'active', date: '2024-04-01', odometerKm: 15000 }),
+          buildChangeLog({ id: 'old', tireSetId: 'stored', date: '2024-01-01', odometerKm: 10000 }),
+          buildChangeLog({ id: 'new', tireSetId: 'active', date: '2024-04-01', odometerKm: 15000 }),
         ],
       },
     } as unknown as ReturnType<typeof hooks.useTireChangeHistory>);
+    vi.mocked(hooks.useFillUps).mockReturnValue({
+      data: { fillUps: [{ date: '2024-04-15', odometerKm: 16200 }] },
+    } as unknown as ReturnType<typeof hooks.useFillUps>);
 
     const TireManager = (await import('../TireManager')).default;
-    render(<TireManager vehicleId="v1" />, { wrapper: createWrapper() });
+    render(<TireManager vehicleId="v1" canWrite />, { wrapper: createWrapper() });
 
     await waitFor(() => {
-      // The "Stored" heading for stored tire sets section
-      expect(screen.getByRole('heading', { name: 'Stored', level: 4 })).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'Other tire sets' })).toBeInTheDocument();
     });
 
-    const totalLines = screen.getAllByText(/Total:/i);
-    const has5000km = totalLines.some(line =>
-      (line.textContent ?? '').replace(/\D/g, '').includes('5000')
+    expect(screen.getByText(`${(5000).toLocaleString()} km confirmed`)).toBeVisible();
+    expect(screen.getByText(/km since install · through .* fill-up/)).toHaveTextContent(
+      `~${(1200).toLocaleString()} km`
     );
-    expect(has5000km).toBe(true);
+    expect(screen.getByText(/Previous tracked total/)).toHaveTextContent(
+      `${(4000).toLocaleString()} km`
+    );
+  });
+
+  it('saves a mount without a reading even when a fill-up exists', async () => {
+    const hooks = await import('@/hooks');
+    vi.mocked(hooks.useTireSets).mockReturnValue({
+      data: { tireSets: [buildTireSet({ status: 'STORED' })] },
+    } as unknown as ReturnType<typeof hooks.useTireSets>);
+    vi.mocked(hooks.useFillUps).mockReturnValue({
+      data: { fillUps: [{ date: '2026-11-22', odometerKm: 12000 }] },
+    } as unknown as ReturnType<typeof hooks.useFillUps>);
+    const user = userEvent.setup();
+    const TireManager = (await import('../TireManager')).default;
+    render(<TireManager vehicleId="v1" canWrite />, { wrapper: createWrapper() });
+    await user.click(screen.getByRole('button', { name: 'Mount this set' }));
+    expect(screen.getByLabelText(/car odometer at tire change/i)).toHaveValue(null);
+    await user.click(screen.getByRole('button', { name: 'Mount tire set' }));
+    expect(mockMutateAsync).toHaveBeenCalledWith(
+      expect.objectContaining({ tireSetId: 't1', odometerKm: null })
+    );
+  });
+
+  it('lets the user enter an exact reading for an unverified change', async () => {
+    const hooks = await import('@/hooks');
+    vi.mocked(hooks.useTireChangeHistory).mockReturnValue({
+      data: { history: [buildChangeLog({ odometerConfirmed: false })] },
+    } as unknown as ReturnType<typeof hooks.useTireChangeHistory>);
+    const user = userEvent.setup();
+    const TireManager = (await import('../TireManager')).default;
+    render(<TireManager vehicleId="v1" canWrite />, { wrapper: createWrapper() });
+
+    await user.click(screen.getByText('View tire changes (1)'));
+    await user.click(screen.getByRole('button', { name: 'Edit change' }));
+    const reading = screen.getByRole('spinbutton');
+    expect(reading).toHaveValue(null);
+    expect(screen.getByText(/Previous reading:/)).toBeVisible();
+    await user.type(reading, '10500');
+    await user.click(screen.getByRole('button', { name: 'Save changes' }));
+    expect(mockMutateAsync).toHaveBeenCalledWith(
+      expect.objectContaining({ logId: 'log-id', odometerKm: 10500 })
+    );
+  });
+
+  it('loads a change note from history and can clear it without changing mileage', async () => {
+    const hooks = await import('@/hooks');
+    vi.mocked(hooks.useTireChangeHistory).mockReturnValue({
+      data: { history: [buildChangeLog({ notes: 'Tread 5 mm' })] },
+    } as unknown as ReturnType<typeof hooks.useTireChangeHistory>);
+    const user = userEvent.setup();
+    const TireManager = (await import('../TireManager')).default;
+    render(<TireManager vehicleId="v1" canWrite />, { wrapper: createWrapper() });
+
+    await user.click(screen.getByText('View tire changes (1)'));
+    expect(screen.getByText('Tread 5 mm')).toBeVisible();
+    await user.click(screen.getByRole('button', { name: 'Edit change' }));
+    const notes = screen.getByLabelText('Notes (optional)');
+    expect(notes).toHaveValue('Tread 5 mm');
+    await user.clear(notes);
+    await user.click(screen.getByRole('button', { name: 'Save changes' }));
+    expect(mockMutateAsync).toHaveBeenCalledWith({ logId: 'log-id', notes: null });
   });
 });

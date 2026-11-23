@@ -24,6 +24,7 @@ Vitest, and Playwright.
 - [Architecture](docs/architecture.md) — feature organization, responsibilities, and data flow.
 - [Fuel consumption](docs/features/consumption.md) — calculation rules and consumption displays.
 - [Viewing saved records](docs/features/records.md) — read-only expense and fill-up details.
+- [Tire management](docs/features/tires.md) — tire sets, mounting, and change history.
 - [Attachment storage](docs/development/attachments.md) — private staging storage and disposable-file checks.
 - [Agent guidelines](AGENTS.md) — contribution workflow and coding standards.
 - [Documentation rules](docs/documentation-rules.md) — where documentation belongs and how to update it.
