@@ -7,8 +7,9 @@ The plate and inspection status sit side by side when they fit and wrap on narro
 The status shows the date when more than 30 days away and uses plain-language urgency
 when due soon or overdue.
 To open a different vehicle, use **Back to vehicles** and choose it from the list.
-The summary groups and records share the same content width as the header. White panels
-on a blue-gray canvas distinguish sections without heavy borders in the light theme.
+The summary groups and records share the same content width as the header. Dashboard
+sections and their loading placeholders use the shared subtle card style. In the light
+theme, white panels sit on a blue-gray canvas without heavy borders.
 
 **Add fill-up**, **Add expense**, and **More** sit together to the right of the vehicle
 details on large screens and align left below them on smaller screens. The add buttons are
