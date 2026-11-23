@@ -65,7 +65,7 @@ describe('ExpenseList behavior', () => {
     expect(within(row).getByText(/10[.,]00/)).toHaveClass('tabular-nums');
   });
 
-  it('renders non-empty list and total', async () => {
+  it('renders expenses from different categories', async () => {
     server.use(
       http.get('/api/vehicles/:vehicleId/expenses', () =>
         HttpResponse.json({
@@ -82,8 +82,8 @@ describe('ExpenseList behavior', () => {
       )
     );
     renderWithProviders(<ExpenseList vehicleId="vid" />);
-    expect(await screen.findByText(/Total:/i)).toBeInTheDocument();
-    expect(screen.getAllByText(/MAINTENANCE|FUEL/).length).toBeGreaterThan(0);
+    expect(await screen.findByText('MAINTENANCE')).toBeInTheDocument();
+    expect(screen.getByText('FUEL')).toBeInTheDocument();
   });
 
   it('shows error state and allows retry', async () => {

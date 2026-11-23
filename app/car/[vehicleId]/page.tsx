@@ -43,6 +43,8 @@ import {
   recordActionClass,
 } from '@/components/car/records';
 
+const currency = new Intl.NumberFormat(undefined, { style: 'currency', currency: 'EUR' });
+
 export default function VehiclePage() {
   const { status } = useSession();
   const router = useRouter();
@@ -272,7 +274,14 @@ export default function VehiclePage() {
           <div className="min-w-0 space-y-6 lg:col-span-3">
             <Card variant="subtle">
               <CardContent className="!p-4 sm:!p-6">
-                <h2 className="text-lg font-semibold mb-4">Fill-ups</h2>
+                <div className="mb-4">
+                  <h2 className="text-lg font-semibold">Fill-ups</h2>
+                  {summary && !summaryQuery.isError && (
+                    <p className="text-sm text-muted-foreground">
+                      All-time fuel cost: {currency.format(summary.fuelCostLifetime)}
+                    </p>
+                  )}
+                </div>
                 {vehicleId ? (
                   <FillUpsTabs
                     segments={segments.map(s => ({
@@ -289,7 +298,14 @@ export default function VehiclePage() {
 
             <Card variant="subtle">
               <CardContent className="!p-4 sm:!p-6">
-                <h2 className="text-lg font-semibold mb-4">Expenses</h2>
+                <div className="mb-4">
+                  <h2 className="text-lg font-semibold">Expenses</h2>
+                  {summary && !summaryQuery.isError && (
+                    <p className="text-sm text-muted-foreground">
+                      All-time expenses: {currency.format(summary.expenseTotalLifetime)}
+                    </p>
+                  )}
+                </div>
                 {vehicleId ? <ExpenseList vehicleId={vehicleId} /> : null}
               </CardContent>
             </Card>

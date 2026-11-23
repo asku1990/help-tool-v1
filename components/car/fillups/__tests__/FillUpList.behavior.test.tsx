@@ -64,32 +64,6 @@ describe('FillUpList behavior', () => {
     }
   });
 
-  it('labels the fuel subtotal as loaded records rather than a lifetime total', async () => {
-    server.use(
-      http.get('/api/vehicles/:vehicleId/fillups', () =>
-        HttpResponse.json({
-          data: {
-            fillUps: [
-              {
-                id: 'f1',
-                date: new Date().toISOString(),
-                odometerKm: 1000,
-                liters: 20,
-                pricePerLiter: 1.5,
-                totalCost: 30,
-                isFull: true,
-              },
-            ],
-            nextCursor: null,
-            canWrite: true,
-          },
-        })
-      )
-    );
-    renderWithProviders(<FillUpList vehicleId="vid" />);
-    expect(await screen.findByText(/Fuel cost — loaded records/i)).toHaveTextContent(/30[.,]00/);
-  });
-
   it('handles error and retry', async () => {
     server.use(
       http.get('/api/vehicles/:vehicleId/fillups', () => HttpResponse.json({}, { status: 500 }))
