@@ -13,7 +13,7 @@ import {
   CardContent,
   Toaster,
 } from '@/components/ui';
-import { Car, ChevronRight, Plus, Shield, Upload } from 'lucide-react';
+import { Car, ChevronRight, Plus, Shield } from 'lucide-react';
 import { useEffect, useRef, useState, type MouseEvent } from 'react';
 import { useVehicles, useIsAdmin } from '@/hooks';
 import { apiPost } from '@/lib/api/client';
@@ -25,7 +25,6 @@ import {
   VehicleGrid,
   VehicleListSkeleton,
 } from '@/components/car/vehicles';
-import { RestoreBackupDialog } from '@/components/car/imports';
 import { toast } from 'sonner';
 import { getUiErrorMessage } from '@/lib/api/client-errors';
 import { SignOutButton } from '@/components/buttons/SignOutButton';
@@ -36,7 +35,6 @@ export default function CarHomePage() {
   const router = useRouter();
   const [isDemo] = useState<boolean>(() => false);
   const [loading, setLoading] = useState(false);
-  const [restoreOpen, setRestoreOpen] = useState(false);
   const menuTrigger = useRef<HTMLElement | null>(null);
   const { isVehicleDialogOpen: open, setVehicleDialogOpen: setOpen } = useUiStore();
   const [form, setForm] = useState<{
@@ -110,16 +108,6 @@ export default function CarHomePage() {
             >
               <Plus className="size-5" aria-hidden="true" />
               Add vehicle
-            </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              className={recordActionClass}
-              aria-haspopup="dialog"
-              onClick={event => openFromMenu(event, () => setRestoreOpen(true))}
-            >
-              <Upload className="size-5" aria-hidden="true" />
-              Restore Backup
             </Button>
             {isAdmin ? (
               <Button asChild variant="ghost" className={recordActionClass}>
@@ -212,14 +200,6 @@ export default function CarHomePage() {
           )}
         </div>
 
-        <RestoreBackupDialog
-          existingVehicles={vehicles.map(v => ({ id: v.id, name: v.name }))}
-          onRestored={() => refetchVehicles()}
-          open={restoreOpen}
-          onOpenChange={setRestoreOpen}
-          hideTrigger
-          onCloseAutoFocus={restoreMenuFocus}
-        />
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogContent
             mobileLayout="fullscreen"

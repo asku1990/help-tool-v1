@@ -75,7 +75,7 @@ it('renders each vehicle as one link and opens the add vehicle dialog', async ()
   await waitFor(() => expect(menu).toHaveFocus());
 });
 
-it('keeps Add vehicle and Restore Backup in the actions menu', async () => {
+it('keeps Add vehicle in the actions menu without Restore Backup', async () => {
   server.use(
     http.get('/api/admin/me', () => HttpResponse.json({ data: { isAdmin: false } })),
     http.get('/api/vehicles', () => HttpResponse.json({ data: { vehicles: [] } }))
@@ -92,11 +92,7 @@ it('keeps Add vehicle and Restore Backup in the actions menu', async () => {
 
   fireEvent.click(menu);
   expect(screen.getByRole('button', { name: 'Add vehicle' })).toBeVisible();
-  fireEvent.click(screen.getByRole('button', { name: 'Restore Backup' }));
-  const dialog = await screen.findByRole('dialog', { name: 'Restore from Backup' });
-  expect(menu).toHaveAttribute('aria-expanded', 'false');
-  fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }));
-  await waitFor(() => expect(menu).toHaveFocus());
+  expect(screen.queryByRole('button', { name: 'Restore Backup' })).not.toBeInTheDocument();
 });
 
 it('shows a retry instead of the empty garage when vehicles fail to load', async () => {
@@ -144,43 +140,6 @@ it('closes the actions menu when the vehicles heading is clicked', async () => {
   fireEvent.click(heading);
   expect(menu).toHaveAttribute('aria-expanded', 'false');
   expect(signOutButton).not.toBeInTheDocument();
-});
-
-it('restores records to an existing vehicle without clearing it', async () => {
-  const clearRecords = vi.fn(() => HttpResponse.json({ data: {} }));
-  server.use(
-    http.get('/api/admin/me', () => HttpResponse.json({ data: { isAdmin: false } })),
-    http.get('/api/vehicles', () =>
-      HttpResponse.json({ data: { vehicles: [{ id: 'v1', name: 'Car A' }] } })
-    ),
-    http.delete('/api/vehicles/v1/clear', clearRecords),
-    http.post('/api/vehicles/v1/fillups', () => HttpResponse.json({ data: { id: 'f1' } }))
-  );
-
-  renderWithProviders(<CarHomePage />);
-  await screen.findByText('Car A');
-  fireEvent.click(screen.getByRole('button', { name: 'Vehicle list actions' }));
-  fireEvent.click(screen.getByRole('button', { name: 'Restore Backup' }));
-  const backup = within(await screen.findByRole('dialog', { name: 'Restore from Backup' }));
-  fireEvent.change(backup.getByLabelText('Or paste CSV content'), {
-    target: {
-      value: [
-        '[VEHICLE]',
-        'Id;Name;Make;Model;Year;LicensePlate',
-        'v1;Car A;;;;',
-        '[FILLUPS]',
-        'Id;Date;OdometerKm;Liters;PricePerLiter;TotalCost;IsFull;Notes',
-        'f1;2025-01-15;10000;45.5;1.65;75.08;1;Full tank',
-      ].join('\n'),
-    },
-  });
-  fireEvent.click(backup.getByRole('button', { name: 'Parse' }));
-  fireEvent.click(backup.getByRole('radio', { name: /update existing vehicle/i }));
-  expect(backup.queryByRole('checkbox', { name: /clear existing data/i })).toBeNull();
-  fireEvent.click(backup.getByRole('button', { name: 'Restore' }));
-
-  expect(await backup.findByText('Import complete!')).toBeVisible();
-  expect(clearRecords).not.toHaveBeenCalled();
 });
 
 it('shows admin link for admin user', async () => {

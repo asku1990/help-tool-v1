@@ -14,13 +14,12 @@ theme, white panels sit on a blue-gray canvas without heavy borders.
 **Add fill-up**, **Add expense**, and **More** sit together to the right of the vehicle
 details on large screens and align left below them on smaller screens. The add buttons are
 available to owners and editors.
-**More** groups the less frequent actions: **Download backup** and **Download for spreadsheet**
-for anyone with read access, **Import backup** for owners and editors, and **Edit** and
+**More** offers **Download for spreadsheet** for anyone with read access, and **Edit** and
 **Delete vehicle** for owners only. Vehicle deletion requires confirmation. Tap or click
 outside the menu to close it. Closing a menu dialog returns focus to **More**.
 
-On the vehicles list, **Add vehicle** and **Restore Backup** are in the **⋯** menu.
-Tap or click outside to close the menu. Closing either dialog returns focus to **⋯**.
+On the vehicles list, **Add vehicle** is in the **⋯** menu.
+Tap or click outside to close the menu. Closing the dialog returns focus to **⋯**.
 
 The vehicles list shows one linked card per vehicle, with its name, known vehicle
 details, registration plate, and the same inspection status as the vehicle overview.
@@ -35,18 +34,9 @@ or navigating.
 The [mobile WebKit test](../commands.md#tests) checks the same flow in emulation;
 it does not replace the real-device check.
 
-Use **Download backup** for restore, not for opening in a spreadsheet. Use **Download for
-spreadsheet** to view the records in a spreadsheet app. Import this copy as a comma-delimited
-CSV. It prefixes formula-like text with `Text:` so the spreadsheet treats it as text, and
-it cannot be used to restore records.
-
-Neither **Import backup** on the vehicle page nor **Restore Backup** on the vehicles list
-clears existing records. Replacing records is not available. If an import fails partway
-through, records already imported remain saved.
-When importing into an existing vehicle, selected active tire sets or tire-change entries
-can change which set is marked as mounted, even if the entries are old. The dialog warns
-before importing. To keep the current mount, uncheck active sets and tire-change entries
-in the Tires tab.
+Use **Download for spreadsheet** to view records in a spreadsheet app. Open it as a
+comma-delimited CSV. Formula-like text is prefixed with `Text:` so the spreadsheet
+treats it as text. For recovery, use [database backups](../database.md), not spreadsheet exports.
 
 Select the vehicle name to see saved basic information without opening the edit form.
 Closing Details returns focus to the name. The registration plate stays selectable text.
