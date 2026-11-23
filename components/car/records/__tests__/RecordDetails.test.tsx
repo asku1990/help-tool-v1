@@ -240,7 +240,8 @@ describe.each([
     notes = 'A long saved note with useful record information. '.repeat(30).trim();
     renderList();
     const preview = await screen.findByText(notes);
-    expect(preview).toHaveClass('line-clamp-2', 'sm:line-clamp-1', 'break-words');
+    const tableTruncation = `@min-[56rem]/${type === 'expense' ? 'expenses' : 'fillups'}:truncate`;
+    expect(preview).toHaveClass('line-clamp-2', 'wrap-anywhere', tableTruncation);
     if (type === 'fillup') {
       expect(preview).not.toContainElement(screen.getByText('Full tank'));
       expect(preview).not.toContainElement(screen.getByTitle('Higher than previous trip'));
@@ -250,26 +251,26 @@ describe.each([
     const fullNotes = dialog.getByText(notes);
     expect(fullNotes).toHaveTextContent(notes);
     expect(fullNotes).not.toHaveClass('line-clamp-2');
-    expect(fullNotes).not.toHaveClass('sm:line-clamp-1');
+    expect(fullNotes).not.toHaveClass(tableTruncation);
     if (type === 'fillup') {
       expect(dialog.getByText('Full tank')).toBeInTheDocument();
       expect(dialog.getByText('7.50 L/100 km')).toBeInTheDocument();
     }
   });
 
-  it('constrains long numeric previews on desktop and keeps the values in Details', async () => {
+  it('keeps long numeric values in the list and in Details', async () => {
     longValues = true;
     renderList();
     const details = await screen.findByRole('button', { name: /View .* details for/ });
-    const preview =
-      type === 'expense'
-        ? within(screen.getAllByRole('cell')[1]).getByText('2147483647 km').parentElement
-        : screen.getByText(/12345\.67 L @ 12\.345/);
-    expect(preview).toHaveClass('lg:block', 'lg:truncate');
-    if (type === 'fillup') {
-      expect(within(screen.getAllByRole('cell')[1]).getByText('-2147483648 km')).toHaveClass(
-        'lg:block',
-        'lg:truncate'
+    const cells = screen.getAllByRole('cell');
+    if (type === 'expense') {
+      expect(cells[1]).toHaveTextContent('2147483647 km');
+      expect(cells[1]).toHaveTextContent('12345.6 L/10k');
+    } else {
+      expect(cells[1]).toHaveTextContent('-2147483648 km');
+      expect(cells[2]).toHaveTextContent('12345.67 L ×');
+      expect(cells[2]).toHaveTextContent(
+        new Intl.NumberFormat(undefined, { style: 'currency', currency: 'EUR' }).format(152407.3)
       );
     }
 
@@ -295,7 +296,7 @@ describe.each([
     const odometer = type === 'expense' ? '0 km' : '100 km';
     const cells = screen.getAllByRole('cell');
     expect(details).toHaveAccessibleName(expect.stringContaining(odometer));
-    expect(within(details).getByText(odometer)).toHaveClass('lg:hidden');
+    expect(within(details).getByText(odometer)).toBeInTheDocument();
     expect(cells[1]).toHaveTextContent(odometer);
     if (type === 'expense') expect(cells[2]).toHaveTextContent('OIL TOP UP');
 

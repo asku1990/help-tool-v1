@@ -5,11 +5,20 @@ type PageHeaderProps = {
   icon?: React.ReactNode;
   right?: React.ReactNode;
   navigation?: React.ReactNode;
+  surface?: 'background' | 'canvas';
 };
 
-export default function PageHeader({ title, icon, right, navigation }: PageHeaderProps) {
+export default function PageHeader({
+  title,
+  icon,
+  right,
+  navigation,
+  surface = 'background',
+}: PageHeaderProps) {
   return (
-    <header className="border-b border-surface-border bg-background">
+    <header
+      className={`border-b border-surface-border ${surface === 'canvas' ? 'bg-canvas' : 'bg-background'}`}
+    >
       <div
         className={`container mx-auto px-4 ${navigation ? 'pt-2 pb-5 sm:pt-4 sm:pb-6' : 'py-4'}`}
       >

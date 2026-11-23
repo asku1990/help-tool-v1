@@ -141,7 +141,7 @@ export default function TireManager({ vehicleId }: TireManagerProps) {
   if (isLoading) return <div>Loading tires...</div>;
 
   return (
-    <Card className="border-slate-200 dark:border-border dark:bg-card">
+    <Card variant="subtle">
       <CardHeader className="flex flex-row items-center justify-between">
         <CardTitle>Tires</CardTitle>
         <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
@@ -150,7 +150,7 @@ export default function TireManager({ vehicleId }: TireManagerProps) {
               Add Set
             </Button>
           </DialogTrigger>
-          <DialogContent>
+          <DialogContent mobileLayout="fullscreen">
             <DialogHeader>
               <DialogTitle>Add Tire Set</DialogTitle>
             </DialogHeader>
@@ -549,7 +549,7 @@ export default function TireManager({ vehicleId }: TireManagerProps) {
 
         {/* Edit Log Dialog */}
         <Dialog open={isEditLogOpen} onOpenChange={setIsEditLogOpen}>
-          <DialogContent>
+          <DialogContent mobileLayout="fullscreen">
             <DialogHeader>
               <DialogTitle>Edit Swap: {editingLog?.tireSetName}</DialogTitle>
             </DialogHeader>
@@ -602,7 +602,7 @@ export default function TireManager({ vehicleId }: TireManagerProps) {
 
         {/* Swap Dialog */}
         <Dialog open={isSwapOpen} onOpenChange={setIsSwapOpen}>
-          <DialogContent>
+          <DialogContent mobileLayout="fullscreen">
             <DialogHeader>
               <DialogTitle>Swap Tires</DialogTitle>
             </DialogHeader>

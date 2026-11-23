@@ -7,8 +7,9 @@ The plate and inspection status sit side by side when they fit and wrap on narro
 The status shows the date when more than 30 days away and uses plain-language urgency
 when due soon or overdue.
 To open a different vehicle, use **Back to vehicles** and choose it from the list.
-The summary groups and records share the same content width as the header. White panels
-on a blue-gray canvas distinguish sections without heavy borders in the light theme.
+The summary groups and records share the same content width as the header. Dashboard
+sections and their loading placeholders use the shared subtle card style. In the light
+theme, white panels sit on a blue-gray canvas without heavy borders.
 
 **Add fill-up**, **Add expense**, and **More** sit together to the right of the vehicle
 details on large screens and align left below them on smaller screens. The add buttons are
@@ -18,9 +19,13 @@ for anyone with read access, **Import backup** for owners and editors, and **Edi
 **Delete vehicle** for owners only. Vehicle deletion requires confirmation. Tap or click
 outside the menu to close it. Closing a menu dialog returns focus to **More**.
 
-On the vehicles list, **Add vehicle** is visible and **Restore Backup** is in the
-**⋯** menu. Tap or click outside to close the menu. Closing the restore dialog
-returns focus to **⋯**.
+On the vehicles list, **Add vehicle** and **Restore Backup** are in the **⋯** menu.
+Tap or click outside to close the menu. Closing either dialog returns focus to **⋯**.
+
+The vehicles list shows one linked card per vehicle, with its name, known vehicle
+details, registration plate, and the same inspection status as the vehicle overview.
+Cards use one column on phones and up to three on wider screens. Loading placeholders
+follow the same grid; the first-vehicle prompt only appears when the list is empty.
 
 Manual Mac and iPhone Safari regression check: with Web Inspector closed, open **⋯**
 on the vehicles list and click or tap the **Vehicles** heading once. Then open a
@@ -105,20 +110,24 @@ save errors, and Save/Cancel actions; `ExpenseDialog` and `FillUpDialog` supply 
 draft validation, and save requests. Both render
 `RecordAttachments` and use record data already loaded by the list.
 
-On mobile, each entry is outlined and spaced from the next. The date and summary align
+In card layout, each entry is outlined and spaced from the next. The date and summary align
 with the rest of the entry, the **⋯** menu stays at the top right, and the remaining
-details use the full width underneath. On desktop, both lists are tables with visible
-column headings aligned to the start of each cell, one line per record, and a narrow actions
-column. Odometer follows Date in both lists, before the expense category. Readings
+details use the full width underneath. With enough space, both lists are tables with visible
+column headings and a narrow actions column. Odometer follows Date in both lists,
+before the expense vendor and category. Readings
 include `km` and are part of the Details button’s accessible name. Missing values are
-marked with a dash on desktop without shifting other columns.
-The lists retain their existing values. Note previews use at most two lines on mobile
-and one on desktop; Details keeps the full notes. Long fuel purchase and odometer/oil
-previews truncate on desktop; open Details from the date to see the full values.
+marked with a dash in the table without shifting other columns.
+Both lists switch between a table and cards based on their available width.
+Fuel purchase shows the total first and wraps the quantity and unit price as needed.
+The tank status and odometer stay readable; notes use the remaining table space.
+Note previews use at most two lines in cards and one in the table;
+Details keeps the full notes.
 Fill-up status and consumption figures are outside the note preview and remain visible.
-Expenses without odometer or oil-consumption values do not render an empty metrics row;
-numeric zero is still shown and amounts stay aligned on desktop. Attachment counts remain
-separate work.
+Expenses without odometer or oil-consumption values do not render an empty metrics line in
+cards; numeric zero is still shown. The vendor appears first, followed by a smaller category
+label that can wrap. If there is no vendor, the category is the main text.
+Amounts remain fully visible and right-aligned in the table.
+Attachment counts remain separate work.
 
 ## Editing a Saved Record
 
@@ -191,6 +200,15 @@ upload a disposable file without reopening Edit, retry a failed upload, and clos
 Confirm the record is created once, its form is replaced after saving, and reopening Add
 starts a fresh form. Also check an inspection-date update failure does not offer another
 expense creation attempt.
+
+## Mobile Dialog Layout
+
+On phones, Add vehicle, Add fill-up, Add expense, saved-record Details/Edit/Manage files,
+tire entry and swap forms, and Backup Import/Restore use a full-screen dialog with a
+left-aligned title and no card border or shadow. Details lets long field labels wrap so
+the values have more room. Backup previews can scroll within the dialog.
+Login/Account and Delete vehicle remain compact, and browser confirmations are unchanged.
+On wider screens, dialogs keep their centered card layouts.
 
 ## Manual Viewing Checks
 

@@ -215,9 +215,9 @@ describe('FillUpList behavior', () => {
     try {
       await waitFor(() => expect(refresh).toHaveBeenCalled());
       await act(async () => {});
-      expect(screen.getByText(/5 L @/)).toBeInTheDocument();
+      expect(screen.getByText(/5 L ×/)).toBeInTheDocument();
       expect(screen.getByText('5.00 L/100km')).toBeInTheDocument();
-      expect(screen.queryByText(/8 L @/)).not.toBeInTheDocument();
+      expect(screen.queryByText(/8 L ×/)).not.toBeInTheDocument();
       if (removed) await waitFor(() => expect(list).toHaveFocus());
     } finally {
       finishRefresh();
@@ -226,7 +226,7 @@ describe('FillUpList behavior', () => {
       expect(await screen.findByText(/No fill-ups yet/)).toBeInTheDocument();
       expect(list).toHaveFocus();
     } else {
-      expect(await screen.findByText(/8 L @/)).toBeInTheDocument();
+      expect(await screen.findByText(/8 L ×/)).toBeInTheDocument();
       expect(screen.getByText('8.00 L/100km')).toBeInTheDocument();
     }
     expect(save).toHaveBeenCalledExactlyOnceWith({ liters: 8 });

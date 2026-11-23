@@ -1,5 +1,7 @@
 'use client';
 
+import { Card } from '@/components/ui';
+
 type BreakdownItem = { label: 'Fuel' | 'Maintenance' | 'Other'; amount: number };
 
 export type CostSummaryProps = {
@@ -24,7 +26,7 @@ export default function CostSummary({
   const parts = breakdown90d.map(b => ({ ...b, pct: total > 0 ? (b.amount / total) * 100 : 0 }));
 
   return (
-    <section className="space-y-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-border dark:bg-card">
+    <Card variant="subtle" className="space-y-4 p-4">
       <h2 className="text-lg font-semibold">Vehicle costs</h2>
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <KpiCard
@@ -64,7 +66,7 @@ export default function CostSummary({
           ))}
         </div>
       </div>
-    </section>
+    </Card>
   );
 }
 

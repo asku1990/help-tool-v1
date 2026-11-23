@@ -17,7 +17,11 @@ describe('ExpenseList behavior', () => {
   it.each([
     { label: 'missing metrics', metrics: {}, expected: [] },
     { label: 'zero odometer', metrics: { odometerKm: 0 }, expected: ['0 km'] },
-    { label: 'oil consumption only', metrics: { oilConsumption: 0 }, expected: ['0.0 L/10k'] },
+    {
+      label: 'oil consumption only',
+      metrics: { oilConsumption: 0, vendor: 'Local workshop' },
+      expected: ['0.0 L/10k'],
+    },
   ])('avoids empty metric cells while preserving $label', async ({ metrics, expected }) => {
     server.use(
       http.get('/api/vehicles/:vehicleId/expenses', () =>
@@ -48,13 +52,17 @@ describe('ExpenseList behavior', () => {
         .getAllByRole('columnheader')
         .slice(0, 3)
         .map(header => header.textContent)
-    ).toEqual(['Date', 'Odometer / oil', 'Category / vendor']);
+    ).toEqual(['Date', 'Odometer / oil', 'Vendor / category']);
     expect(screen.getByRole('columnheader', { name: 'Notes' })).toBeInTheDocument();
     expect(screen.getByRole('columnheader', { name: 'Amount' })).toBeInTheDocument();
     for (const value of expected) {
       expect(within(row).getAllByRole('cell')[1]).toHaveTextContent(value);
     }
-    expect(within(row).getByText(/10[.,]00/)).toHaveClass('lg:tabular-nums');
+    const vendorAndCategory = within(row).getAllByRole('cell')[2];
+    expect(vendorAndCategory).toHaveTextContent(
+      'vendor' in metrics ? /^Local workshop\s*· MAINTENANCE$/ : /^MAINTENANCE$/
+    );
+    expect(within(row).getByText(/10[.,]00/)).toHaveClass('tabular-nums');
   });
 
   it('renders non-empty list and total', async () => {

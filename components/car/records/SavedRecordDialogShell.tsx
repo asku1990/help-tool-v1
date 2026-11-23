@@ -48,7 +48,8 @@ export default function SavedRecordDialogShell({
         ref={content}
         aria-describedby={undefined}
         closeDisabled={busy}
-        className="gap-5 sm:max-w-xl max-sm:inset-0 max-sm:h-dvh max-sm:max-h-none max-sm:w-full max-sm:max-w-none max-sm:translate-x-0 max-sm:translate-y-0 max-sm:content-start max-sm:rounded-none max-sm:pb-[max(1.5rem,env(safe-area-inset-bottom))]"
+        mobileLayout="fullscreen"
+        className="gap-5 sm:max-w-xl"
         onOpenAutoFocus={e => {
           e.preventDefault();
           heading.current?.focus();
@@ -70,7 +71,7 @@ export default function SavedRecordDialogShell({
         }}
       >
         <DialogHeader className="border-b pb-4 text-left">
-          <DialogTitle ref={heading} tabIndex={-1} className="pr-8 text-xl outline-none">
+          <DialogTitle ref={heading} tabIndex={-1} className="text-xl outline-none sm:pr-8">
             {title}
           </DialogTitle>
         </DialogHeader>

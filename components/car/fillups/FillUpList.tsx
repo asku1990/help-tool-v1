@@ -90,16 +90,16 @@ function VehicleFillUpList({ vehicleId }: { vehicleId: string }) {
     );
 
   return withEditor(
-    <div className="space-y-2">
+    <div className="@container/fillups space-y-2">
       <div className="text-xs text-gray-500">
         Fuel cost — loaded records: {formatCurrency(totalFuelCost)}
       </div>
       <table
         role="table"
         aria-label="Fill-up records"
-        className="block w-full text-left text-sm lg:table lg:table-fixed"
+        className="block w-full text-left text-sm @min-[56rem]/fillups:table @min-[56rem]/fillups:table-fixed"
       >
-        <thead role="rowgroup" className="hidden lg:table-header-group">
+        <thead role="rowgroup" className="hidden @min-[56rem]/fillups:table-header-group">
           <tr
             role="row"
             className="bg-muted text-left text-xs text-muted-foreground [&>th]:px-2 [&>th]:py-2 [&>th]:font-medium"
@@ -107,16 +107,16 @@ function VehicleFillUpList({ vehicleId }: { vehicleId: string }) {
             <th role="columnheader" scope="col" className="w-28">
               Date
             </th>
-            <th role="columnheader" scope="col" className="w-28">
+            <th role="columnheader" scope="col" className="w-30">
               Odometer
             </th>
-            <th role="columnheader" scope="col" className="w-44">
+            <th role="columnheader" scope="col" className="w-[clamp(12rem,23cqw,17rem)]">
               Fuel purchase
             </th>
             <th role="columnheader" scope="col">
               Tank / notes
             </th>
-            <th role="columnheader" scope="col" className="w-70">
+            <th role="columnheader" scope="col" className="w-[clamp(14rem,28cqw,18rem)]">
               Trip / consumption
             </th>
             {canWrite ? (
@@ -126,12 +126,15 @@ function VehicleFillUpList({ vehicleId }: { vehicleId: string }) {
             ) : null}
           </tr>
         </thead>
-        <tbody role="rowgroup" className="block space-y-2 lg:table-row-group lg:space-y-0">
+        <tbody
+          role="rowgroup"
+          className="block space-y-2 @min-[56rem]/fillups:table-row-group @min-[56rem]/fillups:space-y-0"
+        >
           {items.map(f => (
             <tr
               role="row"
               key={f.id}
-              className="grid grid-cols-[minmax(0,1fr)_auto] gap-2 rounded-lg border border-slate-200 px-3 py-3 dark:border-border lg:table-row lg:rounded-none lg:border-x-0 lg:border-b-0 lg:whitespace-nowrap lg:[&>td]:px-2"
+              className="grid grid-cols-[minmax(0,1fr)_auto] gap-2 rounded-lg border border-slate-200 px-3 py-3 dark:border-border @min-[56rem]/fillups:table-row @min-[56rem]/fillups:rounded-none @min-[56rem]/fillups:border-x-0 @min-[56rem]/fillups:border-b-0 @min-[56rem]/fillups:[&>td]:px-2"
             >
               <td role="cell" className="col-start-1 row-start-1 min-w-0">
                 <RecordSummaryButton
@@ -141,27 +144,31 @@ function VehicleFillUpList({ vehicleId }: { vehicleId: string }) {
                   onOpen={trigger => open({ item: f, entry: 'view', trigger })}
                 />
               </td>
-              <td role="cell" className="hidden tabular-nums lg:table-cell">
-                <span className="lg:block lg:truncate">{f.odometerKm} km</span>
+              <td role="cell" className="hidden tabular-nums @min-[56rem]/fillups:table-cell">
+                <span className="whitespace-nowrap">{f.odometerKm} km</span>
               </td>
               <td
                 role="cell"
-                className="col-span-full min-w-0 text-muted-foreground lg:tabular-nums"
+                className="col-span-full min-w-0 py-1 text-muted-foreground tabular-nums"
               >
-                <span className="lg:block lg:truncate">
-                  {f.liters} L @ {f.pricePerLiter.toFixed(3)} →{' '}
-                  <span className="font-medium max-sm:font-semibold max-sm:text-foreground">
+                <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                  <span className="font-semibold whitespace-nowrap text-foreground">
                     {formatCurrency(f.totalCost)}
                   </span>
-                </span>
+                  <span className="text-xs">
+                    {f.liters} L × {formatCurrency(f.pricePerLiter, 3)}/L
+                  </span>
+                </div>
               </td>
               <td role="cell" className="col-span-full min-w-0 text-xs text-muted-foreground">
                 <div className="flex min-w-0 items-start gap-1">
-                  <span className="shrink-0">{f.isFull ? 'Full tank' : 'Partial'}</span>
+                  <span className="shrink-0 whitespace-nowrap">
+                    {f.isFull ? 'Full tank' : 'Partial'}
+                  </span>
                   {f.notes ? (
                     <>
                       <span aria-hidden="true">·</span>
-                      <p className="min-w-0 line-clamp-2 break-words sm:line-clamp-1 lg:block lg:truncate">
+                      <p className="min-w-0 line-clamp-2 wrap-anywhere @min-[56rem]/fillups:block @min-[56rem]/fillups:truncate">
                         {f.notes}
                       </p>
                     </>
@@ -170,14 +177,14 @@ function VehicleFillUpList({ vehicleId }: { vehicleId: string }) {
               </td>
               <td
                 role="cell"
-                className={`col-span-full min-w-0 lg:table-cell ${f.isFull && f.segment ? '' : 'hidden'}`}
+                className={`col-span-full min-w-0 @min-[56rem]/fillups:table-cell ${f.isFull && f.segment ? '' : 'hidden'}`}
               >
                 {f.isFull && f.segment ? (
-                  <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground max-lg:border-t max-lg:border-slate-200 max-lg:pt-2 lg:flex-nowrap dark:max-lg:border-border">
-                    <span className="font-medium tabular-nums">
+                  <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 border-t border-slate-200 pt-2 text-xs text-muted-foreground dark:border-border @min-[56rem]/fillups:border-0 @min-[56rem]/fillups:py-1">
+                    <span className="font-medium whitespace-nowrap tabular-nums">
                       Trip {f.segment.distanceKm.toFixed(0)} km
                     </span>
-                    <div className="inline-flex items-center gap-2 whitespace-nowrap tabular-nums max-lg:ml-auto">
+                    <div className="inline-flex min-w-0 max-w-full flex-wrap items-center gap-x-2 gap-y-1 whitespace-nowrap tabular-nums @max-[56rem]/fillups:ml-auto">
                       <ConsumptionRate value={f.segment.lPer100} previous={f.segment.prevLPer100} />
                       {typeof f.segment.prevLPer100 === 'number' ? (
                         <Delta now={f.segment.lPer100} prev={f.segment.prevLPer100} />
@@ -191,7 +198,7 @@ function VehicleFillUpList({ vehicleId }: { vehicleId: string }) {
               {canWrite ? (
                 <td
                   role="cell"
-                  className="col-start-2 row-start-1 lg:[&>details]:mx-auto lg:[&>details]:w-11"
+                  className="col-start-2 row-start-1 @min-[56rem]/fillups:[&>details]:mx-auto @min-[56rem]/fillups:[&>details]:w-11"
                 >
                   <RecordActions
                     label={`Fill-up actions for ${formatDateFi(new Date(f.date))}`}
@@ -250,8 +257,13 @@ function EmptyCta() {
   );
 }
 
-function formatCurrency(n: number) {
-  return new Intl.NumberFormat(undefined, { style: 'currency', currency: 'EUR' }).format(n);
+function formatCurrency(n: number, fractionDigits = 2) {
+  return new Intl.NumberFormat(undefined, {
+    style: 'currency',
+    currency: 'EUR',
+    minimumFractionDigits: fractionDigits,
+    maximumFractionDigits: fractionDigits,
+  }).format(n);
 }
 
 function ConsumptionRate({ value, previous }: { value: number; previous?: number }) {

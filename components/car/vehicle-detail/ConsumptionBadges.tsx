@@ -1,6 +1,7 @@
 'use client';
 
 import { consumptionPer100, fuelCostPer100 } from '@/lib/consumption';
+import { Card } from '@/components/ui';
 
 type Segment = {
   date: string;
@@ -19,7 +20,7 @@ export default function ConsumptionBadges({ segments }: { segments: Segment[] })
   const costPer100 = fuelCostPer100(segments.slice(-3));
 
   return (
-    <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-border dark:bg-card">
+    <Card variant="subtle" className="p-4">
       <h2 className="mb-3 text-lg font-semibold">Fuel consumption</h2>
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
         <Badge label="Latest" value={formatNumber(latest, 2)} suffix=" L/100km" />
@@ -28,7 +29,7 @@ export default function ConsumptionBadges({ segments }: { segments: Segment[] })
         <Badge label="Lifetime" value={formatNumber(lifetime, 2)} suffix=" L/100km" />
         <Badge label="Cost/100" value={formatCurrency(costPer100)} />
       </div>
-    </section>
+    </Card>
   );
 }
 

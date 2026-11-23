@@ -38,21 +38,44 @@ beforeEach(() => {
   });
 });
 
-it('renders vehicles list and opens add vehicle dialog', async () => {
+it('renders each vehicle as one link and opens the add vehicle dialog', async () => {
   server.use(
     http.get('/api/admin/me', () => HttpResponse.json({ data: { isAdmin: false } })),
     http.get('/api/vehicles', () =>
-      HttpResponse.json({ data: { vehicles: [{ id: 'v1', name: 'Car A' }] } })
+      HttpResponse.json({
+        data: {
+          vehicles: [
+            {
+              id: 'v1',
+              name: 'Car A',
+              make: 'Volvo',
+              model: 'V60',
+              year: 2020,
+              licensePlate: 'abc-123',
+            },
+          ],
+        },
+      })
     )
   );
   renderWithProviders(<CarHomePage />);
-  await waitFor(() => expect(screen.getByText(/Vehicles/i)).toBeInTheDocument());
-  expect(await screen.findByText(/Car A/i)).toBeInTheDocument();
-  fireEvent.click(screen.getByRole('button', { name: /add vehicle/i }));
-  expect(await screen.findByLabelText(/Add vehicle dialog/i)).toBeInTheDocument();
+  expect(screen.getByRole('heading', { name: 'Vehicles' })).toBeVisible();
+  const vehicle = await screen.findByRole('link', { name: /Car A/i });
+  expect(vehicle).toHaveAttribute('href', '/car/v1');
+  expect(within(vehicle).getByText('Volvo V60 2020')).toBeVisible();
+  expect(within(vehicle).getByText('ABC-123')).toBeVisible();
+  expect(within(vehicle).getByText('Inspection: Not scheduled')).toBeVisible();
+  expect(screen.queryByText(/choose add vehicle/i)).not.toBeInTheDocument();
+  const menu = screen.getByRole('button', { name: 'Vehicle list actions' });
+  fireEvent.click(menu);
+  fireEvent.click(screen.getByRole('button', { name: 'Add vehicle' }));
+  const dialog = await screen.findByRole('dialog', { name: 'Add vehicle' });
+  expect(menu).toHaveAttribute('aria-expanded', 'false');
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Close' }));
+  await waitFor(() => expect(menu).toHaveFocus());
 });
 
-it('keeps Add vehicle visible and puts Restore Backup in the actions menu', async () => {
+it('keeps Add vehicle and Restore Backup in the actions menu', async () => {
   server.use(
     http.get('/api/admin/me', () => HttpResponse.json({ data: { isAdmin: false } })),
     http.get('/api/vehicles', () => HttpResponse.json({ data: { vehicles: [] } }))
@@ -61,19 +84,30 @@ it('keeps Add vehicle visible and puts Restore Backup in the actions menu', asyn
   renderWithProviders(<CarHomePage />);
 
   await screen.findByText('No vehicles yet.');
-  const addVehicleButton = screen.getByRole('button', { name: /add vehicle/i });
+  expect(screen.getByText(/choose add vehicle/i)).toBeVisible();
   const menu = screen.getByRole('button', { name: 'Vehicle list actions' });
 
-  expect(addVehicleButton).toHaveClass('w-full');
-  expect(addVehicleButton).toHaveClass('sm:w-auto');
+  expect(screen.queryByRole('button', { name: 'Add vehicle' })).not.toBeInTheDocument();
   expect(screen.queryByRole('button', { name: 'Restore Backup' })).not.toBeInTheDocument();
 
   fireEvent.click(menu);
+  expect(screen.getByRole('button', { name: 'Add vehicle' })).toBeVisible();
   fireEvent.click(screen.getByRole('button', { name: 'Restore Backup' }));
   const dialog = await screen.findByRole('dialog', { name: 'Restore from Backup' });
   expect(menu).toHaveAttribute('aria-expanded', 'false');
   fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }));
   await waitFor(() => expect(menu).toHaveFocus());
+});
+
+it('shows a retry instead of the empty garage when vehicles fail to load', async () => {
+  server.use(
+    http.get('/api/admin/me', () => HttpResponse.json({ data: { isAdmin: false } })),
+    http.get('/api/vehicles', () => HttpResponse.json({}, { status: 500 }))
+  );
+  renderWithProviders(<CarHomePage />);
+  expect(await screen.findByRole('alert')).toHaveTextContent('Could not load vehicles.');
+  expect(screen.getByRole('button', { name: 'Retry' })).toBeVisible();
+  expect(screen.queryByText(/choose add vehicle/i)).not.toBeInTheDocument();
 });
 
 it('lets users sign out directly from the vehicle list', () => {
@@ -165,7 +199,7 @@ it('hides admin link for non-admin user', async () => {
     http.get('/api/vehicles', () => HttpResponse.json({ data: { vehicles: [] } }))
   );
   renderWithProviders(<CarHomePage />);
-  await waitFor(() => expect(screen.getByText(/vehicles/i)).toBeInTheDocument());
+  expect(screen.getByRole('heading', { name: 'Vehicles' })).toBeVisible();
   fireEvent.click(screen.getByRole('button', { name: 'Vehicle list actions' }));
   expect(screen.queryByRole('link', { name: /admin/i })).not.toBeInTheDocument();
 });
@@ -178,9 +212,10 @@ it('shows toast success when vehicle creation succeeds', async () => {
   );
 
   renderWithProviders(<CarHomePage />);
-  await waitFor(() => expect(screen.getByText(/vehicles/i)).toBeInTheDocument());
+  expect(screen.getByRole('heading', { name: 'Vehicles' })).toBeVisible();
 
-  fireEvent.click(screen.getByRole('button', { name: /add vehicle/i }));
+  fireEvent.click(screen.getByRole('button', { name: 'Vehicle list actions' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Add vehicle' }));
   fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Car B' } });
   fireEvent.click(screen.getByRole('button', { name: /^create$/i }));
 
@@ -204,9 +239,10 @@ it('shows toast error when vehicle creation fails', async () => {
   );
 
   renderWithProviders(<CarHomePage />);
-  await waitFor(() => expect(screen.getByText(/vehicles/i)).toBeInTheDocument());
+  expect(screen.getByRole('heading', { name: 'Vehicles' })).toBeVisible();
 
-  fireEvent.click(screen.getByRole('button', { name: /add vehicle/i }));
+  fireEvent.click(screen.getByRole('button', { name: 'Vehicle list actions' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Add vehicle' }));
   fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Car C' } });
   fireEvent.click(screen.getByRole('button', { name: /^create$/i }));
 

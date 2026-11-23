@@ -42,8 +42,8 @@ signed delta when available, and comparison description readable without relying
 Partial fill-ups and the initial full-tank baseline do not have completed-trip consumption.
 
 On smaller screens, completed trips have their own line below the purchase details and notes.
-Distance sits on the left; the consumption badge and delta stay together on the right,
-wrapping as a group if space runs out. On desktop, trip figures have a labeled column
+Distance sits on the left and the consumption badge on the right. The delta can wrap
+below the badge if space runs out. In table layout, trip figures have a labeled column
 in the fill-up table. Fill-ups and Expenses stack at the full
 vehicle-page content width so switching to Chart does not constrain the chart to a column.
 
