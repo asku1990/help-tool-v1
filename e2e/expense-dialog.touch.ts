@@ -77,7 +77,11 @@ for (const width of [320, 402, 1280]) {
     const more = page.getByRole('button', { name: 'More vehicle actions' });
     await more.tap();
     await page.getByRole('button', { name: 'Delete vehicle', exact: true }).tap();
-    await expect(dialog).toHaveCSS('border-top-left-radius', '10px');
-    expect((await dialog.boundingBox())?.width).toBeLessThan(width);
+    const deleteDialog = page.getByRole('dialog', { name: 'Delete vehicle' });
+    await expect(deleteDialog).toHaveCSS('border-top-left-radius', '10px');
+    const dialogWidth = await deleteDialog.evaluate(element =>
+      Number.parseFloat(getComputedStyle(element).width)
+    );
+    expect(dialogWidth).toBeLessThan(width);
   });
 }

@@ -4,6 +4,7 @@
     { "action": "shell", "resource": "pnpm test", "effect": "allow" },
     { "action": "shell", "resource": "pnpm test:changed", "effect": "allow" },
     { "action": "shell", "resource": "pnpm exec vitest run *", "effect": "allow" },
+    { "action": "shell", "resource": "pnpm exec playwright test *", "effect": "allow" },
     { "action": "shell", "resource": "pnpm type-check", "effect": "allow" },
     { "action": "shell", "resource": "pnpm lint", "effect": "allow" },
     { "action": "shell", "resource": "pnpm exec prettier --check *", "effect": "allow" },

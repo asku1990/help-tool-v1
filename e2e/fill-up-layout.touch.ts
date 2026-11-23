@@ -71,6 +71,9 @@ test('keeps fill-up and expense figures readable as the lists narrow', async ({ 
   const expenseTable = page.getByRole('table', { name: 'Expense records' });
   const expenseHeader = expenseTable.getByRole('columnheader', { name: 'Amount' });
 
+  await expect(table).toBeVisible({ timeout: 20_000 });
+  await expect(expenseTable).toBeVisible({ timeout: 20_000 });
+
   for (const { width, desktop } of [
     { width: undefined, desktop: true },
     { width: 900, desktop: true },
