@@ -1,4 +1,4 @@
-import { useState, type FormEvent, type ReactNode } from 'react';
+import { useRef, useState, type FormEvent, type ReactNode } from 'react';
 import {
   Button,
   Dialog,
@@ -36,6 +36,7 @@ export function TireEditorDialog({
 }) {
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const heading = useRef<HTMLHeadingElement>(null);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -62,10 +63,16 @@ export function TireEditorDialog({
       <DialogContent
         mobileLayout="fullscreen"
         closeDisabled={saving}
+        onOpenAutoFocus={event => {
+          event.preventDefault();
+          heading.current?.focus();
+        }}
         onCloseAutoFocus={onCloseAutoFocus}
       >
         <DialogHeader>
-          <DialogTitle>{title}</DialogTitle>
+          <DialogTitle ref={heading} tabIndex={-1} className="outline-none">
+            {title}
+          </DialogTitle>
           <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
         <form className="space-y-4" onSubmit={submit}>

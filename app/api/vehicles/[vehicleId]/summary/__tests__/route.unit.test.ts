@@ -67,6 +67,8 @@ describe('vehicle summary API', () => {
     const body = await response.json();
     expect(body.data.segments).toHaveLength(60);
     expect(body.data.costPerKmLifetime).toBeCloseTo(620 / 6000);
+    expect(body.data.fuelCostLifetime).toBe(610);
+    expect(body.data.expenseTotalLifetime).toBe(20);
     expect(mocks.fillUps).toHaveBeenCalledWith({
       where: { vehicleId: 'v' },
       select: {

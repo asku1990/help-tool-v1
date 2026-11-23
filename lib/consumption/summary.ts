@@ -15,6 +15,8 @@ const reportingMonth = new Intl.DateTimeFormat('en-GB', {
 
 export type VehicleSummary = {
   segments: ConsumptionSegment[];
+  fuelCostLifetime: number;
+  expenseTotalLifetime: number;
   costPerKmLifetime: number | null;
   costPerKm90d: number | null;
   spendMTD: number;
@@ -50,6 +52,8 @@ export function computeVehicleSummary(
 
   return {
     segments,
+    fuelCostLifetime: fillUps.reduce((sum, fillUp) => sum + fillUp.totalCost, 0),
+    expenseTotalLifetime: expenses.reduce((sum, expense) => sum + expense.amount, 0),
     costPerKmLifetime: costPerKm(),
     costPerKm90d: costPerKm(d90),
     spendMTD: spend(isCurrentMonth),

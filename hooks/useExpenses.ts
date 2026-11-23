@@ -1,5 +1,6 @@
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { expenseKeys, vehicleSummaryKeys } from '@/queries/keys';
+import { expenseKeys } from '@/queries/keys';
+import { refreshVehicleSummary } from './vehicles/refreshVehicleSummary';
 import type { CreateExpenseInput, UpdateExpenseInput } from '@/lib/expenses';
 import {
   createExpense,
@@ -75,7 +76,7 @@ export function useCreateExpense(vehicleId: string) {
     onSettled: () => {
       qc.invalidateQueries({ queryKey: expenseKeys.byVehicle(vehicleId) });
       qc.invalidateQueries({ queryKey: expenseKeys.infiniteByVehicle(vehicleId) });
-      qc.invalidateQueries({ queryKey: vehicleSummaryKeys.byVehicle(vehicleId) });
+      void refreshVehicleSummary(qc, vehicleId);
     },
   });
 }
@@ -88,7 +89,7 @@ export function useUpdateExpense(vehicleId: string, expenseId: string) {
     mutationFn: (payload: UpdateExpenseInput) => updateExpense(vehicleId, expenseId, payload),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: expenseKeys.byVehicle(vehicleId) });
-      qc.invalidateQueries({ queryKey: vehicleSummaryKeys.byVehicle(vehicleId) });
+      void refreshVehicleSummary(qc, vehicleId);
       // The PATCH is complete even if the list refresh fails or pauses offline.
       void qc.invalidateQueries({ queryKey: expenseKeys.infiniteByVehicle(vehicleId) });
     },
@@ -102,7 +103,7 @@ export function useDeleteExpense(vehicleId: string, expenseId: string) {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: expenseKeys.byVehicle(vehicleId) });
       qc.invalidateQueries({ queryKey: expenseKeys.infiniteByVehicle(vehicleId) });
-      qc.invalidateQueries({ queryKey: vehicleSummaryKeys.byVehicle(vehicleId) });
+      void refreshVehicleSummary(qc, vehicleId);
     },
   });
 }

@@ -37,7 +37,6 @@ function VehicleExpenseList({ vehicleId }: { vehicleId: string }) {
   } = useInfiniteExpenses(vehicleId, 5);
 
   const items = useMemo(() => (data?.pages || []).flatMap(p => p.expenses), [data]);
-  const total = useMemo(() => items.reduce((s, e) => s + e.amount, 0), [items]);
   const canWrite = data?.pages[0]?.canWrite === true;
   const {
     list,
@@ -86,7 +85,6 @@ function VehicleExpenseList({ vehicleId }: { vehicleId: string }) {
 
   return withEditor(
     <div className="@container/expenses space-y-2">
-      <div className="text-xs text-gray-500">Total: {formatCurrency(total)}</div>
       <table
         role="table"
         aria-label="Expense records"

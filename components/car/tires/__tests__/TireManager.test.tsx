@@ -161,7 +161,7 @@ describe('TireManager', () => {
     expect(screen.getByRole('heading', { name: 'Other tire sets' })).toBeInTheDocument();
   });
 
-  it('shows add tire set dialog when clicking Add Set', async () => {
+  it('focuses the Add tire set title instead of a form field on open', async () => {
     const hooks = await import('@/hooks');
     vi.mocked(hooks.useTireSets).mockReturnValue({
       data: { tireSets: [] },
@@ -179,8 +179,10 @@ describe('TireManager', () => {
     const addButton = screen.getByRole('button', { name: 'Add tire set' });
     await user.click(addButton);
 
-    expect(screen.getByRole('dialog', { name: 'Add tire set' })).toBeInTheDocument();
-    expect(screen.getByPlaceholderText(/Nokian Hakkapeliitta/i)).toBeInTheDocument();
+    const dialog = within(screen.getByRole('dialog', { name: 'Add tire set' }));
+    expect(dialog.getByRole('heading', { name: 'Add tire set' })).toHaveFocus();
+    await user.tab();
+    expect(dialog.getByLabelText('Name')).toHaveFocus();
   });
 
   it('creates a tire set through the dialog', async () => {
@@ -231,6 +233,7 @@ describe('TireManager', () => {
     expect(screen.getByText('Old notes')).toBeVisible();
     await user.click(screen.getByRole('button', { name: 'Edit details' }));
     const dialog = within(screen.getByRole('dialog', { name: 'Edit tire set' }));
+    expect(dialog.getByRole('heading', { name: 'Edit tire set' })).toHaveFocus();
     expect(dialog.getByLabelText('Name')).toHaveValue('Summer Tires');
     await user.clear(dialog.getByLabelText('Name'));
     await user.type(dialog.getByLabelText('Name'), 'New name');
@@ -259,6 +262,7 @@ describe('TireManager', () => {
     const mount = screen.getByRole('button', { name: 'Mount this set' });
     await user.click(mount);
     const dialog = within(screen.getByRole('dialog', { name: 'Mount tire set' }));
+    expect(dialog.getByRole('heading', { name: 'Mount tire set' })).toHaveFocus();
     expect(dialog.getByLabelText('Set to mount')).toHaveValue('t1');
     expect(dialog.getByLabelText(/car odometer at tire change/i)).not.toBeRequired();
     await user.click(dialog.getByRole('button', { name: 'Cancel' }));
@@ -372,6 +376,7 @@ describe('TireManager', () => {
     });
 
     await user.click(screen.getByRole('button', { name: 'Change tires' }));
+    expect(screen.getByRole('heading', { name: 'Change tires' })).toHaveFocus();
     expect(screen.getByText(/Mounted will move to storage\./)).toBeVisible();
 
     await user.selectOptions(screen.getByLabelText('Set to mount'), 'stored');
@@ -502,6 +507,10 @@ describe('TireManager', () => {
 
     await user.click(screen.getByText('View tire changes (1)'));
     await user.click(screen.getByRole('button', { name: 'Edit change' }));
+    const dialog = within(screen.getByRole('dialog', { name: 'Edit tire change' }));
+    expect(dialog.getByRole('heading', { name: 'Edit tire change' })).toHaveFocus();
+    await user.tab();
+    expect(dialog.getByLabelText('Date')).toHaveFocus();
     const reading = screen.getByRole('spinbutton');
     expect(reading).toHaveValue(null);
     expect(screen.getByText(/Previous reading:/)).toBeVisible();

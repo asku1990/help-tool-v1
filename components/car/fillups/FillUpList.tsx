@@ -41,7 +41,6 @@ function VehicleFillUpList({ vehicleId }: { vehicleId: string }) {
     () => (data?.pages || []).flatMap(p => p.fillUps),
     [data]
   );
-  const totalFuelCost = useMemo(() => items.reduce((s, f) => s + f.totalCost, 0), [items]);
   const canWrite = data?.pages[0]?.canWrite === true;
   const { list, open, dialog } = useListedRecordDialog(items, {
     isError,
@@ -91,9 +90,6 @@ function VehicleFillUpList({ vehicleId }: { vehicleId: string }) {
 
   return withEditor(
     <div className="@container/fillups space-y-2">
-      <div className="text-xs text-gray-500">
-        Fuel cost — loaded records: {formatCurrency(totalFuelCost)}
-      </div>
       <table
         role="table"
         aria-label="Fill-up records"

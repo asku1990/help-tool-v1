@@ -54,6 +54,10 @@ entering via **More → Edit** instead closes back to More.
 
 ## Fill-ups and Expenses
 
+The **All-time fuel cost** and **All-time expenses** totals come from the
+[vehicle summary](consumption.md#calculations). **Load more** reveals older rows without
+changing either total.
+
 Select the date and summary area of an expense or fill-up to open **Details**. It is a
 keyboard-accessible button with a chevron, not an invisible
 click handler on the whole row. Details opens a read-only summary with the saved record

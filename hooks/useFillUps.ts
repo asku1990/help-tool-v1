@@ -1,5 +1,6 @@
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { fillUpKeys, vehicleSummaryKeys } from '@/queries/keys';
+import { fillUpKeys } from '@/queries/keys';
+import { refreshVehicleSummary } from './vehicles/refreshVehicleSummary';
 import type { CreateFillUpInput, UpdateFillUpInput } from '@/lib/fillups';
 import {
   createFillUp,
@@ -74,7 +75,7 @@ export function useCreateFillUp(vehicleId: string) {
     onSettled: () => {
       qc.invalidateQueries({ queryKey: fillUpKeys.byVehicle(vehicleId) });
       qc.invalidateQueries({ queryKey: fillUpKeys.infiniteByVehicle(vehicleId) });
-      qc.invalidateQueries({ queryKey: vehicleSummaryKeys.byVehicle(vehicleId) });
+      void refreshVehicleSummary(qc, vehicleId);
     },
   });
 }
@@ -85,7 +86,7 @@ export function useUpdateFillUp(vehicleId: string, fillUpId: string) {
     mutationFn: (payload: UpdateFillUpInput) => updateFillUp(vehicleId, fillUpId, payload),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: fillUpKeys.byVehicle(vehicleId) });
-      qc.invalidateQueries({ queryKey: vehicleSummaryKeys.byVehicle(vehicleId) });
+      void refreshVehicleSummary(qc, vehicleId);
       // Only the refreshed list has both the saved fields and their corresponding trip figures.
       void qc.invalidateQueries({ queryKey: fillUpKeys.infiniteByVehicle(vehicleId) });
     },
@@ -99,7 +100,7 @@ export function useDeleteFillUp(vehicleId: string, fillUpId: string) {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: fillUpKeys.byVehicle(vehicleId) });
       qc.invalidateQueries({ queryKey: fillUpKeys.infiniteByVehicle(vehicleId) });
-      qc.invalidateQueries({ queryKey: vehicleSummaryKeys.byVehicle(vehicleId) });
+      void refreshVehicleSummary(qc, vehicleId);
     },
   });
 }

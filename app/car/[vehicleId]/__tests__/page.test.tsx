@@ -65,6 +65,108 @@ it('renders vehicle header and lists', async () => {
   expect(screen.getByText('Lifetime cost per km')).toBeInTheDocument();
 });
 
+it('shows all-time fuel and expense totals before and after loading older records', async () => {
+  const fillUps = [30, 50].map((totalCost, i) => ({
+    id: `fuel-${i}`,
+    date: i === 0 ? '2026-11-01' : '2025-01-01',
+    odometerKm: 2000 - i * 1000,
+    liters: 20,
+    pricePerLiter: totalCost / 20,
+    totalCost,
+    isFull: i === 1,
+  }));
+  const expenses = [12, 100].map((amount, i) => ({
+    id: `expense-${i}`,
+    date: i === 0 ? '2026-11-01' : '2025-01-01',
+    category: i === 0 ? 'MAINTENANCE' : 'FUEL',
+    amount,
+  }));
+  server.use(
+    http.get('/api/vehicles/v1/summary', () =>
+      HttpResponse.json({ data: computeVehicleSummary(fillUps, expenses) })
+    ),
+    http.get('/api/vehicles/v1/fillups', ({ request }) => {
+      const older = new URL(request.url).searchParams.has('cursor');
+      return HttpResponse.json({
+        data: { fillUps: [fillUps[older ? 1 : 0]], nextCursor: older ? null : 'fuel-0' },
+      });
+    }),
+    http.get('/api/vehicles/v1/expenses', ({ request }) => {
+      const older = new URL(request.url).searchParams.has('cursor');
+      return HttpResponse.json({
+        data: {
+          expenses: [expenses[older ? 1 : 0]],
+          expensesTotal: 123,
+          nextCursor: older ? null : 'expense-0',
+        },
+      });
+    })
+  );
+
+  renderWithProviders(<VehiclePage />);
+  const fuelTotal = await screen.findByText(/^All-time fuel cost:/);
+  const expenseTotal = screen.getByText(/^All-time expenses:/);
+  const fuelRows = within(await screen.findByRole('table', { name: 'Fill-up records' }));
+  const expenseRows = within(await screen.findByRole('table', { name: 'Expense records' }));
+  expect(fuelRows.getAllByRole('row')).toHaveLength(2);
+  expect(expenseRows.getAllByRole('row')).toHaveLength(2);
+  expect(fuelTotal).toHaveTextContent(/80[.,]00/);
+  expect(expenseTotal).toHaveTextContent(/112[.,]00/);
+
+  const buttons = screen.getAllByRole('button', { name: 'Load more' });
+  expect(buttons).toHaveLength(2);
+  buttons.forEach(button => fireEvent.click(button));
+  await waitFor(() => {
+    expect(fuelRows.getAllByRole('row')).toHaveLength(3);
+    expect(expenseRows.getAllByRole('row')).toHaveLength(3);
+  });
+  expect(screen.getByText(/^All-time fuel cost:/)).toHaveTextContent(/80[.,]00/);
+  expect(screen.getByText(/^All-time expenses:/)).toHaveTextContent(/112[.,]00/);
+});
+
+it('shows the saved fuel cost when the first summary request started before the save', async () => {
+  let releaseFirstSummary!: () => void;
+  const firstSummary = new Promise<void>(resolve => {
+    releaseFirstSummary = resolve;
+  });
+  let summaryStarted = false;
+  let fuelCostLifetime = 0;
+  server.use(
+    http.get('/api/vehicles/v1', () =>
+      HttpResponse.json({ data: { vehicle: { id: 'v1', name: 'Car A', canWrite: true } } })
+    ),
+    http.get('/api/vehicles/v1/summary', async () => {
+      const data = { ...computeVehicleSummary([], []), fuelCostLifetime };
+      if (!summaryStarted) {
+        summaryStarted = true;
+        await firstSummary;
+      }
+      return HttpResponse.json({ data });
+    }),
+    http.post('/api/vehicles/v1/fillups', () => {
+      fuelCostLifetime = 45;
+      return HttpResponse.json({ data: { id: 'f1' } }, { status: 201 });
+    })
+  );
+
+  renderWithProviders(<VehiclePage />);
+  try {
+    await waitFor(() => expect(summaryStarted).toBe(true));
+    fireEvent.click(await screen.findByRole('button', { name: 'Add fill-up' }));
+    const dialog = within(await screen.findByLabelText(/Add fill-up dialog/i));
+    fireEvent.change(dialog.getByLabelText(/Odometer km/i), { target: { value: '1000' } });
+    fireEvent.change(dialog.getByLabelText(/Liters/i), { target: { value: '30' } });
+    fireEvent.change(dialog.getByLabelText(/Price per liter/i), { target: { value: '1.5' } });
+    fireEvent.click(dialog.getByRole('button', { name: 'Save fill-up' }));
+    await waitFor(() => expect(screen.queryByLabelText(/Add fill-up dialog/i)).toBeNull());
+  } finally {
+    releaseFirstSummary();
+  }
+  await waitFor(() =>
+    expect(screen.getByText(/^All-time fuel cost:/)).toHaveTextContent(/45[.,]00/)
+  );
+});
+
 it('shows a mounted-tire summary and links to tire management without inline write controls', async () => {
   server.use(
     http.get('/api/vehicles/v1/tires', () =>
@@ -107,6 +209,7 @@ it('shows a retryable error rather than zero-valued summaries when the summary r
   renderWithProviders(<VehiclePage />);
   expect(await screen.findByRole('alert')).toHaveTextContent('Could not load vehicle summary.');
   expect(screen.queryByText('Lifetime cost per km')).not.toBeInTheDocument();
+  expect(screen.queryByText(/^All-time (fuel cost|expenses):/)).not.toBeInTheDocument();
   expect(screen.getAllByRole('button', { name: /retry/i }).length).toBeGreaterThan(0);
 });
 
