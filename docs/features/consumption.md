@@ -20,6 +20,9 @@ For application layers and dependency rules, see [architecture](../architecture.
   segments if fewer exist. Badges and charts use the same distance-weighted calculation.
 - Lifetime and period summaries use complete relevant history independently of loaded list
   pages. A total over loaded rows must be labeled as such.
+- **All-time fuel cost** sums every recorded fill-up, including partial fills. **All-time
+  expenses** sums every expense entry, including entries in the Fuel category, but does not
+  include fill-up purchases.
 - A period's consumption distance and fuel cost use segments ending in that period; this is
   an interval-based estimate, not a daily allocation of driving. Spend and category breakdowns
   use record dates.
