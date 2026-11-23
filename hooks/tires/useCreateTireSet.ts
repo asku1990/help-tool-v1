@@ -1,4 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { tireKeys } from '@/queries/keys';
 import { createTireSet, type TireType } from '@/queries/tires';
 
 type CreateTireSetPayload = {
@@ -14,7 +15,7 @@ export function useCreateTireSet(vehicleId: string) {
   return useMutation({
     mutationFn: (payload: CreateTireSetPayload) => createTireSet(vehicleId, payload),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['tireSets', vehicleId] });
+      queryClient.invalidateQueries({ queryKey: tireKeys.sets(vehicleId) });
     },
   });
 }

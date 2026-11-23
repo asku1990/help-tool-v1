@@ -3,18 +3,15 @@ import { auth } from '@/auth';
 import prisma from '@/lib/db';
 import { z } from 'zod';
 import { ok, created, unauthorized, notFound, badRequest, serverError } from '@/lib/api/response';
-import { checkRateLimit, rateLimitHeaders, rateLimitKey } from '@/lib/api/rate-limit';
 import { logger } from '@/lib/logger';
 import { getSessionUserId, getVehicleAccess, hasPermission } from '@/lib/api/vehicle-access';
+import { newestChangeFirst } from './timeline';
+import { rateLimitTireRequest } from './rateLimitTireRequest';
 
 export async function GET(req: NextRequest, context: { params: Promise<{ vehicleId: string }> }) {
   try {
-    const rl = checkRateLimit(rateLimitKey(req));
-    if (!rl.allowed)
-      return serverError('Rate limit exceeded', undefined, {
-        status: 429,
-        headers: rateLimitHeaders(rl.retryAfterMs),
-      });
+    const limited = rateLimitTireRequest(req);
+    if (limited) return limited;
     const session = await auth();
     const userId = await getSessionUserId(session);
     if (!userId) {
@@ -32,7 +29,7 @@ export async function GET(req: NextRequest, context: { params: Promise<{ vehicle
       orderBy: { createdAt: 'desc' },
       include: {
         changeLogs: {
-          orderBy: { date: 'desc' },
+          orderBy: newestChangeFirst,
           take: 1,
         },
       },
@@ -55,12 +52,8 @@ const CreateTireSetSchema = z.object({
 
 export async function POST(req: NextRequest, context: { params: Promise<{ vehicleId: string }> }) {
   try {
-    const rl = checkRateLimit(rateLimitKey(req));
-    if (!rl.allowed)
-      return serverError('Rate limit exceeded', undefined, {
-        status: 429,
-        headers: rateLimitHeaders(rl.retryAfterMs),
-      });
+    const limited = rateLimitTireRequest(req);
+    if (limited) return limited;
     const session = await auth();
     const userId = await getSessionUserId(session);
     if (!userId) {

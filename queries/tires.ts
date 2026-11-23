@@ -8,7 +8,9 @@ export type TireChangeLogDto = {
   vehicleId: string;
   tireSetId: string;
   date: string;
-  odometerKm: number;
+  odometerKm: number | null;
+  odometerConfirmed: boolean;
+  createdAt?: string;
   notes?: string | null;
 };
 
@@ -66,7 +68,7 @@ export function logTireChange(
   payload: {
     tireSetId: string;
     date: string;
-    odometerKm: number;
+    odometerKm?: number | null;
     notes?: string;
   }
 ) {
@@ -82,7 +84,7 @@ export function updateTireChangeLog(
   logId: string,
   payload: Partial<{
     date: string;
-    odometerKm: number;
+    odometerKm: number | null;
     notes: string | null;
   }>
 ) {

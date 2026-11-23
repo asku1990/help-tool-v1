@@ -59,7 +59,6 @@ export default defineConfig({
         'e2e/**',
         'playwright.config.ts',
         // Type-only files
-        'utils/csv/types.ts',
       ],
       reporter: ['text', 'json', 'html'],
       all: true,

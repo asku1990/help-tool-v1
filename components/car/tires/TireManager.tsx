@@ -1,661 +1,220 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useRef, useState, type MouseEvent } from 'react';
+import { toast } from 'sonner';
+import { Button, Card, CardContent } from '@/components/ui';
 import {
-  Button,
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '@/components/ui';
-import type { TireType, TireStatus } from '@/queries/tires';
-import {
-  useLatestOdometer,
+  useFillUps,
   useTireSets,
   useTireChangeHistory,
-  useCreateTireSet,
   useUpdateTireSet,
   useDeleteTireSet,
-  useLogTireChange,
-  useUpdateTireChangeLog,
-  useDeleteTireChangeLog,
 } from '@/hooks';
-import { calculateTireUsage, formatDuration } from '@/utils';
-import { toast } from 'sonner';
 import { getUiErrorMessage } from '@/lib/api/client-errors';
+import { calculateTireMileage } from '@/lib/tires';
+import type { TireSetDto } from '@/queries/tires';
+import { TireChangeDialog, type TireChangeEditor } from './TireChangeDialog';
+import { TireChangeHistory } from './TireChangeHistory';
+import { TireSetCard } from './TireSetCard';
+import { TireSetDialog } from './TireSetDialog';
 
-type TireManagerProps = {
+type Editor = { kind: 'details'; set?: TireSetDto } | TireChangeEditor;
+
+export default function TireManager({
+  vehicleId,
+  canWrite,
+}: {
   vehicleId: string;
-};
+  canWrite: boolean;
+}) {
+  const setsQuery = useTireSets(vehicleId);
+  const historyQuery = useTireChangeHistory(vehicleId);
+  const fillUpsQuery = useFillUps(vehicleId);
+  const updateSet = useUpdateTireSet(vehicleId);
+  const deleteSet = useDeleteTireSet(vehicleId);
+  const [editor, setEditor] = useState<Editor | null>(null);
+  const trigger = useRef<HTMLButtonElement | null>(null);
+  const mountedHeading = useRef<HTMLHeadingElement | null>(null);
 
-export default function TireManager({ vehicleId }: TireManagerProps) {
-  const { data, isLoading, error: tireSetsError } = useTireSets(vehicleId);
-  const { data: historyData, error: historyError } = useTireChangeHistory(vehicleId);
+  const sets = setsQuery.data?.tireSets ?? [];
+  const history = historyQuery.data?.history ?? [];
+  const mounted = sets.find(set => set.status === 'ACTIVE');
+  const stored = sets.filter(set => set.status === 'STORED');
+  const retired = sets.filter(set => set.status === 'RETIRED');
+  const setsWithHistory = new Set(history.map(log => log.tireSetId));
+  const mileage = calculateTireMileage(
+    history,
+    mounted?.id,
+    fillUpsQuery.isError ? undefined : fillUpsQuery.data?.fillUps[0]
+  );
 
-  const hasHistory = (historyData?.history.length ?? 0) > 0;
+  function openEditor(event: MouseEvent<HTMLButtonElement>, next: Editor) {
+    trigger.current = event.currentTarget;
+    setEditor(next);
+  }
 
-  const latestOdometer = useLatestOdometer(vehicleId);
+  function restoreFocus(event: Event) {
+    event.preventDefault();
+    (trigger.current?.isConnected ? trigger.current : mountedHeading.current)?.focus();
+  }
 
-  // Calculate usage stats for all tire sets
-  const usageStats = useMemo(() => {
-    const tireSets = data?.tireSets || [];
-    const history = historyData?.history || [];
-    return calculateTireUsage(tireSets, history, latestOdometer ?? undefined);
-  }, [data?.tireSets, historyData?.history, latestOdometer]);
-
-  const [isAddOpen, setIsAddOpen] = useState(false);
-  const [isSwapOpen, setIsSwapOpen] = useState(false);
-  const [selectedTireSetId, setSelectedTireSetId] = useState<string>('');
-
-  // Add form state
-  const [newName, setNewName] = useState('');
-  const [newType, setNewType] = useState<TireType>('SUMMER');
-  const [newPurchaseDate, setNewPurchaseDate] = useState('');
-
-  // Swap form state
-  const [swapOdometer, setSwapOdometer] = useState('');
-  const [swapDate, setSwapDate] = useState(new Date().toISOString().slice(0, 10));
-
-  // Edit change log state
-  const [isEditLogOpen, setIsEditLogOpen] = useState(false);
-  const [editingLog, setEditingLog] = useState<{
-    id: string;
-    date: string;
-    odometerKm: string;
-    tireSetName: string;
-  } | null>(null);
-
-  // Collapsible swap history
-  const [historyExpanded, setHistoryExpanded] = useState(false);
-  const lastQueryErrorSignatureRef = useRef<string | null>(null);
-
-  // Mutations
-  const createMutation = useCreateTireSet(vehicleId);
-  const updateMutation = useUpdateTireSet(vehicleId);
-  const deleteMutation = useDeleteTireSet(vehicleId);
-  const logChangeMutation = useLogTireChange(vehicleId);
-  const updateLogMutation = useUpdateTireChangeLog(vehicleId);
-  const deleteLogMutation = useDeleteTireChangeLog(vehicleId);
-
-  useEffect(() => {
-    const queryError = tireSetsError ?? historyError;
-    if (!queryError) {
-      lastQueryErrorSignatureRef.current = null;
-      return;
-    }
-
-    const message = getUiErrorMessage(queryError, 'Failed to load tire data');
-    const signature =
-      queryError instanceof Error
-        ? `${queryError.name}:${queryError.message}`
-        : `unknown:${message}`;
-
-    if (lastQueryErrorSignatureRef.current === signature) return;
-    lastQueryErrorSignatureRef.current = signature;
-    toast.error(message);
-  }, [tireSetsError, historyError]);
-
-  const handleCreate = async () => {
+  async function changeStatus(tireSetId: string, status: 'STORED' | 'RETIRED') {
     try {
-      await createMutation.mutateAsync({
-        name: newName,
-        type: newType,
-        purchaseDate: newPurchaseDate || undefined,
-      });
-      setIsAddOpen(false);
-      setNewName('');
-      setNewType('SUMMER');
-      setNewPurchaseDate('');
-      toast.success('Tire set added');
+      await updateSet.mutateAsync({ tireSetId, status });
+      toast.success(status === 'RETIRED' ? 'Tire set retired' : 'Tire set restored to storage');
     } catch (error) {
-      toast.error(getUiErrorMessage(error, 'Failed to add tire set'));
+      toast.error(getUiErrorMessage(error, 'Could not update tire set status'));
     }
-  };
+  }
 
-  const handleSwap = async () => {
+  async function removeSet(set: TireSetDto) {
+    if (!window.confirm(`Permanently delete ${set.name}?`)) return;
     try {
-      await logChangeMutation.mutateAsync({
-        tireSetId: selectedTireSetId,
-        date: swapDate,
-        odometerKm: parseInt(swapOdometer, 10),
-      });
-      setIsSwapOpen(false);
-      setSwapOdometer('');
-      setSelectedTireSetId('');
-      setSwapDate(new Date().toISOString().slice(0, 10));
-      toast.success('Tire swap logged');
+      await deleteSet.mutateAsync(set.id);
+      toast.success('Tire set deleted');
     } catch (error) {
-      toast.error(getUiErrorMessage(error, 'Failed to swap tires'));
+      toast.error(getUiErrorMessage(error, 'Could not delete tire set'));
     }
-  };
+  }
 
-  const activeTireSet = data?.tireSets.find(t => t.status === 'ACTIVE');
-  const storedTireSets = data?.tireSets.filter(t => t.status === 'STORED') || [];
-  const retiredTireSets = data?.tireSets.filter(t => t.status === 'RETIRED') || [];
+  function renderSet(set: TireSetDto) {
+    const canDelete =
+      set.status !== 'ACTIVE' && !set.changeLogs?.length && !setsWithHistory.has(set.id);
+    return (
+      <TireSetCard
+        key={set.id}
+        set={set}
+        stats={mileage.bySet.get(set.id)}
+        estimate={set.status === 'ACTIVE' ? mileage.currentEstimate : null}
+        actions={
+          canWrite
+            ? {
+                edit: event => openEditor(event, { kind: 'details', set }),
+                mount:
+                  set.status === 'STORED'
+                    ? {
+                        label: !mounted && stored.length === 1 ? 'Mount this set' : 'Mount',
+                        primary: !mounted,
+                        run: event => openEditor(event, { kind: 'mount', setId: set.id }),
+                      }
+                    : undefined,
+                restore:
+                  set.status === 'RETIRED' ? () => void changeStatus(set.id, 'STORED') : undefined,
+                retire:
+                  set.status === 'STORED' ? () => void changeStatus(set.id, 'RETIRED') : undefined,
+                delete: canDelete ? () => void removeSet(set) : undefined,
+                updating: updateSet.isPending,
+                deleting: deleteSet.isPending,
+              }
+            : undefined
+        }
+      />
+    );
+  }
 
-  if (isLoading) return <div>Loading tires...</div>;
+  const loadError = setsQuery.error ?? historyQuery.error;
+  if (loadError) {
+    return (
+      <div role="alert" className="flex flex-wrap items-center gap-2">
+        {getUiErrorMessage(loadError, 'Could not load tire data')}
+        <Button
+          variant="outline"
+          onClick={() => void Promise.all([setsQuery.refetch(), historyQuery.refetch()])}
+        >
+          Retry
+        </Button>
+      </div>
+    );
+  }
+  if (setsQuery.isLoading || historyQuery.isLoading) return <p role="status">Loading tires…</p>;
 
   return (
-    <Card variant="subtle">
-      <CardHeader className="flex flex-row items-center justify-between">
-        <CardTitle>Tires</CardTitle>
-        <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
-          <DialogTrigger asChild>
-            <Button variant="outline" size="sm">
-              Add Set
-            </Button>
-          </DialogTrigger>
-          <DialogContent mobileLayout="fullscreen">
-            <DialogHeader>
-              <DialogTitle>Add Tire Set</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4">
-              <label className="block">
-                <span className="text-sm font-medium">Name</span>
-                <input
-                  className="w-full border rounded px-3 py-2"
-                  value={newName}
-                  onChange={e => setNewName(e.target.value)}
-                  placeholder="e.g. Nokian Hakkapeliitta"
-                />
-              </label>
-              <label className="block">
-                <span className="text-sm font-medium">Type</span>
-                <select
-                  className="w-full border rounded px-3 py-2"
-                  value={newType}
-                  onChange={e => setNewType(e.target.value as TireType)}
-                >
-                  <option value="SUMMER">Summer</option>
-                  <option value="WINTER">Winter</option>
-                  <option value="ALL_SEASON">All Season</option>
-                </select>
-              </label>
-              <label className="block">
-                <span className="text-sm font-medium">Purchase Date</span>
-                <input
-                  type="date"
-                  className="w-full border rounded px-3 py-2"
-                  value={newPurchaseDate}
-                  onChange={e => setNewPurchaseDate(e.target.value)}
-                />
-              </label>
-              <Button
-                className="w-full"
-                disabled={!newName || createMutation.isPending}
-                onClick={handleCreate}
-              >
-                {createMutation.isPending ? 'Adding...' : 'Add Tire Set'}
+    <div className="space-y-6">
+      <Card variant="subtle">
+        <CardContent className="space-y-3 !p-4 sm:!p-6">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h2 ref={mountedHeading} tabIndex={-1} className="text-lg font-semibold">
+              Currently mounted
+            </h2>
+            {canWrite && mounted && stored.length > 0 && (
+              <Button className="min-h-11" onClick={event => openEditor(event, { kind: 'mount' })}>
+                Change tires
               </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        {/* Active Set */}
-        {activeTireSet ? (
-          <div className="p-4 border rounded bg-green-50 dark:bg-green-900/10 border-green-200 dark:border-green-800">
-            <div className="flex justify-between items-start">
-              <div>
-                <h3 className="font-semibold text-green-800 dark:text-green-300">
-                  Current: {activeTireSet.name}
-                </h3>
-                <p className="text-sm text-green-700 dark:text-green-400">
-                  {activeTireSet.type} • Installed{' '}
-                  {activeTireSet.changeLogs?.[0]?.date
-                    ? new Date(activeTireSet.changeLogs[0].date).toLocaleDateString()
-                    : 'Unknown'}
-                  {activeTireSet.changeLogs?.[0]?.odometerKm != null && (
-                    <> @ {activeTireSet.changeLogs[0].odometerKm.toLocaleString()} km</>
-                  )}
-                </p>
-                {(() => {
-                  const stats = usageStats.get(activeTireSet.id);
-                  // Calculate only current period km (from last mount to now)
-                  const lastMountOdo = activeTireSet.changeLogs?.[0]?.odometerKm || 0;
-                  const currentPeriodKm =
-                    latestOdometer != null && latestOdometer > lastMountOdo
-                      ? latestOdometer - lastMountOdo
-                      : 0;
-                  const storedKm = activeTireSet.totalKm;
-                  const totalKm =
-                    storedKm > 0
-                      ? storedKm + currentPeriodKm
-                      : hasHistory
-                        ? (stats?.totalKm ?? 0)
-                        : currentPeriodKm;
-                  const totalDays = stats?.totalDays || 0;
-
-                  if (totalKm === 0 && totalDays === 0) return null;
-                  return (
-                    <p className="text-sm text-green-600 dark:text-green-400 mt-1">
-                      Usage: {totalKm.toLocaleString()} km • {formatDuration(totalDays)}
-                    </p>
-                  );
-                })()}
-              </div>
-              <div className="flex items-center gap-2">
-                <select
-                  className="text-xs border rounded px-2 py-1"
-                  value="ACTIVE"
-                  onChange={e => {
-                    const newStatus = e.target.value as TireStatus;
-                    if (newStatus !== 'ACTIVE' && activeTireSet) {
-                      void (async () => {
-                        try {
-                          await updateMutation.mutateAsync({
-                            tireSetId: activeTireSet.id,
-                            status: newStatus,
-                          });
-                          toast.success('Tire status updated');
-                        } catch (error) {
-                          toast.error(getUiErrorMessage(error, 'Failed to update tire status'));
-                        }
-                      })();
-                    }
-                  }}
-                >
-                  <option value="ACTIVE">Active</option>
-                  <option value="STORED">Store</option>
-                  <option value="RETIRED">Retire</option>
-                </select>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    if (storedTireSets.length === 0) {
-                      toast.info('Add another tire set first to swap.');
-                      return;
-                    }
-                    if (latestOdometer != null) {
-                      setSwapOdometer(String(latestOdometer));
-                    }
-                    setIsSwapOpen(true);
-                  }}
-                >
-                  Swap
-                </Button>
-              </div>
-            </div>
+            )}
           </div>
+          {mounted ? (
+            <ul>{renderSet(mounted)}</ul>
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              No tire set mounted.{' '}
+              {canWrite && stored.length > 0 && 'Choose a stored set below to mount.'}
+            </p>
+          )}
+        </CardContent>
+      </Card>
+      <Card variant="subtle">
+        <CardContent className="space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h2 className="text-lg font-semibold">Other tire sets</h2>
+            {canWrite && (
+              <Button
+                variant={stored.length || mounted ? 'outline' : 'default'}
+                className="min-h-11"
+                onClick={event => openEditor(event, { kind: 'details' })}
+              >
+                Add tire set
+              </Button>
+            )}
+          </div>
+          {stored.length ? (
+            <ul className="space-y-2">{stored.map(renderSet)}</ul>
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              No stored tire sets. {canWrite && 'Add a set before mounting it.'}
+            </p>
+          )}
+        </CardContent>
+      </Card>
+      <TireChangeHistory
+        vehicleId={vehicleId}
+        history={history}
+        sets={sets}
+        onEdit={canWrite ? (event, log) => openEditor(event, { kind: 'change', log }) : undefined}
+      />
+      {retired.length > 0 && (
+        <Card variant="subtle">
+          <CardContent>
+            <details>
+              <summary className="cursor-pointer text-lg font-semibold">
+                Retired sets ({retired.length})
+              </summary>
+              <ul className="mt-3 space-y-2">{retired.map(renderSet)}</ul>
+            </details>
+          </CardContent>
+        </Card>
+      )}
+      {canWrite &&
+        editor &&
+        (editor.kind === 'details' ? (
+          <TireSetDialog
+            vehicleId={vehicleId}
+            set={editor.set}
+            onClose={() => setEditor(null)}
+            onCloseAutoFocus={restoreFocus}
+          />
         ) : (
-          <div className="text-center py-4 text-gray-500">
-            No active tire set.
-            {data?.tireSets.length && data.tireSets.length > 0 ? (
-              <Button
-                variant="link"
-                onClick={() => {
-                  if (latestOdometer != null) {
-                    setSwapOdometer(String(latestOdometer));
-                  }
-                  setIsSwapOpen(true);
-                }}
-              >
-                Mount a set
-              </Button>
-            ) : null}
-          </div>
-        )}
-
-        {/* Stored Sets */}
-        {storedTireSets.length > 0 && (
-          <div className="space-y-2">
-            <h4 className="text-sm font-medium text-gray-500">Stored</h4>
-            {storedTireSets.map(set => {
-              const stats = usageStats.get(set.id);
-              return (
-                <div key={set.id} className="flex justify-between items-center p-3 border rounded">
-                  <div>
-                    <p className="font-medium">{set.name}</p>
-                    <p className="text-xs text-gray-500">
-                      {set.type}
-                      {stats && stats.lastUnmountedDate && (
-                        <> • Last used: {new Date(stats.lastUnmountedDate).toLocaleDateString()}</>
-                      )}
-                    </p>
-                    {(() => {
-                      const storedKm = set.totalKm;
-                      const totalKm =
-                        storedKm > 0 ? storedKm : hasHistory ? (stats?.totalKm ?? 0) : 0;
-                      const totalDays = stats?.totalDays || 0;
-                      if (totalKm === 0 && totalDays === 0) return null;
-                      return (
-                        <p className="text-xs text-gray-400">
-                          Total: {totalKm.toLocaleString()} km • {formatDuration(totalDays)}
-                        </p>
-                      );
-                    })()}
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <select
-                      className="text-xs border rounded px-2 py-1"
-                      value={set.status}
-                      onChange={e => {
-                        const newStatus = e.target.value as TireStatus;
-                        if (newStatus === 'ACTIVE') {
-                          // Use swap flow for mounting
-                          setSelectedTireSetId(set.id);
-                          if (latestOdometer != null) {
-                            setSwapOdometer(String(latestOdometer));
-                          }
-                          setIsSwapOpen(true);
-                        } else {
-                          void (async () => {
-                            try {
-                              await updateMutation.mutateAsync({
-                                tireSetId: set.id,
-                                status: newStatus,
-                              });
-                              toast.success('Tire status updated');
-                            } catch (error) {
-                              toast.error(getUiErrorMessage(error, 'Failed to update tire status'));
-                            }
-                          })();
-                        }
-                      }}
-                    >
-                      <option value="STORED">Stored</option>
-                      <option value="ACTIVE">Active (mount)</option>
-                      <option value="RETIRED">Retired</option>
-                    </select>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="text-red-500 hover:text-red-700"
-                      onClick={async () => {
-                        if (confirm('Delete this tire set permanently?')) {
-                          try {
-                            await deleteMutation.mutateAsync(set.id);
-                            toast.success('Tire set deleted');
-                          } catch (error) {
-                            toast.error(getUiErrorMessage(error, 'Failed to delete tire set'));
-                          }
-                        }
-                      }}
-                    >
-                      ×
-                    </Button>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-
-        {/* Retired Sets */}
-        {retiredTireSets.length > 0 && (
-          <div className="space-y-2">
-            <h4 className="text-sm font-medium text-gray-400">Retired</h4>
-            {retiredTireSets.map(set => {
-              const stats = usageStats.get(set.id);
-              return (
-                <div
-                  key={set.id}
-                  className="flex justify-between items-center p-3 border rounded border-gray-200 bg-gray-50 opacity-60"
-                >
-                  <div>
-                    <p className="font-medium text-gray-500">{set.name}</p>
-                    <p className="text-xs text-gray-400">
-                      {set.type}
-                      {stats && stats.lastUnmountedDate && (
-                        <> • Last used: {new Date(stats.lastUnmountedDate).toLocaleDateString()}</>
-                      )}
-                    </p>
-                    {(() => {
-                      const storedKm = set.totalKm;
-                      const totalKm =
-                        storedKm > 0 ? storedKm : hasHistory ? (stats?.totalKm ?? 0) : 0;
-                      const totalDays = stats?.totalDays || 0;
-                      if (totalKm === 0 && totalDays === 0) return null;
-                      return (
-                        <p className="text-xs text-gray-400">
-                          Total: {totalKm.toLocaleString()} km • {formatDuration(totalDays)}
-                        </p>
-                      );
-                    })()}
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <select
-                      className="text-xs border rounded px-2 py-1"
-                      value={set.status}
-                      onChange={e => {
-                        const newStatus = e.target.value as TireStatus;
-                        if (newStatus === 'ACTIVE') {
-                          setSelectedTireSetId(set.id);
-                          if (latestOdometer != null) {
-                            setSwapOdometer(String(latestOdometer));
-                          }
-                          setIsSwapOpen(true);
-                        } else {
-                          void (async () => {
-                            try {
-                              await updateMutation.mutateAsync({
-                                tireSetId: set.id,
-                                status: newStatus,
-                              });
-                              toast.success('Tire status updated');
-                            } catch (error) {
-                              toast.error(getUiErrorMessage(error, 'Failed to update tire status'));
-                            }
-                          })();
-                        }
-                      }}
-                    >
-                      <option value="RETIRED">Retired</option>
-                      <option value="STORED">Stored</option>
-                      <option value="ACTIVE">Active (mount)</option>
-                    </select>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="text-red-500 hover:text-red-700"
-                      onClick={async () => {
-                        if (confirm('Delete this tire set permanently?')) {
-                          try {
-                            await deleteMutation.mutateAsync(set.id);
-                            toast.success('Tire set deleted');
-                          } catch (error) {
-                            toast.error(getUiErrorMessage(error, 'Failed to delete tire set'));
-                          }
-                        }
-                      }}
-                    >
-                      ×
-                    </Button>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-
-        {/* Swap History */}
-        {hasHistory && (
-          <div className="mt-4 pt-4 border-t">
-            <button
-              type="button"
-              className="flex items-center gap-2 text-sm font-medium text-gray-500 hover:text-gray-700 w-full text-left"
-              onClick={() => setHistoryExpanded(!historyExpanded)}
-            >
-              <span
-                className="transition-transform duration-200"
-                style={{ transform: historyExpanded ? 'rotate(90deg)' : 'rotate(0deg)' }}
-              >
-                ▶
-              </span>
-              Swap History ({historyData?.history.length})
-            </button>
-            {historyExpanded && (
-              <div className="space-y-1 max-h-40 overflow-y-auto mt-2">
-                {historyData?.history.map(log => {
-                  const tireSet = data?.tireSets.find(t => t.id === log.tireSetId);
-                  return (
-                    <div
-                      key={log.id}
-                      className="flex justify-between items-center p-2 bg-gray-50 dark:bg-gray-800 rounded text-sm"
-                    >
-                      <div>
-                        <span className="font-medium">{tireSet?.name || 'Unknown'}</span>
-                        <span className="text-gray-500 ml-2">
-                          {new Date(log.date).toLocaleDateString()} @{' '}
-                          {log.odometerKm.toLocaleString()} km
-                        </span>
-                      </div>
-                      <div className="flex gap-1">
-                        <button
-                          className="text-xs text-blue-600 hover:underline"
-                          onClick={() => {
-                            setEditingLog({
-                              id: log.id,
-                              date: new Date(log.date).toISOString().slice(0, 10),
-                              odometerKm: String(log.odometerKm),
-                              tireSetName: tireSet?.name || 'Unknown',
-                            });
-                            setIsEditLogOpen(true);
-                          }}
-                        >
-                          Edit
-                        </button>
-                        <button
-                          className="text-xs text-red-600 hover:underline"
-                          onClick={async () => {
-                            if (confirm('Delete this swap entry?')) {
-                              try {
-                                await deleteLogMutation.mutateAsync(log.id);
-                                toast.success('Swap entry deleted');
-                              } catch (error) {
-                                toast.error(
-                                  getUiErrorMessage(error, 'Failed to delete swap entry')
-                                );
-                              }
-                            }
-                          }}
-                        >
-                          ×
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Edit Log Dialog */}
-        <Dialog open={isEditLogOpen} onOpenChange={setIsEditLogOpen}>
-          <DialogContent mobileLayout="fullscreen">
-            <DialogHeader>
-              <DialogTitle>Edit Swap: {editingLog?.tireSetName}</DialogTitle>
-            </DialogHeader>
-            {editingLog && (
-              <div className="space-y-4">
-                <label className="block">
-                  <span className="text-sm font-medium">Date</span>
-                  <input
-                    type="date"
-                    className="w-full border rounded px-3 py-2"
-                    value={editingLog.date}
-                    onChange={e => setEditingLog({ ...editingLog, date: e.target.value })}
-                  />
-                </label>
-                <label className="block">
-                  <span className="text-sm font-medium">Odometer (km)</span>
-                  <input
-                    type="number"
-                    className="w-full border rounded px-3 py-2"
-                    value={editingLog.odometerKm}
-                    onChange={e => setEditingLog({ ...editingLog, odometerKm: e.target.value })}
-                  />
-                </label>
-                <Button
-                  className="w-full"
-                  disabled={
-                    !editingLog.date || !editingLog.odometerKm || updateLogMutation.isPending
-                  }
-                  onClick={async () => {
-                    try {
-                      await updateLogMutation.mutateAsync({
-                        logId: editingLog.id,
-                        date: editingLog.date,
-                        odometerKm: parseInt(editingLog.odometerKm, 10),
-                      });
-                      setIsEditLogOpen(false);
-                      setEditingLog(null);
-                      toast.success('Swap entry updated');
-                    } catch (error) {
-                      toast.error(getUiErrorMessage(error, 'Failed to update swap entry'));
-                    }
-                  }}
-                >
-                  {updateLogMutation.isPending ? 'Saving...' : 'Save Changes'}
-                </Button>
-              </div>
-            )}
-          </DialogContent>
-        </Dialog>
-
-        {/* Swap Dialog */}
-        <Dialog open={isSwapOpen} onOpenChange={setIsSwapOpen}>
-          <DialogContent mobileLayout="fullscreen">
-            <DialogHeader>
-              <DialogTitle>Swap Tires</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4">
-              <label className="block">
-                <span className="text-sm font-medium">Select Set to Mount</span>
-                <select
-                  className="w-full border rounded px-3 py-2"
-                  value={selectedTireSetId}
-                  onChange={e => setSelectedTireSetId(e.target.value)}
-                >
-                  <option value="">-- Select --</option>
-                  {storedTireSets.map(t => (
-                    <option key={t.id} value={t.id}>
-                      {t.name} ({t.type})
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="block">
-                <span className="text-sm font-medium">Date</span>
-                <input
-                  type="date"
-                  className="w-full border rounded px-3 py-2"
-                  value={swapDate}
-                  onChange={e => setSwapDate(e.target.value)}
-                />
-              </label>
-              <label className="block">
-                <span className="text-sm font-medium">Odometer (km)</span>
-                <input
-                  type="number"
-                  className="w-full border rounded px-3 py-2"
-                  value={swapOdometer}
-                  onChange={e => setSwapOdometer(e.target.value)}
-                  placeholder={
-                    latestOdometer != null
-                      ? `Last: ${latestOdometer.toLocaleString()} km`
-                      : 'Current reading'
-                  }
-                />
-              </label>
-              <Button
-                className="w-full"
-                disabled={!selectedTireSetId || !swapOdometer || logChangeMutation.isPending}
-                onClick={handleSwap}
-              >
-                {logChangeMutation.isPending ? 'Swapping...' : 'Confirm Swap'}
-              </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
-      </CardContent>
-    </Card>
+          <TireChangeDialog
+            vehicleId={vehicleId}
+            editor={editor}
+            stored={stored}
+            mountedName={mounted?.name}
+            onMounted={() => {
+              trigger.current = null;
+            }}
+            onClose={() => setEditor(null)}
+            onCloseAutoFocus={restoreFocus}
+          />
+        ))}
+    </div>
   );
 }

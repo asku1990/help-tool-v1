@@ -23,15 +23,15 @@ import {
 import { useEffect, useMemo, useRef, useState, type MouseEvent } from 'react';
 import { FillUpForm, FillUpList } from '@/components/car/fillups';
 import { ExpenseForm, ExpenseList } from '@/components/car/expenses';
-import { CostSummary, ConsumptionBadges } from '@/components/car/vehicle-detail';
-import { ExportMenu, RestoreBackupDialog } from '@/components/car';
+import { CostSummary, ConsumptionBadges, VehiclePageHeader } from '@/components/car/vehicle-detail';
+import { SpreadsheetExportLink } from '@/components/car';
 import {
   ConsumptionChart,
   OilConsumptionChart,
   ChartToolbar,
   type ChartOptions,
 } from '@/components/car/charts';
-import { TireManager } from '@/components/car/tires';
+import { TireOverview } from '@/components/car/tires';
 import { useExpenses, useVehicleSummary, useVehicle, useDeleteVehicle } from '@/hooks';
 import { pickLastInspectionDateFromExpenses } from '@/utils';
 import { toast } from 'sonner';
@@ -69,7 +69,6 @@ export default function VehiclePage() {
   const [vehicleEntry, setVehicleEntry] = useState<'view' | 'edit' | null>(null);
   const vehicleDialogTrigger = useRef<HTMLElement | null>(null);
   const [isDeleteOpen, setDeleteOpen] = useState(false);
-  const [isImportOpen, setImportOpen] = useState(false);
 
   const summaryQuery = useVehicleSummary(vehicleId || '');
   const summary = summaryQuery.data;
@@ -133,129 +132,110 @@ export default function VehiclePage() {
 
   return (
     <div className="min-h-screen bg-canvas">
-      <header className="border-b border-surface-border bg-canvas">
-        <div className="container mx-auto px-4 pt-2 pb-5 sm:pt-4 sm:pb-6">
-          <nav aria-label="Vehicle navigation" className="sm:mb-2">
-            <BackToVehiclesLink />
-          </nav>
-
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-            <div className="min-w-0">
-              <h1 className="min-w-0 text-2xl leading-tight font-bold tracking-tight wrap-anywhere sm:text-3xl">
-                {vehicle ? (
-                  <button
-                    type="button"
-                    aria-haspopup="dialog"
-                    aria-describedby="vehicle-name-action"
-                    className="inline-flex min-h-11 max-w-full cursor-pointer items-center gap-2 rounded-sm text-left hover:text-primary focus-visible:outline-2 focus-visible:outline-offset-2"
-                    onClick={event => openVehicleDialog(event, () => setVehicleEntry('view'))}
-                  >
-                    <span className="min-w-0">{vehicle.name}</span>
-                    <ChevronRight
-                      className="size-5 shrink-0 text-muted-foreground"
-                      aria-hidden="true"
-                    />
-                  </button>
-                ) : (
-                  'Vehicle overview'
-                )}
-              </h1>
+      <VehiclePageHeader navigation={<BackToVehiclesLink />}>
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+          <div className="min-w-0">
+            <h1 className="min-w-0 text-2xl leading-tight font-bold tracking-tight wrap-anywhere sm:text-3xl">
               {vehicle ? (
-                <span id="vehicle-name-action" hidden>
-                  View vehicle details
-                </span>
-              ) : null}
-              {vehicle ? (
-                <div className="mt-2 flex flex-wrap items-center gap-2 sm:gap-3">
-                  <LicensePlate value={vehicle.licensePlate} />
-                  <InspectionBadge
-                    inspectionDueDate={vehicle.inspectionDueDate}
-                    lastInspectionDate={lastInspectionDate?.toISOString()}
-                    inspectionIntervalMonths={vehicle.inspectionIntervalMonths}
-                  />
-                </div>
-              ) : vehicleQuery.isError ? (
-                <div
-                  role="alert"
-                  className="flex flex-wrap items-center gap-2 text-sm text-red-600"
+                <button
+                  type="button"
+                  aria-haspopup="dialog"
+                  aria-describedby="vehicle-name-action"
+                  className="inline-flex min-h-11 max-w-full cursor-pointer items-center gap-2 rounded-sm text-left hover:text-primary focus-visible:outline-2 focus-visible:outline-offset-2"
+                  onClick={event => openVehicleDialog(event, () => setVehicleEntry('view'))}
                 >
-                  Could not load vehicle details.
+                  <span className="min-w-0">{vehicle.name}</span>
+                  <ChevronRight
+                    className="size-5 shrink-0 text-muted-foreground"
+                    aria-hidden="true"
+                  />
+                </button>
+              ) : (
+                'Vehicle overview'
+              )}
+            </h1>
+            {vehicle ? (
+              <span id="vehicle-name-action" hidden>
+                View vehicle details
+              </span>
+            ) : null}
+            {vehicle ? (
+              <div className="mt-2 flex flex-wrap items-center gap-2 sm:gap-3">
+                <LicensePlate value={vehicle.licensePlate} />
+                <InspectionBadge
+                  inspectionDueDate={vehicle.inspectionDueDate}
+                  lastInspectionDate={lastInspectionDate?.toISOString()}
+                  inspectionIntervalMonths={vehicle.inspectionIntervalMonths}
+                />
+              </div>
+            ) : vehicleQuery.isError ? (
+              <div role="alert" className="flex flex-wrap items-center gap-2 text-sm text-red-600">
+                Could not load vehicle details.
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="min-h-11"
+                  disabled={vehicleQuery.isFetching}
+                  onClick={() => vehicleQuery.refetch()}
+                >
+                  Retry
+                </Button>
+              </div>
+            ) : (
+              <div role="status" className="mt-2 text-sm text-muted-foreground">
+                Loading vehicle details…
+              </div>
+            )}
+          </div>
+          {vehicle ? (
+            <div
+              role="group"
+              aria-label="Vehicle controls"
+              className="relative flex flex-wrap items-center gap-2 lg:shrink-0 lg:justify-end"
+            >
+              {vehicle.canWrite ? (
+                <>
+                  <FillUpForm key={`fillup-${vehicle.id}`} vehicleId={vehicle.id} />
+                  <ExpenseForm key={`expense-${vehicle.id}`} vehicleId={vehicle.id} />
+                </>
+              ) : null}
+              <RecordActions
+                label="More vehicle actions"
+                triggerText="More"
+                placement="toolbar"
+                unmountOnClose
+              >
+                {vehicle.canEdit ? (
                   <Button
                     type="button"
                     variant="ghost"
-                    size="sm"
-                    className="min-h-11"
-                    disabled={vehicleQuery.isFetching}
-                    onClick={() => vehicleQuery.refetch()}
+                    className={recordActionClass}
+                    disabled={!vehicleFieldsReady}
+                    onClick={event => openVehicleDialog(event, () => setVehicleEntry('edit'))}
                   >
-                    Retry
+                    Edit
                   </Button>
-                </div>
-              ) : (
-                <div role="status" className="mt-2 text-sm text-muted-foreground">
-                  Loading vehicle details…
-                </div>
-              )}
-            </div>
-            {vehicle ? (
-              <div
-                role="group"
-                aria-label="Vehicle controls"
-                className="relative flex flex-wrap items-center gap-2 lg:shrink-0 lg:justify-end"
-              >
-                {vehicle.canWrite ? (
+                ) : null}
+                <SpreadsheetExportLink vehicleId={vehicle.id} />
+                {vehicle.canEdit ? (
                   <>
-                    <FillUpForm key={`fillup-${vehicle.id}`} vehicleId={vehicle.id} />
-                    <ExpenseForm key={`expense-${vehicle.id}`} vehicleId={vehicle.id} />
+                    <hr className="my-1 border-border/40" />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      className={destructiveRecordActionClass}
+                      onClick={event => openVehicleDialog(event, () => setDeleteOpen(true))}
+                    >
+                      Delete vehicle
+                    </Button>
                   </>
                 ) : null}
-                <RecordActions
-                  label="More vehicle actions"
-                  triggerText="More"
-                  placement="toolbar"
-                  unmountOnClose
-                >
-                  {vehicle.canEdit ? (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      className={recordActionClass}
-                      disabled={!vehicleFieldsReady}
-                      onClick={event => openVehicleDialog(event, () => setVehicleEntry('edit'))}
-                    >
-                      Edit
-                    </Button>
-                  ) : null}
-                  {vehicle.canWrite ? (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      className={recordActionClass}
-                      onClick={event => openVehicleDialog(event, () => setImportOpen(true))}
-                    >
-                      Import backup
-                    </Button>
-                  ) : null}
-                  <ExportMenu vehicleId={vehicle.id} />
-                  {vehicle.canEdit ? (
-                    <>
-                      <hr className="my-1 border-border/40" />
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        className={destructiveRecordActionClass}
-                        onClick={event => openVehicleDialog(event, () => setDeleteOpen(true))}
-                      >
-                        Delete vehicle
-                      </Button>
-                    </>
-                  ) : null}
-                </RecordActions>
-              </div>
-            ) : null}
-          </div>
+              </RecordActions>
+            </div>
+          ) : null}
         </div>
-      </header>
+      </VehiclePageHeader>
       <main className="container mx-auto px-4 py-5 sm:py-6">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-3 space-y-4">
@@ -314,7 +294,7 @@ export default function VehiclePage() {
               </CardContent>
             </Card>
 
-            {vehicleId ? <TireManager vehicleId={vehicleId} /> : null}
+            {vehicle ? <TireOverview vehicleId={vehicle.id} /> : null}
 
             <Card variant="subtle">
               <CardContent className="!p-4 sm:!p-6">
@@ -325,20 +305,6 @@ export default function VehiclePage() {
           </div>
         </div>
       </main>
-      {vehicle?.canWrite ? (
-        <RestoreBackupDialog
-          key={vehicle.id}
-          forVehicleId={vehicle.id}
-          open={isImportOpen}
-          onOpenChange={setImportOpen}
-          onCloseAutoFocus={restoreVehicleDialogFocus}
-          hideTrigger
-          onRestored={() => {
-            summaryQuery.refetch();
-            expensesQuery.refetch();
-          }}
-        />
-      ) : null}
       <Dialog open={isDeleteOpen} onOpenChange={setDeleteOpen}>
         <DialogContent className="sm:max-w-md" onCloseAutoFocus={restoreVehicleDialogFocus}>
           <DialogHeader>

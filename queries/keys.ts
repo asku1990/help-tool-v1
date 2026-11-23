@@ -22,6 +22,11 @@ export const fillUpKeys = {
   infiniteByVehicle: (vehicleId: string) => [...fillUpKeys.all, 'infinite', vehicleId] as const,
 };
 
+export const tireKeys = {
+  sets: (vehicleId: string) => ['tireSets', vehicleId] as const,
+  history: (vehicleId: string) => ['tireChangeHistory', vehicleId] as const,
+};
+
 export const adminKeys = {
   all: ['admin'] as const,
   me: () => [...adminKeys.all, 'me'] as const,

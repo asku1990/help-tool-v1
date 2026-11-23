@@ -30,13 +30,13 @@ test('a touch outside either vehicle header menu dismisses it', async ({ page })
       path: '/car',
       menuName: 'Vehicle list actions',
       heading: 'Vehicles',
-      action: 'Restore Backup',
+      action: 'Add vehicle',
     },
     {
       path: '/car/v1',
       menuName: 'More vehicle actions',
       heading: 'Fill-ups',
-      action: 'Download backup',
+      action: 'Download for spreadsheet',
     },
   ]) {
     await test.step(menuName, async () => {

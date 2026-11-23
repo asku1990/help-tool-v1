@@ -1,4 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { tireKeys } from '@/queries/keys';
 import { deleteTireChangeLog } from '@/queries/tires';
 
 export function useDeleteTireChangeLog(vehicleId: string) {
@@ -7,8 +8,8 @@ export function useDeleteTireChangeLog(vehicleId: string) {
   return useMutation({
     mutationFn: (logId: string) => deleteTireChangeLog(vehicleId, logId),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['tireSets', vehicleId] });
-      queryClient.invalidateQueries({ queryKey: ['tireChangeHistory', vehicleId] });
+      queryClient.invalidateQueries({ queryKey: tireKeys.sets(vehicleId) });
+      queryClient.invalidateQueries({ queryKey: tireKeys.history(vehicleId) });
     },
   });
 }

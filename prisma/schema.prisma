@@ -183,13 +183,14 @@ model TireSet {
 }
 
 model TireChangeLog {
-  id         String   @id @default(uuid())
-  vehicleId  String
-  tireSetId  String
-  date       DateTime @default(now())
-  odometerKm Int
-  notes      String?
-  createdAt  DateTime @default(now())
+  id                String   @id @default(uuid())
+  vehicleId         String
+  tireSetId         String
+  date              DateTime @default(now())
+  odometerKm        Int?
+  odometerConfirmed Boolean  @default(false)
+  notes             String?
+  createdAt         DateTime @default(now())
 
   vehicle    Vehicle  @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
   tireSet    TireSet  @relation(fields: [tireSetId], references: [id], onDelete: Cascade)
