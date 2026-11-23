@@ -86,11 +86,14 @@ test('keeps fill-up and expense figures readable as the lists narrow', async ({ 
       if (desktop) await expect(headers).toBeVisible();
       else await expect(headers).toBeHidden();
 
-      for (const text of ['200017 km', 'Trip 549 km', '4.02 L/100km', 'Δ +0.59']) {
+      for (const text of ['200017 km', 'Trip 549 km', 'Δ +0.59']) {
         await expect(
           table.getByText(text, { exact: true }).filter({ visible: true }).first()
         ).toBeVisible();
       }
+      const badge = table.getByTitle('Higher than previous trip').first();
+      await expect(badge).toBeVisible();
+      await expect(badge).toContainText('4.02 L/100km');
       for (const text of ['€21.79', '€1,234.56']) {
         const total = table.getByText(text, { exact: true });
         await expect(total).toBeVisible();

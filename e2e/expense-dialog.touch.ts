@@ -45,7 +45,11 @@ for (const width of [320, 402, 1280]) {
       if (width < 640) {
         await expect(dialog).toHaveCSS('width', `${width}px`);
         await expect(dialog).toHaveCSS('height', '760px');
-        await expect(dialog).toHaveCSS('box-shadow', 'none');
+        await expect(dialog).toHaveCSS('border-top-width', '0px');
+        await expect(dialog).toHaveCSS(
+          'box-shadow',
+          /^(?:none|rgba\(0,\s*0,\s*0,\s*0\) 0px 0px 0px 0px(?:,\s*rgba\(0,\s*0,\s*0,\s*0\) 0px 0px 0px 0px)*)$/
+        );
       } else {
         await expect(dialog).toHaveCSS('border-top-left-radius', '10px');
       }
