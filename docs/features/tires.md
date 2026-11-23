@@ -13,8 +13,9 @@ and editors can also make changes.
   event itself, such as why you switched sets that day.
 - In **Tire change history**, **Edit change** updates the date, reading, or note without
   changing the set's details or its own notes.
-- Retire a set from storage. Restore a retired set to storage before mounting it again.
-  Mounted sets and sets with change history cannot be deleted individually.
+- Retire a set from storage. A retired set can be restored to storage with
+  **Restore to stored** and mounted again. Mounted sets and sets with change history cannot
+  be deleted individually.
 
 ## Mileage
 

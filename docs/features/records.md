@@ -194,9 +194,8 @@ expense creation attempt.
 ## Mobile Dialog Layout
 
 On phones, Add vehicle, Add fill-up, Add expense, saved-record Details/Edit/Manage files,
-tire entry and swap forms, and Backup Import/Restore use a full-screen dialog with a
-left-aligned title and no card border or shadow. Details lets long field labels wrap so
-the values have more room. Backup previews can scroll within the dialog.
+and tire entry and swap forms use a full-screen dialog with a left-aligned title and no
+card border or shadow. Details lets long field labels wrap so the values have more room.
 Login/Account and Delete vehicle remain compact, and browser confirmations are unchanged.
 On wider screens, dialogs keep their centered card layouts.
 
