@@ -2,7 +2,7 @@ import React from 'react';
 import { render, screen, waitFor, fireEvent, within } from '@testing-library/react';
 import { toast } from 'sonner';
 import CarHomePage from '@/app/car/page';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { onlineManager, QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { http, HttpResponse } from 'msw';
 import { server } from '@/test/msw/server';
 import { useUiStore } from '@/stores/ui';
@@ -234,6 +234,28 @@ it('shows Retry instead of a cached empty garage when refreshing fails', async (
   renderWithProviders(<CarHomePage />, client);
   expect(await screen.findByRole('button', { name: 'Retry' })).toBeVisible();
   expect(screen.queryByText('No vehicles yet.')).not.toBeInTheDocument();
+});
+
+it('keeps cached cards visible and offers Retry when refreshing fails', async () => {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  client.setQueryData(vehicleKeys.byStatus('active'), { vehicles: [{ id: 'v1', name: 'Volvo' }] });
+  server.use(http.get('/api/vehicles', () => HttpResponse.json({}, { status: 503 })));
+  renderWithProviders(<CarHomePage />, client);
+
+  expect(await screen.findByRole('button', { name: 'Retry' })).toBeVisible();
+  expect(screen.getByRole('link', { name: /Volvo/ })).toBeVisible();
+});
+
+it('does not report an empty garage when the first request is paused offline', () => {
+  onlineManager.setOnline(false);
+  const page = renderWithProviders(<CarHomePage />);
+  try {
+    expect(screen.queryByText('No vehicles yet.')).not.toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveTextContent(/offline/i);
+  } finally {
+    page.unmount();
+    onlineManager.setOnline(true);
+  }
 });
 
 it('announces an archive on arrival, focuses Vehicles, and does not replay it on return', () => {

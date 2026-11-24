@@ -33,6 +33,11 @@ reminder. On its overview, an **Archived vehicle** banner replaces the inspectio
 status. Owners can select **Restore vehicle** to return it to Active. Archiving does
 not change anyone's permissions or delete records.
 
+After a successful archive or restore, the lists load fresh results so a car doesn’t
+appear in its previous list. A failed refresh offers **Retry**. If the list is empty
+and a request is waiting for a connection, the list shows an offline message instead
+of an empty garage.
+
 Manual Mac and iPhone Safari regression check: with Web Inspector closed, open **⋯**
 on the vehicles list and click or tap the **Vehicles** heading once. Then open a
 vehicle, open **More**, and repeat on the **Fill-ups** heading. Visually confirm each

@@ -8,7 +8,8 @@ export function useArchiveVehicle(vehicleId: string) {
     mutationFn: (archived: boolean) => setVehicleArchived(vehicleId, archived),
     onSuccess: () =>
       Promise.all([
-        client.invalidateQueries({ queryKey: vehicleKeys.list() }),
+        // Returning to either list should not render its pre-mutation membership.
+        client.resetQueries({ queryKey: vehicleKeys.list() }),
         client.invalidateQueries({ queryKey: vehicleKeys.detail(vehicleId) }),
       ]),
   });

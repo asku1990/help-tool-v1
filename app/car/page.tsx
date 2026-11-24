@@ -85,6 +85,8 @@ function VehicleList() {
     data: vehiclesData,
     isFetching: isVehiclesFetching,
     isError: isVehiclesError,
+    isPaused: isVehiclesPaused,
+    isSuccess: isVehiclesSuccess,
     refetch: refetchVehicles,
   } = useVehicles(status === 'authenticated' || isDemo, archived ? 'archived' : 'active');
   const vehicles = vehiclesData?.vehicles ?? [];
@@ -161,23 +163,32 @@ function VehicleList() {
           })}
         </nav>
         <div className="mt-6" aria-busy={isVehiclesLoading}>
+          {isVehiclesError && !isVehiclesLoading ? (
+            <Card variant="subtle" className={vehicles.length ? 'mb-4 max-w-6xl' : 'max-w-6xl'}>
+              <CardContent className="flex flex-wrap items-center justify-between gap-3">
+                <p role="alert" className="text-sm">
+                  Could not load vehicles.
+                </p>
+                <Button
+                  variant="outline"
+                  disabled={isVehiclesFetching || isVehiclesPaused}
+                  onClick={() => refetchVehicles()}
+                >
+                  Retry
+                </Button>
+              </CardContent>
+            </Card>
+          ) : null}
           {isVehiclesLoading ? (
             <>
               <p className="sr-only">Loading vehicles…</p>
               <VehicleListSkeleton />
             </>
-          ) : isVehiclesError && !vehicles.length ? (
-            <Card variant="subtle" className="max-w-6xl">
-              <CardContent className="flex flex-wrap items-center justify-between gap-3">
-                <p role="alert" className="text-sm">
-                  Could not load vehicles.
-                </p>
-                <Button variant="outline" onClick={() => refetchVehicles()}>
-                  Retry
-                </Button>
-              </CardContent>
-            </Card>
-          ) : vehicles.length === 0 ? (
+          ) : isVehiclesPaused && vehicles.length === 0 ? (
+            <p role="status" className="text-sm text-muted-foreground">
+              You’re offline. Vehicles will load when you reconnect.
+            </p>
+          ) : isVehiclesSuccess && vehicles.length === 0 ? (
             <Card variant="subtle" className="max-w-6xl">
               <CardContent className="space-y-1">
                 <p className="font-medium">
@@ -198,7 +209,7 @@ function VehicleList() {
                 )}
               </CardContent>
             </Card>
-          ) : (
+          ) : vehicles.length > 0 ? (
             <VehicleGrid>
               {vehicles.map(vehicle => {
                 const model = [vehicle.make, vehicle.model, vehicle.year].filter(Boolean).join(' ');
@@ -251,7 +262,7 @@ function VehicleList() {
                 );
               })}
             </VehicleGrid>
-          )}
+          ) : null}
         </div>
 
         <Dialog open={open} onOpenChange={setOpen}>
