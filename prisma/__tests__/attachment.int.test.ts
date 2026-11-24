@@ -15,7 +15,6 @@ type TestDatabase = {
 
 describe.skipIf(process.env.RUN_INTEGRATION !== '1')('Attachment persistence', () => {
   let container: TestDatabase | undefined;
-  let prisma: PrismaClient | undefined;
   let db: PrismaClient;
   let databaseUrl: string;
   let expenseId: string;
@@ -36,11 +35,11 @@ describe.skipIf(process.env.RUN_INTEGRATION !== '1')('Attachment persistence', (
     await execa('pnpm', ['exec', 'prisma', 'migrate', 'deploy'], {
       env: { ...process.env, DATABASE_URL: databaseUrl },
     });
-    prisma = new PrismaClient({ datasourceUrl: databaseUrl });
-    db = prisma;
+    db = new PrismaClient({ datasourceUrl: databaseUrl });
   }, 120_000);
 
   beforeEach(async () => {
+    await db.attachment.deleteMany();
     await db.user.deleteMany();
     const user = await db.user.create({
       data: { email: 'attachments@example.com', username: 'attachments', passwordHash: '' },
@@ -59,7 +58,7 @@ describe.skipIf(process.env.RUN_INTEGRATION !== '1')('Attachment persistence', (
 
   afterAll(async () => {
     try {
-      await prisma?.$disconnect();
+      await db?.$disconnect();
     } finally {
       await container?.stop();
     }
@@ -188,29 +187,5 @@ describe.skipIf(process.env.RUN_INTEGRATION !== '1')('Attachment persistence', (
     await expect(db.attachment.create({ data: { ...data, fuelFillUpId } })).rejects.toMatchObject({
       code: 'P2002',
     });
-  });
-
-  it('deletes only the expense attachment metadata when its expense is deleted', async () => {
-    await db.attachment.create({ data: { ...metadata(), expenseId } });
-    const retained = await db.attachment.create({ data: { ...metadata(), fuelFillUpId } });
-    const direct = await db.attachment.create({ data: { ...metadata(), vehicleId } });
-    await db.expense.delete({ where: { id: expenseId } });
-    expect(await db.attachment.findMany()).toEqual(expect.arrayContaining([retained, direct]));
-    expect(await db.attachment.count()).toBe(2);
-  });
-
-  it('deletes only the fill-up attachment metadata when its fill-up is deleted', async () => {
-    const retained = await db.attachment.create({ data: { ...metadata(), expenseId } });
-    await db.attachment.create({ data: { ...metadata(), fuelFillUpId } });
-    await db.fuelFillUp.delete({ where: { id: fuelFillUpId } });
-    expect(await db.attachment.findMany()).toEqual([retained]);
-  });
-
-  it('cascades vehicle deletion to direct and nested attachment metadata', async () => {
-    await db.attachment.create({ data: { ...metadata(), vehicleId } });
-    await db.attachment.create({ data: { ...metadata(), expenseId } });
-    await db.attachment.create({ data: { ...metadata(), fuelFillUpId } });
-    await db.vehicle.delete({ where: { id: vehicleId } });
-    expect(await db.attachment.count()).toBe(0);
   });
 });

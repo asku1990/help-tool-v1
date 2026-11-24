@@ -4,6 +4,7 @@ import prisma from '@/lib/db';
 import { updateExpenseSchema } from '@/lib/expenses';
 import type { Expense, Prisma } from '@/generated/prisma';
 import { ok, unauthorized, notFound, badRequest, serverError } from '@/lib/api/response';
+import { attachmentParentDeletionConflict } from '@/lib/attachments/parent-deletion';
 import { logger } from '@/lib/logger';
 import { decimalToNumber } from '@/lib/prisma/decimal';
 import { calculateOilConsumption } from '@/lib/oil-consumption';
@@ -115,6 +116,11 @@ export async function DELETE(
     if (deleted.count === 0) return notFound();
     return ok({ id: expenseId });
   } catch (error) {
+    const attachmentConflict = attachmentParentDeletionConflict(
+      error,
+      'Remove the attached files before deleting this expense.'
+    );
+    if (attachmentConflict) return attachmentConflict;
     logger.error('DELETE /api/vehicles/[vehicleId]/expenses/[expenseId] failed', { error });
     return serverError();
   }

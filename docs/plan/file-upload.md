@@ -4,7 +4,8 @@ Status: implementation in reviewable slices. The previous attachment implementat
 document does not authorize deployment, remote migrations, or cloud configuration changes.
 
 This plan describes the original five-slot rollout. See the
-[attachment storage guide](../development/attachments.md) for the current limit.
+[attachment storage guide](../development/attachments.md) for the current limit and
+parent-deletion behavior, which supersedes the original cascade plan below.
 
 ## Goal
 

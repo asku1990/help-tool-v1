@@ -60,6 +60,11 @@ export function notFound(message = 'Not found', details?: unknown, init?: Respon
   return Response.json(body, withDefaults(init, { status: 404 }));
 }
 
+export function conflict(code: string, message: string): Response {
+  const body: ApiEnvelope<null> = { data: null, error: { code, message } };
+  return Response.json(body, { status: 409 });
+}
+
 export function serverError(
   message = 'Internal Server Error',
   details?: unknown,
