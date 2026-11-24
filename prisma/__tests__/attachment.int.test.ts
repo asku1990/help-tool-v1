@@ -92,6 +92,8 @@ describe.skipIf(process.env.RUN_INTEGRATION !== '1')('Attachment persistence', (
       });
       const car = await upgradeDb.vehicle.create({
         data: { userId: user.id, name: 'Upgrade car' },
+        // The pre-upgrade schema lacks fields in the current vehicle model.
+        select: { id: true },
       });
       const expense = await upgradeDb.expense.create({
         data: { vehicleId: car.id, category: 'MAINTENANCE', amount: 10 },
