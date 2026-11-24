@@ -65,6 +65,65 @@ it('renders vehicle header and lists', async () => {
   expect(screen.getByText('Lifetime cost per km')).toBeInTheDocument();
 });
 
+it('offers retry after archive fails and keeps a saved expense through archive and restore', async () => {
+  let archived = false;
+  let rejectFirstArchive = true;
+  server.use(
+    http.get('/api/vehicles/v1', () =>
+      HttpResponse.json({
+        data: {
+          vehicle: {
+            id: 'v1',
+            name: 'Sold car',
+            canEdit: true,
+            archivedAtUtc: archived ? '2026-11-24T12:00:00Z' : null,
+          },
+        },
+      })
+    ),
+    http.put('/api/vehicles/v1/archive', async ({ request }) => {
+      if (rejectFirstArchive) {
+        rejectFirstArchive = false;
+        return HttpResponse.json({}, { status: 503 });
+      }
+      const body = (await request.json()) as { archived: boolean };
+      archived = body.archived;
+      return HttpResponse.json({ data: { id: 'v1' } });
+    }),
+    http.get('/api/vehicles/v1/expenses', () =>
+      HttpResponse.json({
+        data: {
+          expenses: [{ id: 'expense-1', date: '2026-10-01', amount: 80, category: 'MAINTENANCE' }],
+          expensesTotal: 80,
+          nextCursor: null,
+        },
+      })
+    )
+  );
+  renderWithProviders(<VehiclePage />);
+  fireEvent.click(await screen.findByRole('button', { name: 'More vehicle actions' }));
+  fireEvent.click(screen.getByRole('button', { name: /Archive vehicle/ }));
+  const retry = await screen.findByRole('button', { name: 'Retry' });
+  expect(screen.queryByRole('button', { name: 'Restore vehicle' })).not.toBeInTheDocument();
+  fireEvent.click(retry);
+  const restore = await screen.findByRole('button', { name: 'Restore vehicle' });
+  expect(screen.getByRole('link', { name: 'Back to vehicles' })).toHaveAttribute(
+    'href',
+    '/car?view=archived'
+  );
+  expect(
+    within(screen.getByRole('table', { name: 'Expense records' })).getAllByRole('row')
+  ).toHaveLength(2);
+  await waitFor(() => expect(restore).toBeEnabled());
+  fireEvent.click(restore);
+  await waitFor(() =>
+    expect(screen.queryByRole('button', { name: 'Restore vehicle' })).not.toBeInTheDocument()
+  );
+  expect(
+    within(screen.getByRole('table', { name: 'Expense records' })).getAllByRole('row')
+  ).toHaveLength(2);
+});
+
 it('shows all-time fuel and expense totals before and after loading older records', async () => {
   const fillUps = [30, 50].map((totalCost, i) => ({
     id: `fuel-${i}`,

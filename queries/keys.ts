@@ -3,6 +3,7 @@ import type { AttachmentRecord } from './attachments/types';
 export const vehicleKeys = {
   all: ['vehicles'] as const,
   list: () => [...vehicleKeys.all, 'list'] as const,
+  byStatus: (status: 'active' | 'archived') => [...vehicleKeys.list(), status] as const,
   detail: (id: string) => [...vehicleKeys.all, 'detail', id] as const,
 };
 

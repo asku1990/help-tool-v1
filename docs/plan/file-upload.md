@@ -263,7 +263,7 @@ Both lists open **Details** from the date/summary button for viewing saved infor
 links without entering Edit. The **⋯** disclosure also offers Details, plus Edit/Delete for
 owners and editors.
 The existing Edit flow and attachment-management controls remain
-unchanged. See [viewing saved records](../features/records.md) for implemented behavior and
+unchanged. See [viewing saved records](../features/records.md) for implemented saved-record behavior and
 manual checks. List compaction, attachment counts, and the save-first creation follow-up are
 separate slices.
 

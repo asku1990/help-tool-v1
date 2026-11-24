@@ -1,3 +1,4 @@
+export { useArchiveVehicle } from './useArchiveVehicle';
 export { useCreateVehicle } from './useCreateVehicle';
 export { useDeleteVehicle } from './useDeleteVehicle';
 export { useVehicle } from './useVehicle';

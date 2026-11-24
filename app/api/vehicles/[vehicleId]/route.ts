@@ -23,6 +23,7 @@ export async function GET(_req: NextRequest, context: { params: Promise<{ vehicl
     const vehicle = {
       id: access.vehicle.id,
       name: access.vehicle.name,
+      archivedAtUtc: access.vehicle.archivedAtUtc,
       make: access.vehicle.make,
       model: access.vehicle.model,
       year: access.vehicle.year,

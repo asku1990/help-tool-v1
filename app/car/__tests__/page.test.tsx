@@ -6,6 +6,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { http, HttpResponse } from 'msw';
 import { server } from '@/test/msw/server';
 import { useUiStore } from '@/stores/ui';
+import { vehicleKeys } from '@/queries/keys';
 import { signOut } from 'next-auth/react';
 
 vi.mock('next-auth/react', () => ({
@@ -24,8 +25,12 @@ vi.mock('sonner', () => ({
   Toaster: vi.fn(() => null),
 }));
 
-function renderWithProviders(ui: React.ReactElement) {
-  const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+function renderWithProviders(
+  ui: React.ReactElement,
+  qc = new QueryClient({
+    defaultOptions: { queries: { retry: false }, mutations: { retry: 1, retryDelay: 0 } },
+  })
+) {
   return render(<QueryClientProvider client={qc}>{ui}</QueryClientProvider>);
 }
 
@@ -106,6 +111,21 @@ it('shows a retry instead of the empty garage when vehicles fail to load', async
   expect(screen.queryByText(/choose add vehicle/i)).not.toBeInTheDocument();
 });
 
+it('points to the archive when the last active vehicle has been archived', async () => {
+  server.use(
+    http.get('/api/admin/me', () => HttpResponse.json({ data: { isAdmin: false } })),
+    http.get('/api/vehicles', () =>
+      HttpResponse.json({ data: { vehicles: [], hasArchivedVehicles: true } })
+    )
+  );
+  renderWithProviders(<CarHomePage />);
+  expect(await screen.findByText('No active vehicles.')).toBeVisible();
+  expect(screen.getByRole('link', { name: 'View archived vehicles' })).toHaveAttribute(
+    'href',
+    '/car?view=archived'
+  );
+});
+
 it('lets users sign out directly from the vehicle list', () => {
   server.use(
     http.get('/api/admin/me', () => HttpResponse.json({ data: { isAdmin: false } })),
@@ -183,18 +203,14 @@ it('shows toast success when vehicle creation succeeds', async () => {
   });
 });
 
-it('shows toast error when vehicle creation fails', async () => {
+it('reports a failed create without automatically submitting a second POST', async () => {
+  const create = vi.fn(() =>
+    HttpResponse.json({ error: { message: 'Response lost' } }, { status: 503 })
+  );
   server.use(
     http.get('/api/admin/me', () => HttpResponse.json({ data: { isAdmin: false } })),
     http.get('/api/vehicles', () => HttpResponse.json({ data: { vehicles: [] } })),
-    http.post('/api/vehicles', () =>
-      HttpResponse.json(
-        {
-          error: { code: 'VALIDATION_ERROR', message: 'Vehicle name is required' },
-        },
-        { status: 400 }
-      )
-    )
+    http.post('/api/vehicles', create)
   );
 
   renderWithProviders(<CarHomePage />);
@@ -206,6 +222,26 @@ it('shows toast error when vehicle creation fails', async () => {
   fireEvent.click(screen.getByRole('button', { name: /^create$/i }));
 
   await waitFor(() => {
-    expect(toast.error).toHaveBeenCalledWith('Vehicle name is required');
+    expect(toast.error).toHaveBeenCalled();
   });
+  expect(create).toHaveBeenCalledTimes(1);
+});
+
+it('shows Retry instead of a cached empty garage when refreshing fails', async () => {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  client.setQueryData(vehicleKeys.byStatus('active'), { vehicles: [] });
+  server.use(http.get('/api/vehicles', () => HttpResponse.json({}, { status: 503 })));
+  renderWithProviders(<CarHomePage />, client);
+  expect(await screen.findByRole('button', { name: 'Retry' })).toBeVisible();
+  expect(screen.queryByText('No vehicles yet.')).not.toBeInTheDocument();
+});
+
+it('announces an archive on arrival, focuses Vehicles, and does not replay it on return', () => {
+  useUiStore.setState({ vehicleListNotice: 'Volvo archived' });
+  const page = renderWithProviders(<CarHomePage />);
+  expect(screen.getByRole('heading', { name: 'Vehicles' })).toHaveFocus();
+  expect(toast.success).toHaveBeenCalledWith('Volvo archived');
+  page.unmount();
+  renderWithProviders(<CarHomePage />);
+  expect(toast.success).toHaveBeenCalledTimes(1);
 });

@@ -1,12 +1,11 @@
 import { useQuery } from '@tanstack/react-query';
 import { vehicleKeys } from '@/queries/keys';
-import { listVehicles } from '@/queries/vehicles';
+import { listVehicles, type VehicleStatus } from '@/queries/vehicles';
 
-export function useVehicles(enabled = true) {
+export function useVehicles(enabled = true, status: VehicleStatus = 'active') {
   return useQuery({
-    queryKey: vehicleKeys.list(),
-    queryFn: listVehicles,
+    queryKey: vehicleKeys.byStatus(status),
+    queryFn: () => listVehicles(status),
     enabled,
-    staleTime: 30_000,
   });
 }

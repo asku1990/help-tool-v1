@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useSession } from 'next-auth/react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import {
   Button,
   Dialog,
@@ -14,13 +14,14 @@ import {
   Toaster,
 } from '@/components/ui';
 import { Car, ChevronRight, Plus, Shield } from 'lucide-react';
-import { useEffect, useRef, useState, type MouseEvent } from 'react';
+import { Suspense, useEffect, useRef, useState, type MouseEvent } from 'react';
 import { useVehicles, useIsAdmin } from '@/hooks';
-import { apiPost } from '@/lib/api/client';
+import { useCreateVehicle } from '@/hooks/vehicles';
 import { useUiStore } from '@/stores/ui';
 import PageHeader from '@/components/layout/PageHeader';
 import {
   InspectionBadge,
+  archivedVehiclesHref,
   LicensePlate,
   VehicleGrid,
   VehicleListSkeleton,
@@ -31,10 +32,27 @@ import { SignOutButton } from '@/components/buttons/SignOutButton';
 import RecordActions, { recordActionClass } from '@/components/car/records/RecordActions';
 
 export default function CarHomePage() {
+  return (
+    <Suspense fallback={<VehicleListSkeleton />}>
+      <VehicleList />
+    </Suspense>
+  );
+}
+
+function VehicleList() {
+  const archived = useSearchParams()?.get('view') === 'archived';
   const { status } = useSession();
   const router = useRouter();
+  const createVehicle = useCreateVehicle();
   const [isDemo] = useState<boolean>(() => false);
-  const [loading, setLoading] = useState(false);
+  const heading = useRef<HTMLHeadingElement>(null);
+  useEffect(() => {
+    const { vehicleListNotice } = useUiStore.getState();
+    if (!heading.current || !vehicleListNotice) return;
+    useUiStore.setState({ vehicleListNotice: null });
+    heading.current.focus();
+    toast.success(vehicleListNotice);
+  }, [status]);
   const menuTrigger = useRef<HTMLElement | null>(null);
   const { isVehicleDialogOpen: open, setVehicleDialogOpen: setOpen } = useUiStore();
   const [form, setForm] = useState<{
@@ -65,11 +83,12 @@ export default function CarHomePage() {
 
   const {
     data: vehiclesData,
-    isLoading: isVehiclesLoading,
+    isFetching: isVehiclesFetching,
     isError: isVehiclesError,
     refetch: refetchVehicles,
-  } = useVehicles(status === 'authenticated' || isDemo);
+  } = useVehicles(status === 'authenticated' || isDemo, archived ? 'archived' : 'active');
   const vehicles = vehiclesData?.vehicles ?? [];
+  const isVehiclesLoading = isVehiclesFetching && !vehicles.length;
   const { data: adminData } = useIsAdmin(status === 'authenticated' || isDemo);
   const isAdmin = adminData?.isAdmin === true;
 
@@ -123,14 +142,31 @@ export default function CarHomePage() {
       />
 
       <main className="container mx-auto px-4 py-8">
-        <h2 className="text-xl font-semibold">Vehicles</h2>
+        <h2 ref={heading} tabIndex={-1} className="text-xl font-semibold">
+          Vehicles
+        </h2>
+        <nav aria-label="Vehicle views" className="mt-3 inline-flex gap-1 rounded-lg bg-muted p-1">
+          {(['Active', 'Archived'] as const).map(label => {
+            const selected = archived === (label === 'Archived');
+            return (
+              <Link
+                key={label}
+                href={label === 'Archived' ? archivedVehiclesHref : '/car'}
+                aria-current={selected ? 'page' : undefined}
+                className={`inline-flex min-h-11 items-center rounded-md px-4 text-sm ${selected ? 'bg-background font-semibold shadow-sm' : 'hover:underline'}`}
+              >
+                {label}
+              </Link>
+            );
+          })}
+        </nav>
         <div className="mt-6" aria-busy={isVehiclesLoading}>
           {isVehiclesLoading ? (
             <>
               <p className="sr-only">Loading vehicles…</p>
               <VehicleListSkeleton />
             </>
-          ) : isVehiclesError && !vehiclesData ? (
+          ) : isVehiclesError && !vehicles.length ? (
             <Card variant="subtle" className="max-w-6xl">
               <CardContent className="flex flex-wrap items-center justify-between gap-3">
                 <p role="alert" className="text-sm">
@@ -144,10 +180,22 @@ export default function CarHomePage() {
           ) : vehicles.length === 0 ? (
             <Card variant="subtle" className="max-w-6xl">
               <CardContent className="space-y-1">
-                <p className="font-medium">No vehicles yet.</p>
-                <p className="text-sm text-muted-foreground">
-                  Choose Add vehicle from the menu to start tracking fuel and expenses.
+                <p className="font-medium">
+                  {archived
+                    ? 'No archived vehicles.'
+                    : vehiclesData?.hasArchivedVehicles
+                      ? 'No active vehicles.'
+                      : 'No vehicles yet.'}
                 </p>
+                {archived ? null : vehiclesData?.hasArchivedVehicles ? (
+                  <Link className="text-sm text-primary underline" href={archivedVehiclesHref}>
+                    View archived vehicles
+                  </Link>
+                ) : (
+                  <p className="text-sm text-muted-foreground">
+                    Choose Add vehicle from the menu to start tracking fuel and expenses.
+                  </p>
+                )}
               </CardContent>
             </Card>
           ) : (
@@ -185,10 +233,16 @@ export default function CarHomePage() {
                               value={vehicle.licensePlate}
                               className="max-w-full wrap-anywhere"
                             />
-                            <InspectionBadge
-                              inspectionDueDate={vehicle.inspectionDueDate}
-                              inspectionIntervalMonths={vehicle.inspectionIntervalMonths}
-                            />
+                            {vehicle.archivedAtUtc ? (
+                              <span className="rounded-md bg-muted px-2 py-1 text-sm">
+                                Archived · {new Date(vehicle.archivedAtUtc).toLocaleDateString()}
+                              </span>
+                            ) : (
+                              <InspectionBadge
+                                inspectionDueDate={vehicle.inspectionDueDate}
+                                inspectionIntervalMonths={vehicle.inspectionIntervalMonths}
+                              />
+                            )}
                           </div>
                         </CardContent>
                       </Card>
@@ -213,9 +267,8 @@ export default function CarHomePage() {
               className="space-y-4"
               onSubmit={async e => {
                 e.preventDefault();
-                setLoading(true);
                 try {
-                  await apiPost<{ id: string }>('/*/api/vehicles'.replace('/*', ''), {
+                  await createVehicle.mutateAsync({
                     name: form.name,
                     make: form.make || undefined,
                     model: form.model || undefined,
@@ -241,11 +294,9 @@ export default function CarHomePage() {
                     inspectionIntervalMonths: '',
                     initialOdometer: '',
                   });
-                  await refetchVehicles();
+                  if (archived) router.push('/car');
                 } catch (error) {
                   toast.error(getUiErrorMessage(error, 'Failed to create vehicle'));
-                } finally {
-                  setLoading(false);
                 }
               }}
             >
@@ -337,7 +388,7 @@ export default function CarHomePage() {
                 <Button type="button" variant="outline" onClick={() => setOpen(false)}>
                   Cancel
                 </Button>
-                <Button type="submit" disabled={!form.name.trim() || loading}>
+                <Button type="submit" disabled={!form.name.trim() || createVehicle.isPending}>
                   Create
                 </Button>
               </div>

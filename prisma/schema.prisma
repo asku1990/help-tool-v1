@@ -63,6 +63,7 @@ model Vehicle {
   year      Int?
   licensePlate             String?  @db.VarChar(16)
   inspectionDueDate        DateTime?
+  archivedAtUtc            DateTime? @db.Timestamptz(3)
   inspectionIntervalMonths Int?
   initialOdometer          Int?      @default(0)
   createdAt DateTime @default(now())

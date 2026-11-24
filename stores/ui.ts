@@ -2,15 +2,17 @@
 import { create } from 'zustand';
 
 type UiState = {
+  vehicleListNotice: string | null;
   isExpenseDialogOpen: boolean;
-  setExpenseDialogOpen: (open: boolean) => void;
+  setExpenseDialogOpen: (_open: boolean) => void;
   isFillUpDialogOpen: boolean;
-  setFillUpDialogOpen: (open: boolean) => void;
+  setFillUpDialogOpen: (_open: boolean) => void;
   isVehicleDialogOpen: boolean;
-  setVehicleDialogOpen: (open: boolean) => void;
+  setVehicleDialogOpen: (_open: boolean) => void;
 };
 
 export const useUiStore = create<UiState>(set => ({
+  vehicleListNotice: null,
   isExpenseDialogOpen: false,
   setExpenseDialogOpen: open => set({ isExpenseDialogOpen: open }),
   isFillUpDialogOpen: false,

@@ -95,7 +95,7 @@ for state, dismissal, and inspection-update failure behavior.
 Select the date/summary of an expense or fill-up to open **Details** and view saved
 information and attachment links without entering an editable form. For either record,
 choose **Manage files** in Details to manage attachments.
-See [viewing saved records](../features/records.md) for the complete viewing behavior.
+See [viewing saved records](../features/records.md) for the complete saved-record viewing behavior.
 
 Select a saved filename to open it in a new tab. Owners, editors, and viewers with access to
 the vehicle can open its attachments. The app checks the vehicle, parent record, and

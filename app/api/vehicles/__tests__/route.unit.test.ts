@@ -39,6 +39,23 @@ describe('api/vehicles route (unit)', () => {
     expect(res.status).toBe(200);
     const json = await res.json();
     expect(Array.isArray(json.data.vehicles)).toBe(true);
+    expect(prisma.vehicle.findMany).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        where: { access: { some: { userId: 'u1' } }, archivedAtUtc: null },
+      })
+    );
+  });
+
+  it('lists archived vehicles only within the user’s shared access', async () => {
+    const prisma = (await import('@/lib/db')).default as unknown as PrismaMock;
+    prisma.vehicle.findMany.mockResolvedValueOnce([]);
+    const res = await GET(new NextRequest('http://localhost/api/vehicles?status=archived'));
+    expect(res.status).toBe(200);
+    expect(prisma.vehicle.findMany).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        where: { access: { some: { userId: 'u1' } }, archivedAtUtc: { not: null } },
+      })
+    );
   });
 
   it('POST validates payload and returns 400 on invalid body', async () => {
