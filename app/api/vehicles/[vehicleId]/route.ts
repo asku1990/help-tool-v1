@@ -1,8 +1,8 @@
 import { NextRequest } from 'next/server';
 import { auth } from '@/auth';
 import prisma from '@/lib/db';
-import { ok, unauthorized, notFound, serverError, badRequest, conflict } from '@/lib/api/response';
-import { isAttachmentParentConstraintError } from '@/lib/attachments/parent-deletion';
+import { ok, unauthorized, notFound, serverError, badRequest } from '@/lib/api/response';
+import { attachmentParentDeletionConflict } from '@/lib/attachments/parent-deletion';
 import { logger } from '@/lib/logger';
 import { z } from 'zod';
 import { checkRateLimit, rateLimitHeaders, rateLimitKey } from '@/lib/api/rate-limit';
@@ -143,12 +143,11 @@ export async function DELETE(
     const deleted = await prisma.vehicle.delete({ where: { id: access.vehicle.id } });
     return ok({ id: deleted.id });
   } catch (error) {
-    if (isAttachmentParentConstraintError(error)) {
-      return conflict(
-        'ATTACHMENTS_EXIST',
-        'Remove the attached files from this vehicle and its expenses and fill-ups before deleting it.'
-      );
-    }
+    const attachmentConflict = attachmentParentDeletionConflict(
+      error,
+      'Remove the attached files from this vehicle and its expenses and fill-ups before deleting it.'
+    );
+    if (attachmentConflict) return attachmentConflict;
     logger.error('DELETE /api/vehicles/[vehicleId] failed', { error });
     return serverError();
   }

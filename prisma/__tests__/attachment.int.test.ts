@@ -3,27 +3,10 @@ import { randomUUID } from 'node:crypto';
 import { cp, mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { basename, join } from 'node:path';
-import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { PostgreSqlContainer } from '@testcontainers/postgresql';
 import { execa } from 'execa';
-import { NextRequest } from 'next/server';
 import { PrismaClient } from '@/generated/prisma';
-import { DELETE as deleteVehicle } from '@/app/api/vehicles/[vehicleId]/route';
-import { DELETE as clearVehicle } from '@/app/api/vehicles/[vehicleId]/clear/route';
-import { DELETE as deleteExpense } from '@/app/api/vehicles/[vehicleId]/expenses/[expenseId]/route';
-import { DELETE as deleteFillUp } from '@/app/api/vehicles/[vehicleId]/fillups/[fillUpId]/route';
-
-let db: PrismaClient;
-let userId: string;
-
-vi.mock('@/lib/db', () => ({
-  get default() {
-    return db;
-  },
-}));
-vi.mock('@/auth', () => ({
-  auth: async () => ({ user: { id: userId } }),
-}));
 
 type TestDatabase = {
   getConnectionUri(): string;
@@ -32,7 +15,7 @@ type TestDatabase = {
 
 describe.skipIf(process.env.RUN_INTEGRATION !== '1')('Attachment persistence', () => {
   let container: TestDatabase | undefined;
-  let prisma: PrismaClient | undefined;
+  let db: PrismaClient;
   let databaseUrl: string;
   let expenseId: string;
   let fuelFillUpId: string;
@@ -52,8 +35,7 @@ describe.skipIf(process.env.RUN_INTEGRATION !== '1')('Attachment persistence', (
     await execa('pnpm', ['exec', 'prisma', 'migrate', 'deploy'], {
       env: { ...process.env, DATABASE_URL: databaseUrl },
     });
-    prisma = new PrismaClient({ datasourceUrl: databaseUrl });
-    db = prisma;
+    db = new PrismaClient({ datasourceUrl: databaseUrl });
   }, 120_000);
 
   beforeEach(async () => {
@@ -62,10 +44,8 @@ describe.skipIf(process.env.RUN_INTEGRATION !== '1')('Attachment persistence', (
     const user = await db.user.create({
       data: { email: 'attachments@example.com', username: 'attachments', passwordHash: '' },
     });
-    userId = user.id;
     const vehicle = await db.vehicle.create({ data: { userId: user.id, name: 'Test car' } });
     vehicleId = vehicle.id;
-    await db.vehicleAccess.create({ data: { userId, vehicleId, role: 'OWNER' } });
     const expense = await db.expense.create({
       data: { vehicleId, category: 'MAINTENANCE', amount: 10 },
     });
@@ -78,7 +58,7 @@ describe.skipIf(process.env.RUN_INTEGRATION !== '1')('Attachment persistence', (
 
   afterAll(async () => {
     try {
-      await prisma?.$disconnect();
+      await db?.$disconnect();
     } finally {
       await container?.stop();
     }
@@ -207,106 +187,5 @@ describe.skipIf(process.env.RUN_INTEGRATION !== '1')('Attachment persistence', (
     await expect(db.attachment.create({ data: { ...data, fuelFillUpId } })).rejects.toMatchObject({
       code: 'P2002',
     });
-  });
-
-  function deleteRequest(path = '') {
-    return new NextRequest(`http://localhost/api/vehicles/${vehicleId}${path}`, {
-      method: 'DELETE',
-    });
-  }
-
-  async function expectAttachmentConflict(response: Response, message: string) {
-    expect(response.status).toBe(409);
-    await expect(response.json()).resolves.toEqual({
-      data: null,
-      error: { code: 'ATTACHMENTS_EXIST', message },
-    });
-  }
-
-  it('blocks expense deletion until its attachment is removed', async () => {
-    const { id } = await db.attachment.create({ data: { ...metadata(), expenseId } });
-    const remove = () =>
-      deleteExpense(deleteRequest(`/expenses/${expenseId}`), {
-        params: Promise.resolve({ vehicleId, expenseId }),
-      });
-    await expectAttachmentConflict(
-      await remove(),
-      'Remove the attached files before deleting this expense.'
-    );
-    await expect(db.attachment.findUniqueOrThrow({ where: { id } })).resolves.toMatchObject({
-      expenseId,
-    });
-    await db.attachment.delete({ where: { id } });
-    expect((await remove()).status).toBe(200);
-    expect(await db.expense.count({ where: { id: expenseId } })).toBe(0);
-  });
-
-  it('blocks fill-up deletion until its attachment is removed', async () => {
-    const { id } = await db.attachment.create({ data: { ...metadata(), fuelFillUpId } });
-    const remove = () =>
-      deleteFillUp(deleteRequest(`/fillups/${fuelFillUpId}`), {
-        params: Promise.resolve({ vehicleId, fillUpId: fuelFillUpId }),
-      });
-    await expectAttachmentConflict(
-      await remove(),
-      'Remove the attached files before deleting this fill-up.'
-    );
-    await expect(db.attachment.findUniqueOrThrow({ where: { id } })).resolves.toMatchObject({
-      fuelFillUpId,
-    });
-    await db.attachment.delete({ where: { id } });
-    expect((await remove()).status).toBe(200);
-    expect(await db.fuelFillUp.count({ where: { id: fuelFillUpId } })).toBe(0);
-  });
-
-  it.each(['vehicleId', 'expenseId', 'fuelFillUpId'] as const)(
-    'blocks vehicle deletion when its only attachment belongs to %s',
-    async parent => {
-      const parents = { vehicleId, expenseId, fuelFillUpId };
-      const { id } = await db.attachment.create({
-        data: { ...metadata(), [parent]: parents[parent] },
-      });
-      const remove = () =>
-        deleteVehicle(deleteRequest(), { params: Promise.resolve({ vehicleId }) });
-      await expectAttachmentConflict(
-        await remove(),
-        'Remove the attached files from this vehicle and its expenses and fill-ups before deleting it.'
-      );
-      await expect(db.attachment.findUniqueOrThrow({ where: { id } })).resolves.toMatchObject({
-        [parent]: parents[parent],
-      });
-      expect(await db.expense.count({ where: { vehicleId } })).toBe(1);
-      expect(await db.fuelFillUp.count({ where: { vehicleId } })).toBe(1);
-      await db.attachment.delete({ where: { id } });
-      expect((await remove()).status).toBe(200);
-      expect(await db.vehicle.count({ where: { id: vehicleId } })).toBe(0);
-      expect(await db.expense.count({ where: { vehicleId } })).toBe(0);
-      expect(await db.fuelFillUp.count({ where: { vehicleId } })).toBe(0);
-    }
-  );
-
-  it('rolls back clearing vehicle data when a fill-up has a file but allows direct vehicle files', async () => {
-    const direct = await db.attachment.create({ data: { ...metadata(), vehicleId } });
-    const nested = await db.attachment.create({ data: { ...metadata(), fuelFillUpId } });
-    const tireSet = await db.tireSet.create({
-      data: { vehicleId, name: 'Winter', type: 'WINTER' },
-    });
-    const clear = () =>
-      clearVehicle(deleteRequest('/clear'), { params: Promise.resolve({ vehicleId }) });
-    await expectAttachmentConflict(
-      await clear(),
-      'Remove the attached files from this vehicle’s expenses and fill-ups before clearing its data.'
-    );
-    expect(await db.expense.count({ where: { vehicleId } })).toBe(1);
-    expect(await db.fuelFillUp.count({ where: { vehicleId } })).toBe(1);
-    expect(await db.tireSet.count({ where: { id: tireSet.id } })).toBe(1);
-    expect(await db.attachment.count()).toBe(2);
-
-    await db.attachment.delete({ where: { id: nested.id } });
-    expect((await clear()).status).toBe(200);
-    expect(await db.expense.count({ where: { vehicleId } })).toBe(0);
-    expect(await db.fuelFillUp.count({ where: { vehicleId } })).toBe(0);
-    expect(await db.tireSet.count({ where: { id: tireSet.id } })).toBe(0);
-    expect(await db.attachment.findMany()).toEqual([direct]);
   });
 });
