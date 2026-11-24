@@ -1,6 +1,7 @@
 export type VehicleDto = {
   id: string;
   name: string;
+  archivedAtUtc?: string | null;
   make?: string | null;
   model?: string | null;
   year?: number | null;

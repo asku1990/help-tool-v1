@@ -91,7 +91,8 @@ and `fillups/` each own their forms, lists, dialogs, and tests. Use `vehicle-det
 page-level summaries and `vehicles/` for reusable vehicle UI. When several record types
 share a dialog layout or interaction, put it in `records/`; shared file-management UI
 belongs in `attachments/`. `components/car/index.ts` exposes feature exports to callers.
-See [records](features/records.md) for how the dialogs behave.
+See [vehicles](features/vehicles.md) for reusable vehicle UI behavior and
+[records](features/records.md) for how saved-record dialogs behave.
 
 ## Dependency Flow
 

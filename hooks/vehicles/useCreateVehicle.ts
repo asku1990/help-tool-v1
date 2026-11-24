@@ -5,15 +5,9 @@ import { createVehicle } from '@/queries/vehicles';
 export function useCreateVehicle() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (payload: {
-      name: string;
-      make?: string;
-      model?: string;
-      year?: number;
-      licensePlate?: string;
-      inspectionDueDate?: string;
-      inspectionIntervalMonths?: number;
-    }) => createVehicle(payload),
+    mutationFn: createVehicle,
+    // A lost response does not mean the vehicle was not created.
+    retry: false,
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: vehicleKeys.list() });
     },

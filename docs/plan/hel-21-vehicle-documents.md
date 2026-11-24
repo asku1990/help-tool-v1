@@ -92,7 +92,7 @@ searching maintenance entries or entering Edit vehicle.
 **Phase 1 — proposed for review.** The original HEL-21 scope above leaves expense
 and fill-up Details read-only. This follow-up deliberately changes that: vehicle,
 expense, and fill-up Details become the common entry point for managing saved
-files. [Viewing saved records](../features/records.md) describes current behavior
+files. [Vehicles](../features/vehicles.md) describes current vehicle behavior and [viewing saved records](../features/records.md) describes saved-record behavior
 until each feature migrates.
 
 ### Desktop wireframes

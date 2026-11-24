@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { http, HttpResponse } from 'msw';
 import { server } from '@/test/msw/server';
 import { computeVehicleSummary } from '@/lib/consumption';
+import { vehicleKeys } from '@/queries/keys';
 import { useUiStore } from '@/stores/ui';
 
 beforeEach(() => {
@@ -43,8 +44,10 @@ vi.mock('next/navigation', async () => {
   };
 });
 
-function renderWithProviders(ui: React.ReactElement) {
-  const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+function renderWithProviders(
+  ui: React.ReactElement,
+  qc = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+) {
   return render(<QueryClientProvider client={qc}>{ui}</QueryClientProvider>);
 }
 
@@ -63,6 +66,78 @@ it('renders vehicle header and lists', async () => {
   expect(await screen.findByRole('heading', { name: 'Vehicle costs' })).toBeVisible();
   expect(screen.getByRole('heading', { name: 'Fuel consumption' })).toBeVisible();
   expect(screen.getByText('Lifetime cost per km')).toBeInTheDocument();
+});
+
+it('offers retry after archive fails and keeps a saved expense through archive and restore', async () => {
+  let archived = false;
+  let rejectFirstArchive = true;
+  server.use(
+    http.get('/api/vehicles/v1', () =>
+      HttpResponse.json({
+        data: {
+          vehicle: {
+            id: 'v1',
+            name: 'Sold car',
+            canEdit: true,
+            archivedAtUtc: archived ? '2026-11-24T12:00:00Z' : null,
+          },
+        },
+      })
+    ),
+    http.put('/api/vehicles/v1/archive', async ({ request }) => {
+      if (rejectFirstArchive) {
+        rejectFirstArchive = false;
+        return HttpResponse.json({}, { status: 503 });
+      }
+      const body = (await request.json()) as { archived: boolean };
+      archived = body.archived;
+      return HttpResponse.json({ data: { id: 'v1' } });
+    }),
+    http.get('/api/vehicles/v1/expenses', () =>
+      HttpResponse.json({
+        data: {
+          expenses: [{ id: 'expense-1', date: '2026-10-01', amount: 80, category: 'MAINTENANCE' }],
+          expensesTotal: 80,
+          nextCursor: null,
+        },
+      })
+    )
+  );
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const activeKey = vehicleKeys.byStatus('active');
+  const archivedKey = vehicleKeys.byStatus('archived');
+  const car = { id: 'v1', name: 'Sold car' };
+  client.setQueryData(activeKey, { vehicles: [car] });
+  client.setQueryData(archivedKey, { vehicles: [] });
+  renderWithProviders(<VehiclePage />, client);
+  fireEvent.click(await screen.findByRole('button', { name: 'More vehicle actions' }));
+  fireEvent.click(screen.getByRole('button', { name: /Archive vehicle/ }));
+  const retry = await screen.findByRole('button', { name: 'Retry' });
+  expect(screen.queryByRole('button', { name: 'Restore vehicle' })).not.toBeInTheDocument();
+  expect(client.getQueryData(activeKey)).toEqual({ vehicles: [car] });
+  fireEvent.click(retry);
+  const restore = await screen.findByRole('button', { name: 'Restore vehicle' });
+  expect(client.getQueryData(activeKey)).toBeUndefined();
+  expect(client.getQueryData(archivedKey)).toBeUndefined();
+  expect(screen.getByRole('link', { name: 'Back to vehicles' })).toHaveAttribute(
+    'href',
+    '/car?view=archived'
+  );
+  expect(
+    within(screen.getByRole('table', { name: 'Expense records' })).getAllByRole('row')
+  ).toHaveLength(2);
+  await waitFor(() => expect(restore).toBeEnabled());
+  client.setQueryData(activeKey, { vehicles: [], hasArchivedVehicles: true });
+  client.setQueryData(archivedKey, { vehicles: [car] });
+  fireEvent.click(restore);
+  await waitFor(() =>
+    expect(screen.queryByRole('button', { name: 'Restore vehicle' })).not.toBeInTheDocument()
+  );
+  expect(client.getQueryData(activeKey)).toBeUndefined();
+  expect(client.getQueryData(archivedKey)).toBeUndefined();
+  expect(
+    within(screen.getByRole('table', { name: 'Expense records' })).getAllByRole('row')
+  ).toHaveLength(2);
 });
 
 it('shows all-time fuel and expense totals before and after loading older records', async () => {

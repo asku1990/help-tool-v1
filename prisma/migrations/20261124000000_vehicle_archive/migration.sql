@@ -1,0 +1,1 @@
+ALTER TABLE "Vehicle" ADD COLUMN "archivedAtUtc" TIMESTAMPTZ(3);

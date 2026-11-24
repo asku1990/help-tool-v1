@@ -1,4 +1,4 @@
-export { default as BackToVehiclesLink } from './BackToVehiclesLink';
+export { default as BackToVehiclesLink, archivedVehiclesHref } from './BackToVehiclesLink';
 export { default as LicensePlate } from './LicensePlate';
 export { default as InspectionBadge } from './InspectionBadge';
 export { default as VehicleDialog } from './VehicleDialog';

@@ -35,6 +35,8 @@ import { TireOverview } from '@/components/car/tires';
 import { useExpenses, useVehicleSummary, useVehicle, useDeleteVehicle } from '@/hooks';
 import { pickLastInspectionDateFromExpenses } from '@/utils';
 import { toast } from 'sonner';
+import { useArchiveVehicle } from '@/hooks/vehicles';
+import { useUiStore } from '@/stores/ui';
 import { getUiErrorMessage } from '@/lib/api/client-errors';
 
 import {
@@ -68,6 +70,22 @@ export default function VehiclePage() {
   const vehicle = vehicleQuery.data?.vehicle;
   const vehicleFieldsReady = !vehicleQuery.isError && vehicleQuery.fetchStatus === 'idle';
   const deleteVehicleMutation = useDeleteVehicle(vehicleId || '');
+  const archiveMutation = useArchiveVehicle(vehicleId || '');
+  async function changeArchiveStatus(archived: boolean) {
+    if (!vehicle) return;
+    try {
+      await archiveMutation.mutateAsync(archived);
+      useUiStore.setState({
+        vehicleListNotice: `${vehicle.name} ${archived ? 'archived' : 'restored'}`,
+      });
+      router.push('/car');
+    } catch (error) {
+      toast.error(
+        getUiErrorMessage(error, `Could not ${archived ? 'archive' : 'restore'} vehicle.`),
+        { action: { label: 'Retry', onClick: () => void changeArchiveStatus(archived) } }
+      );
+    }
+  }
   const [vehicleEntry, setVehicleEntry] = useState<'view' | 'edit' | null>(null);
   const vehicleDialogTrigger = useRef<HTMLElement | null>(null);
   const [isDeleteOpen, setDeleteOpen] = useState(false);
@@ -134,7 +152,7 @@ export default function VehiclePage() {
 
   return (
     <div className="min-h-screen bg-canvas">
-      <VehiclePageHeader navigation={<BackToVehiclesLink />}>
+      <VehiclePageHeader navigation={<BackToVehiclesLink archived={!!vehicle?.archivedAtUtc} />}>
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div className="min-w-0">
             <h1 className="min-w-0 text-2xl leading-tight font-bold tracking-tight wrap-anywhere sm:text-3xl">
@@ -164,11 +182,27 @@ export default function VehiclePage() {
             {vehicle ? (
               <div className="mt-2 flex flex-wrap items-center gap-2 sm:gap-3">
                 <LicensePlate value={vehicle.licensePlate} />
-                <InspectionBadge
-                  inspectionDueDate={vehicle.inspectionDueDate}
-                  lastInspectionDate={lastInspectionDate?.toISOString()}
-                  inspectionIntervalMonths={vehicle.inspectionIntervalMonths}
-                />
+                {vehicle.archivedAtUtc ? (
+                  <div className="flex flex-wrap items-center gap-2 rounded-md bg-muted px-3 py-1 text-sm">
+                    Archived vehicle
+                    {vehicle.canEdit && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={archiveMutation.isPending}
+                        onClick={() => changeArchiveStatus(false)}
+                      >
+                        Restore vehicle
+                      </Button>
+                    )}
+                  </div>
+                ) : (
+                  <InspectionBadge
+                    inspectionDueDate={vehicle.inspectionDueDate}
+                    lastInspectionDate={lastInspectionDate?.toISOString()}
+                    inspectionIntervalMonths={vehicle.inspectionIntervalMonths}
+                  />
+                )}
               </div>
             ) : vehicleQuery.isError ? (
               <div role="alert" className="flex flex-wrap items-center gap-2 text-sm text-red-600">
@@ -220,6 +254,19 @@ export default function VehiclePage() {
                   </Button>
                 ) : null}
                 <SpreadsheetExportLink vehicleId={vehicle.id} />
+                {vehicle.canEdit && !vehicle.archivedAtUtc && (
+                  <Button
+                    variant="ghost"
+                    className={`${recordActionClass} h-auto flex-col items-start`}
+                    disabled={archiveMutation.isPending}
+                    onClick={() => changeArchiveStatus(true)}
+                  >
+                    Archive vehicle
+                    <span className="text-xs font-normal text-muted-foreground">
+                      Moves to Archived for everyone with access.
+                    </span>
+                  </Button>
+                )}
                 {vehicle.canEdit ? (
                   <>
                     <hr className="my-1 border-border/40" />

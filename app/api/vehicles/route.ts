@@ -22,9 +22,15 @@ export async function GET(req: NextRequest): Promise<Response> {
       return unauthorized();
     }
 
+    const status = z
+      .enum(['active', 'archived'])
+      .safeParse(req.nextUrl.searchParams.get('status') ?? 'active');
+    if (!status.success) return badRequest('VALIDATION_ERROR', 'Invalid vehicle status');
+    const archived = status.data === 'archived';
+    const access = { some: { userId } };
     const vehicles = await prisma.vehicle.findMany({
-      where: { access: { some: { userId } } },
-      orderBy: { createdAt: 'desc' },
+      where: { access, archivedAtUtc: archived ? { not: null } : null },
+      orderBy: archived ? { archivedAtUtc: 'desc' } : { createdAt: 'desc' },
       select: {
         id: true,
         name: true,
@@ -32,13 +38,21 @@ export async function GET(req: NextRequest): Promise<Response> {
         model: true,
         year: true,
         licensePlate: true,
+        archivedAtUtc: true,
         inspectionDueDate: true,
         inspectionIntervalMonths: true,
         initialOdometer: true,
       },
     });
 
-    return ok({ vehicles }, { headers: { 'Cache-Control': 'no-store' } });
+    const hasArchivedVehicles =
+      !archived && vehicles.length === 0
+        ? !!(await prisma.vehicle.findFirst({
+            where: { access, archivedAtUtc: { not: null } },
+            select: { id: true },
+          }))
+        : undefined;
+    return ok({ vehicles, hasArchivedVehicles }, { headers: { 'Cache-Control': 'no-store' } });
   } catch (error) {
     logger.error('GET /api/vehicles failed', { error });
     return serverError();
