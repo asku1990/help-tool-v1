@@ -153,7 +153,9 @@ Review cascading deletes and committed migration SQL before changing relations.
 Remote migration application is a separate operational action, not implicit validation.
 
 Attachments use a separate private R2 bucket and server-only credentials, isolated from database
-backups and production resources. The staging-only lifecycle may leave orphaned objects.
+backups and production resources. Restrictive attachment foreign keys block parent deletion
+while file metadata exists, including when deleting a vehicle cascades to its records.
+The staging-only lifecycle may still leave orphaned objects from failed uploads or older deletes.
 PostgreSQL backups do not include attachment bytes or establish document recoverability.
 See the [attachment plan](plan/file-upload.md) for the accepted scope and
 [storage guide](development/attachments.md) for configuration.

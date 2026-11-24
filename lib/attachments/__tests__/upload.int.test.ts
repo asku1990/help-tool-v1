@@ -37,6 +37,7 @@ describe.skipIf(process.env.RUN_INTEGRATION !== '1')('Attachment upload concurre
   }, 120_000);
 
   beforeEach(async () => {
+    await db.attachment.deleteMany();
     await db.user.deleteMany();
     const user = await db.user.create({
       data: { email: 'uploads@example.com', username: 'uploads', passwordHash: '' },

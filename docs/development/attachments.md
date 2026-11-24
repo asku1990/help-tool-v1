@@ -160,5 +160,8 @@ opens. Viewers must have no pencil controls.
 - **Tests pass without credentials:** R2 is mocked in automated tests; a real upload
   is still needed to validate the configuration.
 
-Deleting a parent removes its metadata but leaves R2 objects. Failed uploads can also
-leave orphaned objects. Do not add real documents or assume production lifecycle guarantees.
+Parent deletion is blocked while attachment metadata exists. The **Clear vehicle data**
+API rolls back the entire operation if any targeted expense or fill-up has an attachment.
+Direct vehicle attachments do not block clearing because that operation keeps them.
+Objects orphaned before the guard was added, or by a failed upload, are not cleaned up.
+Do not add real documents or assume production lifecycle guarantees.

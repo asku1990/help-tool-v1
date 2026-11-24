@@ -18,6 +18,10 @@ available to owners and editors.
 **Delete vehicle** for owners only. Vehicle deletion requires confirmation. Tap or click
 outside the menu to close it. Closing a menu dialog returns focus to **More**.
 
+Permanent deletion is blocked if the vehicle, any expense, or any fill-up still has
+files. Remove those files through **Details → Manage files** before retrying. Archive
+instead if you want to keep the vehicle’s history and files.
+
 On the vehicles list, **Add vehicle** is in the **⋯** menu.
 Tap or click outside to close the menu. Closing the dialog returns focus to **⋯**.
 

@@ -1,7 +1,8 @@
 import { NextRequest } from 'next/server';
 import { auth } from '@/auth';
 import prisma from '@/lib/db';
-import { ok, unauthorized, notFound, badRequest, serverError } from '@/lib/api/response';
+import { ok, unauthorized, notFound, badRequest, serverError, conflict } from '@/lib/api/response';
+import { isAttachmentParentConstraintError } from '@/lib/attachments/parent-deletion';
 import { logger } from '@/lib/logger';
 import { getSessionUserId, canAccessVehicle } from '@/lib/api/vehicle-access';
 import { checkRateLimit, rateLimitHeaders, recordEditRateLimitKey } from '@/lib/api/rate-limit';
@@ -79,6 +80,12 @@ export async function DELETE(
     await prisma.fuelFillUp.delete({ where: { id: fillUpId, vehicleId } });
     return ok({ id: fillUpId });
   } catch (error) {
+    if (isAttachmentParentConstraintError(error)) {
+      return conflict(
+        'ATTACHMENTS_EXIST',
+        'Remove the attached files before deleting this fill-up.'
+      );
+    }
     let code: string | undefined;
     if (error && typeof error === 'object' && 'code' in error) {
       code = (error as { code?: string }).code;

@@ -35,6 +35,9 @@ Escape. Keyboard users can activate the native disclosure, Tab through its butto
 and press Escape to close it and return focus to the trigger. Delete retains its existing
 confirmation.
 
+An expense or fill-up with attachments cannot be deleted. Remove its files through
+**Details → Manage files**, then retry the record deletion.
+
 The existing list responses include a server-derived `canWrite` flag. Viewers and callers
 without a confirmed write capability can open Details from the row summary, but see no
 action disclosure or empty-list creation action.

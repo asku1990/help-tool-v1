@@ -144,9 +144,9 @@ model Attachment {
   createdAtUtc  DateTime @default(now()) @db.Timestamptz(3)
   updatedAtUtc  DateTime @updatedAt @db.Timestamptz(3)
 
-  vehicle       Vehicle?    @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
-  expense       Expense?    @relation(fields: [expenseId], references: [id], onDelete: Cascade)
-  fuelFillUp    FuelFillUp? @relation(fields: [fuelFillUpId], references: [id], onDelete: Cascade)
+  vehicle       Vehicle?    @relation(fields: [vehicleId], references: [id], onDelete: Restrict)
+  expense       Expense?    @relation(fields: [expenseId], references: [id], onDelete: Restrict)
+  fuelFillUp    FuelFillUp? @relation(fields: [fuelFillUpId], references: [id], onDelete: Restrict)
 
   @@index([vehicleId])
   @@index([expenseId])

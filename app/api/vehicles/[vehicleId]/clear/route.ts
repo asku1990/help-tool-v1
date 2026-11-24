@@ -3,7 +3,8 @@ import { auth } from '@/auth';
 import prisma from '@/lib/db';
 import { checkRateLimit, rateLimitHeaders, rateLimitKey } from '@/lib/api/rate-limit';
 import { logger } from '@/lib/logger';
-import { ok, unauthorized, notFound, serverError } from '@/lib/api/response';
+import { ok, unauthorized, notFound, serverError, conflict } from '@/lib/api/response';
+import { isAttachmentParentConstraintError } from '@/lib/attachments/parent-deletion';
 import { getSessionUserId, getVehicleAccess, hasPermission } from '@/lib/api/vehicle-access';
 
 export async function DELETE(
@@ -68,6 +69,12 @@ export async function DELETE(
       deleted: result,
     });
   } catch (error) {
+    if (isAttachmentParentConstraintError(error)) {
+      return conflict(
+        'ATTACHMENTS_EXIST',
+        'Remove the attached files from this vehicle’s expenses and fill-ups before clearing its data.'
+      );
+    }
     logger.error('DELETE /api/vehicles/[vehicleId]/clear failed', { error });
     return serverError();
   }
